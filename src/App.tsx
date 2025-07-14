@@ -91,7 +91,10 @@ function App() {
           </div>
         </div>
 
-        <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 z-20 scroll-indicator cursor-pointer">
+        <div 
+          className="absolute bottom-8 left-1/2 transform -translate-x-1/2 z-20 scroll-indicator cursor-pointer"
+          onClick={() => scrollToSection("how-it-works")}
+        >
           <ChevronDownIcon className="text-white w-8 h-8 opacity-80 hover:opacity-100 transition-opacity duration-300" />
         </div>
       </section>
