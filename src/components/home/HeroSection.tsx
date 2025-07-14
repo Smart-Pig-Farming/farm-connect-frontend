@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { ChevronDownIcon } from "@/components/ui/icons";
-import { useScrollAnimation, useParallax } from "@/hooks/useScrollAnimation";
+import { HeroBackground } from "@/components/ui/hero-background";
+import { useScrollAnimation } from "@/hooks/useScrollAnimation";
 import { useNavigate } from "react-router-dom";
 
 interface HeroSectionProps {
@@ -8,32 +9,16 @@ interface HeroSectionProps {
 }
 
 export function HeroSection({ onScrollToSection }: HeroSectionProps) {
-  const parallaxOffset = useParallax();
   const heroRef = useScrollAnimation();
   const navigate = useNavigate();
 
   return (
-    <section
-      ref={heroRef.ref}
-      className="relative min-h-screen parallax-container bg-cover bg-center bg-fixed flex items-center justify-center"
-      style={{
-        backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.6)), url('/images/hero.png')`,
-        transform: `translateY(${parallaxOffset * 0.5}px)`,
-      }}
-    >
-      <div className="absolute inset-0 bg-gradient-to-br from-orange-500/20 to-blue-600/20"></div>
-      <div className="absolute inset-0 bg-gradient-radial from-black/40 via-black/20 to-transparent"></div>
-      {/* Logo */}
-      <div className="absolute top-4 left-4 md:top-6 md:left-6 z-20">
-        <h1 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold">
-          <span className="text-white">Farm</span>
-          <span className="text-orange-400">Connect</span>
-        </h1>
-      </div>{" "}
+    <HeroBackground>
       <div
-        className={`relative z-10 text-center text-white px-4 sm:px-6 lg:px-8 max-w-4xl mx-auto transition-all duration-1000 ${
+        className={`text-center text-white px-4 sm:px-6 lg:px-8 max-w-4xl mx-auto transition-all duration-1000 ${
           heroRef.isVisible ? "animate-slide-up" : "opacity-0"
         }`}
+        ref={heroRef.ref}
       >
         <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-bold mb-4 md:mb-6 leading-tight">
           <span className="text-white">Connect.</span>{" "}
@@ -65,11 +50,11 @@ export function HeroSection({ onScrollToSection }: HeroSectionProps) {
         </div>
       </div>
       <div
-        className="absolute bottom-8 left-1/2 transform -translate-x-1/2 z-20 scroll-indicator cursor-pointer"
+        className="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-20 scroll-indicator cursor-pointer"
         onClick={() => onScrollToSection("how-it-works")}
       >
         <ChevronDownIcon className="text-white w-8 h-8 opacity-80 hover:opacity-100 transition-opacity duration-300" />
       </div>
-    </section>
+    </HeroBackground>
   );
 }
