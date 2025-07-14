@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { HeroBackground } from "@/components/ui/hero-background";
 import { ArrowLeftIcon, CheckIcon } from "@/components/ui/icons";
+import { locationData } from "@/data/location";
 
 interface FormData {
   // Personal Information
@@ -11,7 +12,8 @@ interface FormData {
   lastName: string;
   email: string;
   password: string;
-  
+  confirmPassword: string;
+
   // Organization Details
   farmName: string;
   province: string;
@@ -28,6 +30,7 @@ const JoinUsPage = () => {
     lastName: "",
     email: "",
     password: "",
+    confirmPassword: "",
     farmName: "",
     province: "",
     district: "",
@@ -37,12 +40,62 @@ const JoinUsPage = () => {
 
   const [errors, setErrors] = useState<Partial<FormData>>({});
 
+  // Helper functions for location data
+  const getProvinces = () => Object.keys(locationData);
+
+  const getDistricts = (province: string) => {
+    return province
+      ? Object.keys(locationData[province as keyof typeof locationData] || {})
+      : [];
+  };
+
+  const getSectors = (province: string, district: string) => {
+    if (!province || !district) return [];
+    const provinceData = locationData[province as keyof typeof locationData];
+    return provinceData
+      ? provinceData[district as keyof typeof provinceData] || []
+      : [];
+  };
+
+  // Handle location field changes
+  const handleLocationChange = (
+    field: "province" | "district" | "sector",
+    value: string
+  ) => {
+    if (field === "province") {
+      setFormData((prev) => ({
+        ...prev,
+        province: value,
+        district: "",
+        sector: "",
+      }));
+    } else if (field === "district") {
+      setFormData((prev) => ({
+        ...prev,
+        district: value,
+        sector: "",
+      }));
+    } else {
+      setFormData((prev) => ({
+        ...prev,
+        sector: value,
+      }));
+    }
+
+    // Clear errors
+    if (errors[field]) {
+      setErrors((prev) => ({ ...prev, [field]: undefined }));
+    }
+  };
+
   // Validation functions
   const validateStep1 = () => {
     const stepErrors: Partial<FormData> = {};
-    
-    if (!formData.firstName.trim()) stepErrors.firstName = "First name is required";
-    if (!formData.lastName.trim()) stepErrors.lastName = "Last name is required";
+
+    if (!formData.firstName.trim())
+      stepErrors.firstName = "First name is required";
+    if (!formData.lastName.trim())
+      stepErrors.lastName = "Last name is required";
     if (!formData.email.trim()) {
       stepErrors.email = "Email is required";
     } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
@@ -53,14 +106,20 @@ const JoinUsPage = () => {
     } else if (formData.password.length < 6) {
       stepErrors.password = "Password must be at least 6 characters";
     }
+    if (!formData.confirmPassword) {
+      stepErrors.confirmPassword = "Please confirm your password";
+    } else if (formData.password !== formData.confirmPassword) {
+      stepErrors.confirmPassword = "Passwords do not match";
+    }
 
     return stepErrors;
   };
 
   const validateStep2 = () => {
     const stepErrors: Partial<FormData> = {};
-    
-    if (!formData.farmName.trim()) stepErrors.farmName = "Farm name is required";
+
+    if (!formData.farmName.trim())
+      stepErrors.farmName = "Farm name is required";
     if (!formData.province.trim()) stepErrors.province = "Province is required";
     if (!formData.district.trim()) stepErrors.district = "District is required";
     if (!formData.sector.trim()) stepErrors.sector = "Sector is required";
@@ -84,16 +143,16 @@ const JoinUsPage = () => {
   };
 
   const handleInputChange = (field: keyof FormData, value: string) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      [field]: value
+      [field]: value,
     }));
 
     // Clear error when user starts typing
     if (errors[field]) {
-      setErrors(prev => ({
+      setErrors((prev) => ({
         ...prev,
-        [field]: undefined
+        [field]: undefined,
       }));
     }
   };
@@ -126,59 +185,68 @@ const JoinUsPage = () => {
 
     // Here you would typically submit the form data to your backend
     console.log("Form submitted:", formData);
-    
+
     // For now, let's navigate to home or show success message
     navigate("/");
   };
 
   return (
     <HeroBackground showParallax={false}>
-      <div className="w-full max-w-md mx-auto px-4">
-        <Card className="bg-white/95 backdrop-blur-sm shadow-2xl border-0 p-8">
+      <div className="w-full max-w-lg mx-auto px-4">
+        <Card className="bg-black/20 backdrop-blur-lg shadow-2xl border border-white/20 p-8 rounded-2xl">
           {/* Progress Stepper */}
           <div className="flex items-center justify-center mb-8">
             <div className="flex items-center space-x-4">
               {/* Step 1 */}
               <div className="flex items-center">
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold ${
-                  currentStep >= 1 
-                    ? 'bg-orange-500 text-white' 
-                    : 'bg-gray-200 text-gray-500'
-                }`}>
-                  {currentStep > 1 ? <CheckIcon className="w-5 h-5" /> : '1'}
+                <div
+                  className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold ${
+                    currentStep >= 1
+                      ? "bg-orange-500 text-white"
+                      : "bg-white/20 text-white/60"
+                  }`}
+                >
+                  {currentStep > 1 ? <CheckIcon className="w-5 h-5" /> : "1"}
                 </div>
-                <span className="ml-2 text-sm font-medium text-gray-700">Personal Info</span>
+                <span className="ml-2 text-sm font-medium text-white/90">
+                  Personal Info
+                </span>
               </div>
-              
+
               {/* Connector */}
-              <div className={`w-12 h-0.5 ${
-                currentStep > 1 ? 'bg-orange-500' : 'bg-gray-200'
-              }`}></div>
-              
+              <div
+                className={`w-12 h-0.5 ${
+                  currentStep > 1 ? "bg-orange-500" : "bg-white/20"
+                }`}
+              ></div>
+
               {/* Step 2 */}
               <div className="flex items-center">
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold ${
-                  currentStep >= 2 
-                    ? 'bg-orange-500 text-white' 
-                    : 'bg-gray-200 text-gray-500'
-                }`}>
+                <div
+                  className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold ${
+                    currentStep >= 2
+                      ? "bg-orange-500 text-white"
+                      : "bg-white/20 text-white/60"
+                  }`}
+                >
                   2
                 </div>
-                <span className="ml-2 text-sm font-medium text-gray-700">Farm Details</span>
+                <span className="ml-2 text-sm font-medium text-white/90">
+                  Farm Details
+                </span>
               </div>
             </div>
           </div>
 
           {/* Form Title */}
           <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">
+            <h1 className="text-3xl font-bold text-white mb-2">
               Join Our Community
             </h1>
-            <p className="text-gray-600">
-              {currentStep === 1 
-                ? "Let's start with your personal information" 
-                : "Tell us about your farming operation"
-              }
+            <p className="text-white/80">
+              {currentStep === 1
+                ? "Let's start with your personal information"
+                : "Tell us about your farming operation"}
             </p>
           </div>
 
@@ -187,84 +255,121 @@ const JoinUsPage = () => {
             <div className="space-y-6">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-white/90 mb-2">
                     First Name
                   </label>
                   <input
                     type="text"
                     value={formData.firstName}
-                    onChange={(e) => handleInputChange('firstName', e.target.value)}
-                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent ${
-                      errors.firstName ? 'border-red-500' : 'border-gray-300'
+                    onChange={(e) =>
+                      handleInputChange("firstName", e.target.value)
+                    }
+                    className={`w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent placeholder-white/60 text-white ${
+                      errors.firstName ? "border-red-400 bg-red-500/10" : ""
                     }`}
                     placeholder="John"
                   />
                   {errors.firstName && (
-                    <p className="mt-1 text-sm text-red-600">{errors.firstName}</p>
+                    <p className="mt-1 text-sm text-red-300">
+                      {errors.firstName}
+                    </p>
                   )}
                 </div>
-                
+
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-white/90 mb-2">
                     Last Name
                   </label>
                   <input
                     type="text"
                     value={formData.lastName}
-                    onChange={(e) => handleInputChange('lastName', e.target.value)}
-                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent ${
-                      errors.lastName ? 'border-red-500' : 'border-gray-300'
+                    onChange={(e) =>
+                      handleInputChange("lastName", e.target.value)
+                    }
+                    className={`w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent placeholder-white/60 text-white ${
+                      errors.lastName ? "border-red-400 bg-red-500/10" : ""
                     }`}
                     placeholder="Doe"
                   />
                   {errors.lastName && (
-                    <p className="mt-1 text-sm text-red-600">{errors.lastName}</p>
+                    <p className="mt-1 text-sm text-red-300">
+                      {errors.lastName}
+                    </p>
                   )}
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-white/90 mb-2">
                   Email Address
                 </label>
                 <input
                   type="email"
                   value={formData.email}
-                  onChange={(e) => handleInputChange('email', e.target.value)}
-                  className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent ${
-                    errors.email ? 'border-red-500' : 'border-gray-300'
+                  onChange={(e) => handleInputChange("email", e.target.value)}
+                  className={`w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent placeholder-white/60 text-white ${
+                    errors.email ? "border-red-400 bg-red-500/10" : ""
                   }`}
                   placeholder="john.doe@example.com"
                 />
                 {errors.email && (
-                  <p className="mt-1 text-sm text-red-600">{errors.email}</p>
+                  <p className="mt-1 text-sm text-red-300">{errors.email}</p>
                 )}
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-white/90 mb-2">
                   Password
                 </label>
                 <input
                   type="password"
                   value={formData.password}
-                  onChange={(e) => handleInputChange('password', e.target.value)}
-                  className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent ${
-                    errors.password ? 'border-red-500' : 'border-gray-300'
+                  onChange={(e) =>
+                    handleInputChange("password", e.target.value)
+                  }
+                  className={`w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent placeholder-white/60 text-white ${
+                    errors.password ? "border-red-400 bg-red-500/10" : ""
                   }`}
                   placeholder="Enter a secure password"
                 />
                 {errors.password && (
-                  <p className="mt-1 text-sm text-red-600">{errors.password}</p>
+                  <p className="mt-1 text-sm text-red-300">{errors.password}</p>
                 )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-white/90 mb-2">
+                  Confirm Password
+                </label>
+                <input
+                  type="password"
+                  value={formData.confirmPassword}
+                  onChange={(e) =>
+                    handleInputChange("confirmPassword", e.target.value)
+                  }
+                  onPaste={(e) => {
+                    e.preventDefault();
+                    return false;
+                  }}
+                  className={`w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent placeholder-white/60 text-white ${
+                    errors.confirmPassword ? "border-red-400 bg-red-500/10" : ""
+                  }`}
+                  placeholder="Re-enter your password"
+                />
+                {errors.confirmPassword && (
+                  <p className="mt-1 text-sm text-red-300">
+                    {errors.confirmPassword}
+                  </p>
+                )}
+                
               </div>
 
               <Button
                 onClick={handleNext}
                 className={`w-full py-3 font-semibold transition-all duration-300 ${
                   isStep1Valid()
-                    ? 'bg-orange-500 hover:bg-orange-600 text-white cursor-pointer'
-                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                    ? "bg-orange-500 hover:bg-orange-600 text-white cursor-pointer"
+                    : "bg-gray-300 text-gray-500 cursor-not-allowed"
                 }`}
                 disabled={!isStep1Valid()}
               >
@@ -277,111 +382,144 @@ const JoinUsPage = () => {
           {currentStep === 2 && (
             <div className="space-y-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-white/90 mb-2">
                   Farm Name
                 </label>
                 <input
                   type="text"
                   value={formData.farmName}
-                  onChange={(e) => handleInputChange('farmName', e.target.value)}
-                  className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent ${
-                    errors.farmName ? 'border-red-500' : 'border-gray-300'
+                  onChange={(e) =>
+                    handleInputChange("farmName", e.target.value)
+                  }
+                  className={`w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent placeholder-white/60 text-white ${
+                    errors.farmName ? "border-red-400 bg-red-500/10" : ""
                   }`}
                   placeholder="Green Valley Farm"
                 />
                 {errors.farmName && (
-                  <p className="mt-1 text-sm text-red-600">{errors.farmName}</p>
+                  <p className="mt-1 text-sm text-red-300">{errors.farmName}</p>
                 )}
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-white/90 mb-2">
                   Province
                 </label>
-                <input
-                  type="text"
+                <select
                   value={formData.province}
-                  onChange={(e) => handleInputChange('province', e.target.value)}
-                  className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent ${
-                    errors.province ? 'border-red-500' : 'border-gray-300'
+                  onChange={(e) =>
+                    handleLocationChange("province", e.target.value)
+                  }
+                  className={`w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent text-white ${
+                    errors.province ? "border-red-400 bg-red-500/10" : ""
                   }`}
-                  placeholder="Enter your province"
-                />
+                >
+                  <option value="" className="bg-gray-800 text-white">
+                    Select your province
+                  </option>
+                  {getProvinces().map((province) => (
+                    <option
+                      key={province}
+                      value={province}
+                      className="bg-gray-800 text-white"
+                    >
+                      {province}
+                    </option>
+                  ))}
+                </select>
                 {errors.province && (
-                  <p className="mt-1 text-sm text-red-600">{errors.province}</p>
+                  <p className="mt-1 text-sm text-red-300">{errors.province}</p>
                 )}
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-white/90 mb-2">
                   District
                 </label>
-                <input
-                  type="text"
+                <select
                   value={formData.district}
-                  onChange={(e) => handleInputChange('district', e.target.value)}
-                  className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent ${
-                    errors.district ? 'border-red-500' : 'border-gray-300'
+                  onChange={(e) =>
+                    handleLocationChange("district", e.target.value)
+                  }
+                  disabled={!formData.province}
+                  className={`w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent text-white disabled:opacity-50 disabled:cursor-not-allowed ${
+                    errors.district ? "border-red-400 bg-red-500/10" : ""
                   }`}
-                  placeholder="Enter your district"
-                />
+                >
+                  <option value="" className="bg-gray-800 text-white">
+                    {formData.province
+                      ? "Select your district"
+                      : "Select province first"}
+                  </option>
+                  {getDistricts(formData.province).map((district) => (
+                    <option
+                      key={district}
+                      value={district}
+                      className="bg-gray-800 text-white"
+                    >
+                      {district}
+                    </option>
+                  ))}
+                </select>
                 {errors.district && (
-                  <p className="mt-1 text-sm text-red-600">{errors.district}</p>
+                  <p className="mt-1 text-sm text-red-300">{errors.district}</p>
                 )}
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-white/90 mb-2">
                   Sector
                 </label>
-                <input
-                  type="text"
+                <select
                   value={formData.sector}
-                  onChange={(e) => handleInputChange('sector', e.target.value)}
-                  className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent ${
-                    errors.sector ? 'border-red-500' : 'border-gray-300'
+                  onChange={(e) =>
+                    handleLocationChange("sector", e.target.value)
+                  }
+                  disabled={!formData.province || !formData.district}
+                  className={`w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent text-white disabled:opacity-50 disabled:cursor-not-allowed ${
+                    errors.sector ? "border-red-400 bg-red-500/10" : ""
                   }`}
-                  placeholder="Enter your sector"
-                />
+                >
+                  <option value="" className="bg-gray-800 text-white">
+                    {formData.province && formData.district
+                      ? "Select your sector"
+                      : "Select district first"}
+                  </option>
+                  {getSectors(formData.province, formData.district).map(
+                    (sector) => (
+                      <option
+                        key={sector}
+                        value={sector}
+                        className="bg-gray-800 text-white"
+                      >
+                        {sector}
+                      </option>
+                    )
+                  )}
+                </select>
                 {errors.sector && (
-                  <p className="mt-1 text-sm text-red-600">{errors.sector}</p>
+                  <p className="mt-1 text-sm text-red-300">{errors.sector}</p>
                 )}
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Field/Specialty
-                </label>
-                <input
-                  type="text"
-                  value={formData.field}
-                  onChange={(e) => handleInputChange('field', e.target.value)}
-                  className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent ${
-                    errors.field ? 'border-red-500' : 'border-gray-300'
-                  }`}
-                  placeholder="e.g., Crop farming, Livestock, etc."
-                />
-                {errors.field && (
-                  <p className="mt-1 text-sm text-red-600">{errors.field}</p>
-                )}
-              </div>
+           
 
               <div className="flex space-x-4">
                 <Button
                   onClick={handleBack}
                   variant="outline"
-                  className="flex-1 py-3 font-semibold border-gray-300 text-gray-700 hover:bg-gray-50"
+                  className="flex-1 py-3 font-semibold border-white/30 text-white hover:bg-white/10 bg-transparent"
                 >
                   <ArrowLeftIcon className="w-4 h-4 mr-2" />
                   Back
                 </Button>
-                
+
                 <Button
                   onClick={handleSubmit}
                   className={`flex-1 py-3 font-semibold transition-all duration-300 ${
                     isFormValid()
-                      ? 'bg-orange-500 hover:bg-orange-600 text-white cursor-pointer'
-                      : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                      ? "bg-orange-500 hover:bg-orange-600 text-white cursor-pointer"
+                      : "bg-white/20 text-white/60 cursor-not-allowed"
                   }`}
                   disabled={!isFormValid()}
                 >
@@ -395,7 +533,7 @@ const JoinUsPage = () => {
           <div className="mt-8 text-center">
             <button
               onClick={() => navigate("/")}
-              className="text-sm text-gray-600 hover:text-orange-500 transition-colors duration-200"
+              className="text-sm text-white/70 hover:text-orange-400 transition-colors duration-200"
             >
               ← Back to Home
             </button>
