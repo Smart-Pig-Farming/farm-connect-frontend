@@ -5,27 +5,29 @@ import {
   TrendingUpIcon,
 } from "@/components/ui/icons";
 import { useScrollAnimation } from "@/hooks/useScrollAnimation";
+import { useNavigate } from "react-router-dom";
 
 export function HowItWorksSection() {
   const howItWorksRef = useScrollAnimation();
+  const navigate = useNavigate();
 
   return (
     <section
       id="how-it-works"
       ref={howItWorksRef.ref}
-      className="py-24 bg-white relative z-10"
+      className="py-16 md:py-20 lg:py-24 bg-white relative z-10"
     >
-      <div className="container mx-auto px-4 max-w-6xl">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-6xl">
         <div
-          className={`text-center mb-20 transition-all duration-1000 ${
+          className={`text-center mb-16 md:mb-20 transition-all duration-1000 ${
             howItWorksRef.isVisible ? "animate-fade-in-up" : "opacity-0"
           }`}
         >
-          <h2 className="text-4xl md:text-5xl font-bold text-slate-800 mb-4">
+          <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-slate-800 mb-3 md:mb-4">
             How It Works
           </h2>
-          <div className="w-24 h-1 bg-orange-500 mx-auto mb-6"></div>
-          <p className="text-xl text-slate-600 max-w-2xl mx-auto">
+          <div className="w-20 md:w-24 h-1 bg-orange-500 mx-auto mb-4 md:mb-6"></div>
+          <p className="text-base sm:text-lg md:text-xl text-slate-600 max-w-2xl mx-auto px-4">
             Three simple steps to transform your farming journey
           </p>
         </div>
@@ -125,10 +127,13 @@ export function HowItWorksSection() {
               howItWorksRef.isVisible ? "animate-fade-in-up" : "opacity-0"
             }`}
           >
-            <p className="text-slate-600 mb-6">Ready to get started?</p>
+            <p className="text-sm sm:text-base md:text-lg text-slate-600 mb-6">
+              Ready to get started?
+            </p>
             <Button
               size="lg"
-              className="bg-orange-600 hover:from-orange-600 hover:to-blue-600 text-white shadow-xl hover:shadow-2xl hover:scale-105 transition-all duration-300 cursor-pointer"
+              onClick={() => navigate("/join")}
+              className="bg-orange-600 hover:from-orange-600 hover:to-blue-600 text-white shadow-xl hover:shadow-2xl hover:scale-105 transition-all duration-300 cursor-pointer text-sm sm:text-base md:text-lg px-6 sm:px-8 py-3 h-11 sm:h-12"
             >
               Join the Community
             </Button>

@@ -6,23 +6,23 @@ export function BestPracticesSection() {
   return (
     <section
       ref={bestPracticesRef.ref}
-      className="py-24 bg-gradient-to-br from-slate-800 via-slate-700 to-slate-900 relative z-10 overflow-hidden"
+      className="py-16 md:py-20 lg:py-24 bg-gradient-to-br from-slate-800 via-slate-700 to-slate-900 relative z-10 overflow-hidden"
     >
       {/* Background decorative elements */}
       <div className="absolute top-0 left-0 w-96 h-96 bg-orange-500/10 rounded-full blur-3xl"></div>
       <div className="absolute bottom-0 right-0 w-80 h-80 bg-blue-500/10 rounded-full blur-3xl"></div>
 
-      <div className="container mx-auto px-4 max-w-6xl">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-6xl">
         <div
-          className={`text-center mb-20 transition-all duration-1000 ${
+          className={`text-center mb-16 md:mb-20 transition-all duration-1000 ${
             bestPracticesRef.isVisible ? "animate-fade-in-up" : "opacity-0"
           }`}
         >
-          <h2 className="text-4xl md:text-5xl font-bold text-white mb-4">
+          <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-3 md:mb-4">
             Knowledge You Can Build On.
           </h2>
-          <div className="w-24 h-1 bg-orange-500 mx-auto mb-6"></div>
-          <p className="text-xl text-slate-300 max-w-2xl mx-auto leading-relaxed">
+          <div className="w-20 md:w-24 h-1 bg-orange-500 mx-auto mb-4 md:mb-6"></div>
+          <p className="text-base sm:text-lg md:text-xl text-slate-300 max-w-2xl mx-auto leading-relaxed px-4">
             Discover proven strategies and best practices from industry experts
             and experienced farmers.
           </p>

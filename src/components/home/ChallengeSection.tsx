@@ -6,14 +6,14 @@ export function ChallengeSection() {
   return (
     <section
       ref={challengeRef.ref}
-      className="py-24 bg-gradient-to-br from-slate-50 via-white to-orange-50 relative z-10 overflow-hidden"
+      className="py-16 md:py-20 lg:py-24 bg-gradient-to-br from-slate-50 via-white to-orange-50 relative z-10 overflow-hidden"
     >
-      <div className="container mx-auto px-4 max-w-6xl">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-6xl">
         {/* Background decorative elements */}
         <div className="absolute top-10 left-10 w-32 h-32 bg-orange-100 rounded-full opacity-30 blur-xl"></div>
         <div className="absolute bottom-10 right-10 w-40 h-40 bg-blue-100 rounded-full opacity-30 blur-xl"></div>
 
-        <div className="grid md:grid-cols-2 gap-16 items-start relative">
+        <div className="grid lg:grid-cols-2 gap-8 md:gap-12 lg:gap-16 items-start relative">
           {/* Problem Side */}
           <div
             className={`transition-all duration-1000 ${
@@ -24,14 +24,14 @@ export function ChallengeSection() {
           >
             <div className="relative">
               {/* Icon */}
-              <div className="mb-8">
-                <div className="w-16 h-16 bg-red-100 rounded-2xl flex items-center justify-center shadow-lg">
-                  <span className="text-4xl">😰</span>
+              <div className="mb-6 md:mb-8">
+                <div className="w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 bg-red-100 rounded-2xl flex items-center justify-center shadow-lg">
+                  <span className="text-2xl sm:text-3xl md:text-4xl">😰</span>
                 </div>
               </div>
 
-              <div className="mb-8">
-                <h2 className="text-4xl font-bold text-slate-800 mb-4 leading-tight">
+              <div className="mb-6 md:mb-8">
+                <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-slate-800 mb-3 md:mb-4 leading-tight">
                   Farming alone is{" "}
                   <span className="text-red-500 relative inline-block">
                     hard
@@ -54,22 +54,22 @@ export function ChallengeSection() {
                 </h2>
               </div>
 
-              <div className="space-y-4">
+              <div className="space-y-3 md:space-y-4">
                 <div className="flex items-start gap-3">
-                  <div className="w-2 h-2 bg-red-400 rounded-full mt-3 flex-shrink-0"></div>
-                  <p className="text-slate-600 leading-relaxed">
+                  <div className="w-2 h-2 bg-red-400 rounded-full mt-2 md:mt-3 flex-shrink-0"></div>
+                  <p className="text-sm sm:text-base text-slate-600 leading-relaxed">
                     Guesswork and outdated advice cost you money
                   </p>
                 </div>
                 <div className="flex items-start gap-3">
-                  <div className="w-2 h-2 bg-red-400 rounded-full mt-3 flex-shrink-0"></div>
-                  <p className="text-slate-600 leading-relaxed">
+                  <div className="w-2 h-2 bg-red-400 rounded-full mt-2 md:mt-3 flex-shrink-0"></div>
+                  <p className="text-sm sm:text-base text-slate-600 leading-relaxed">
                     Market surprises hurt your bottom line
                   </p>
                 </div>
                 <div className="flex items-start gap-3">
-                  <div className="w-2 h-2 bg-red-400 rounded-full mt-3 flex-shrink-0"></div>
-                  <p className="text-slate-600 leading-relaxed">
+                  <div className="w-2 h-2 bg-red-400 rounded-full mt-2 md:mt-3 flex-shrink-0"></div>
+                  <p className="text-sm sm:text-base text-slate-600 leading-relaxed">
                     Finding trustworthy info shouldn't be a full-time job
                   </p>
                 </div>
@@ -87,14 +87,14 @@ export function ChallengeSection() {
           >
             <div className="relative">
               {/* Icon */}
-              <div className="mb-8">
-                <div className="w-16 h-16 bg-blue-100 rounded-2xl flex items-center justify-center shadow-lg">
-                  <span className="text-4xl">🤝</span>
+              <div className="mb-6 md:mb-8">
+                <div className="w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 bg-blue-100 rounded-2xl flex items-center justify-center shadow-lg">
+                  <span className="text-2xl sm:text-3xl md:text-4xl">🤝</span>
                 </div>
               </div>
 
-              <div className="mb-8">
-                <h2 className="text-4xl font-bold text-slate-800 mb-4 leading-tight">
+              <div className="mb-6 md:mb-8">
+                <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-slate-800 mb-3 md:mb-4 leading-tight">
                   FarmConnect brings the{" "}
                   <span className="text-blue-600 relative inline-block">
                     experts
@@ -117,33 +117,33 @@ export function ChallengeSection() {
                 </h2>
               </div>
 
-              <div className="space-y-4 mb-8">
+              <div className="space-y-3 md:space-y-4 mb-6 md:mb-8">
                 <div className="flex items-start gap-3">
-                  <div className="w-2 h-2 bg-blue-400 rounded-full mt-3 flex-shrink-0"></div>
-                  <p className="text-slate-600 leading-relaxed">
+                  <div className="w-2 h-2 bg-blue-400 rounded-full mt-2 md:mt-3 flex-shrink-0"></div>
+                  <p className="text-sm sm:text-base text-slate-600 leading-relaxed">
                     Instant access to experienced farmers & vets
                   </p>
                 </div>
                 <div className="flex items-start gap-3">
-                  <div className="w-2 h-2 bg-blue-400 rounded-full mt-3 flex-shrink-0"></div>
-                  <p className="text-slate-600 leading-relaxed">
+                  <div className="w-2 h-2 bg-blue-400 rounded-full mt-2 md:mt-3 flex-shrink-0"></div>
+                  <p className="text-sm sm:text-base text-slate-600 leading-relaxed">
                     Share knowledge, learn from real experiences
                   </p>
                 </div>
                 <div className="flex items-start gap-3">
-                  <div className="w-2 h-2 bg-blue-400 rounded-full mt-3 flex-shrink-0"></div>
-                  <p className="text-slate-600 leading-relaxed">
+                  <div className="w-2 h-2 bg-blue-400 rounded-full mt-2 md:mt-3 flex-shrink-0"></div>
+                  <p className="text-sm sm:text-base text-slate-600 leading-relaxed">
                     Make confident decisions with community support
                   </p>
                 </div>
               </div>
 
-              <div className="flex items-center gap-4 p-4 bg-blue-50 rounded-xl border-l-4 border-blue-400 shadow-sm">
+              <div className="flex items-center gap-3 md:gap-4 p-3 md:p-4 bg-blue-50 rounded-xl border-l-4 border-blue-400 shadow-sm">
                 <div className="flex-shrink-0">
-                  <span className="text-2xl">💡</span>
+                  <span className="text-xl md:text-2xl">💡</span>
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-blue-800">
+                  <p className="text-xs sm:text-sm font-semibold text-blue-800">
                     Join 2,500+ farmers
                   </p>
                   <p className="text-xs text-blue-600">
