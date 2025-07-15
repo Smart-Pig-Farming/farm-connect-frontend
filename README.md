@@ -92,23 +92,6 @@ npm run build
 - Platform analytics & insights
 - System administration
 
-## State Management Architecture
-
-```typescript
-// RTK Query for API calls
-const { data, isLoading } = useGetPostsQuery();
-
-// Redux slices for local state
-const user = useAppSelector((state) => state.auth.user);
-const dispatch = useAppDispatch();
-```
-
-## Development Roadmap
-
-- [ ] **Real-time Chat** - Instant farmer communication
-- [ ] **Advanced Analytics** - Farm performance insights
-- [ ] **Mobile App** - Native iOS/Android support
-- [ ] **API Integration** - External agricultural data sources
 
 ## Contributing
 
