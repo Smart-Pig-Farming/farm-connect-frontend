@@ -192,8 +192,8 @@ const JoinUsPage = () => {
 
   return (
     <HeroBackground showParallax={false}>
-      <div className="w-full max-w-lg mx-auto px-4">
-        <Card className="bg-black/20 backdrop-blur-lg shadow-2xl border border-white/20 p-8 rounded-2xl">
+      <div className="w-full max-w-lg mx-auto px-4 py-8 min-h-screen flex items-center overflow-y-auto">
+        <Card className="bg-black/20 backdrop-blur-lg shadow-2xl border border-white/20 p-8 rounded-2xl w-full mt-28 mb-8">
           {/* Progress Stepper */}
           <div className="flex items-center justify-center mb-8">
             <div className="flex items-center space-x-4">
@@ -361,7 +361,6 @@ const JoinUsPage = () => {
                     {errors.confirmPassword}
                   </p>
                 )}
-                
               </div>
 
               <Button
@@ -501,8 +500,6 @@ const JoinUsPage = () => {
                   <p className="mt-1 text-sm text-red-300">{errors.sector}</p>
                 )}
               </div>
-
-           
 
               <div className="flex space-x-4">
                 <Button
