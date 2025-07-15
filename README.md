@@ -1,4 +1,5 @@
-# FarmCo### **Multi-Role Platfo- **Vite** + **React 19** + **TypeScript**
+# FarmConnect
+
 - **Redux Toolkit** + **RTK Query** for state & API management
 - **Tailwind CSS v4** + **Radix UI** for modern styling
 - **Lucide React** icons + **CVA** component variants
@@ -10,7 +11,7 @@ A modern web application enabling farmers to collaborate, share knowledge, acces
 
 ## Core Features
 
-### � **Multi-Role Platform**
+### **Multi-Role Platform**
 
 - **Farmers** - Register, share experiences, access resources
 - **Veterinarians & Government Experts** - Share best practices, moderate content
@@ -33,11 +34,11 @@ A modern web application enabling farmers to collaborate, share knowledge, acces
 
 ## Tech Stack
 
-- ⚡ **Vite** + ⚛️ **React 19** + 🔷 **TypeScript**
-- 🔄 **Redux Toolkit** + 🌐 **RTK Query** for state & API management
-- � **Tailwind CSS v4** + 🧩 **Radix UI** for modern styling
-- 🖼️ **Lucide React** icons + ✨ **CVA** component variants
-- 📏 **ESLint** + 🔧 **Path aliases** for clean development
+-  **Vite** +  **React 19** +  **TypeScript**
+-  **Redux Toolkit** +  **RTK Query** for state & API management
+-  **Tailwind CSS v4** +  **Radix UI** for modern styling
+-  **Lucide React** icons +  **CVA** component variants
+-  **ESLint** +  **Path aliases** for clean development
 
 ## Project Structure
 
