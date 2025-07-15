@@ -123,7 +123,6 @@ const dispatch = useAppDispatch();
 Comprehensive documentation is available in the [`docs/`](./docs/) folder:
 
 - **[Use Cases](./docs/use-cases.md)** - Complete functional specifications
-- **[Documentation Index](./docs/README.md)** - Full documentation overview
 
 ---
 
