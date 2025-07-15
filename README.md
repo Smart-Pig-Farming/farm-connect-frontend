@@ -1,10 +1,14 @@
-# 🐷 FarmConnect
+# FarmCo### **Multi-Role Platfo- **Vite** + **React 19** + **TypeScript**
+- **Redux Toolkit** + **RTK Query** for state & API management
+- **Tailwind CSS v4** + **Radix UI** for modern styling
+- **Lucide React** icons + **CVA** component variants
+- **ESLint** + **Path aliases** for clean developmentect
 
 > **Precision pig farming platform connecting farmers, experts, and agricultural innovation**
 
 A modern web application enabling farmers to collaborate, share knowledge, access expert guidance, and build thriving agricultural communities.
 
-## ✨ Core Features
+## Core Features
 
 ### � **Multi-Role Platform**
 
@@ -12,7 +16,7 @@ A modern web application enabling farmers to collaborate, share knowledge, acces
 - **Veterinarians & Government Experts** - Share best practices, moderate content
 - **Admins** - Manage users, content moderation, platform oversight
 
-### 💬 **Community Engagement**
+### **Community Engagement**
 
 - **Discussion Posts** - Share experiences with tags and media
 - **Best Practices Hub** - Expert-curated agricultural guidance
@@ -20,14 +24,14 @@ A modern web application enabling farmers to collaborate, share knowledge, acces
 - **Points & Levels** - Gamified engagement system
 - **Content Moderation** - Community-driven quality control
 
-### 🔐 **Secure Authentication**
+### **Secure Authentication**
 
 - Multi-step farmer registration with location mapping
 - OTP-based password recovery
 - Role-based access control
 - Admin user management
 
-## 🚀 Tech Stack
+## Tech Stack
 
 - ⚡ **Vite** + ⚛️ **React 19** + 🔷 **TypeScript**
 - 🔄 **Redux Toolkit** + 🌐 **RTK Query** for state & API management
@@ -35,24 +39,24 @@ A modern web application enabling farmers to collaborate, share knowledge, acces
 - 🖼️ **Lucide React** icons + ✨ **CVA** component variants
 - 📏 **ESLint** + 🔧 **Path aliases** for clean development
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 src/
-├── 🏪 store/               # Redux & RTK Query
+├── store/                 # Redux & RTK Query
 │   ├── api/               # RTK Query endpoints
 │   ├── slices/            # Redux slices
 │   └── hooks.ts           # Typed store hooks
-├── 📱 components/
-│   ├── 🏠 home/           # Landing sections
-│   └── 🎨 ui/             # Reusable components
-├── 📄 pages/              # Route components
-├── 🔧 hooks/              # Custom React hooks
-├── 📊 data/               # Static configurations
-└── 🛠️ lib/                # Utilities
+├── components/
+│   ├── home/              # Landing sections
+│   └── ui/                # Reusable components
+├── pages/                 # Route components
+├── hooks/                 # Custom React hooks
+├── data/                  # Static configurations
+└── lib/                   # Utilities
 ```
 
-## 🛠️ Quick Start
+## Quick Start
 
 ```bash
 # Install & run
@@ -63,7 +67,7 @@ npm run dev
 npm run build
 ```
 
-## 🎯 Key Use Cases
+## Key Use Cases
 
 ### **For Farmers**
 
@@ -87,7 +91,7 @@ npm run build
 - Platform analytics & insights
 - System administration
 
-## 🔄 State Management Architecture
+## State Management Architecture
 
 ```typescript
 // RTK Query for API calls
@@ -98,14 +102,14 @@ const user = useAppSelector((state) => state.auth.user);
 const dispatch = useAppDispatch();
 ```
 
-## 🚧 Development Roadmap
+## Development Roadmap
 
 - [ ] **Real-time Chat** - Instant farmer communication
 - [ ] **Advanced Analytics** - Farm performance insights
 - [ ] **Mobile App** - Native iOS/Android support
 - [ ] **API Integration** - External agricultural data sources
 
-## 🤝 Contributing
+## Contributing
 
 1. Fork the repository
 2. Create feature branch (`git checkout -b feature/amazing-feature`)
@@ -113,7 +117,7 @@ const dispatch = useAppDispatch();
 4. Push to branch (`git push origin feature/amazing-feature`)
 5. Open Pull Request
 
-## 📚 Documentation
+## Documentation
 
 Comprehensive documentation is available in the [`docs/`](./docs/) folder:
 
