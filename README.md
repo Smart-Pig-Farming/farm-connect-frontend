@@ -1,69 +1,125 @@
-# React + TypeScript + Vite
+# 🐷 FarmConnect
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+> **Precision pig farming platform connecting farmers, experts, and agricultural innovation**
 
-Currently, two official plugins are available:
+A modern web application enabling farmers to collaborate, share knowledge, access expert guidance, and build thriving agricultural communities.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## ✨ Core Features
 
-## Expanding the ESLint configuration
+### � **Multi-Role Platform**
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+- **Farmers** - Register, share experiences, access resources
+- **Veterinarians & Government Experts** - Share best practices, moderate content
+- **Admins** - Manage users, content moderation, platform oversight
 
-```js
-export default tseslint.config([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+### 💬 **Community Engagement**
 
-      // Remove tseslint.configs.recommended and replace with this
-      ...tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      ...tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      ...tseslint.configs.stylisticTypeChecked,
+- **Discussion Posts** - Share experiences with tags and media
+- **Best Practices Hub** - Expert-curated agricultural guidance
+- **Interactive Quizzes** - Validate learning with assessments
+- **Points & Levels** - Gamified engagement system
+- **Content Moderation** - Community-driven quality control
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+### 🔐 **Secure Authentication**
+
+- Multi-step farmer registration with location mapping
+- OTP-based password recovery
+- Role-based access control
+- Admin user management
+
+## 🚀 Tech Stack
+
+- ⚡ **Vite** + ⚛️ **React 19** + 🔷 **TypeScript**
+- 🔄 **Redux Toolkit** + 🌐 **RTK Query** for state & API management
+- � **Tailwind CSS v4** + 🧩 **Radix UI** for modern styling
+- 🖼️ **Lucide React** icons + ✨ **CVA** component variants
+- 📏 **ESLint** + 🔧 **Path aliases** for clean development
+
+## 📁 Project Structure
+
+```
+src/
+├── 🏪 store/               # Redux & RTK Query
+│   ├── api/               # RTK Query endpoints
+│   ├── slices/            # Redux slices
+│   └── hooks.ts           # Typed store hooks
+├── 📱 components/
+│   ├── 🏠 home/           # Landing sections
+│   └── 🎨 ui/             # Reusable components
+├── 📄 pages/              # Route components
+├── 🔧 hooks/              # Custom React hooks
+├── 📊 data/               # Static configurations
+└── 🛠️ lib/                # Utilities
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## 🛠️ Quick Start
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+```bash
+# Install & run
+npm install
+npm run dev
 
-export default tseslint.config([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+# Build for production
+npm run build
 ```
+
+## 🎯 Key Use Cases
+
+### **For Farmers**
+
+- Register with farm location details
+- Create discussion posts with media
+- Access expert best practices
+- Take educational quizzes
+- Earn points through engagement
+
+### **For Experts (Vets/Govt)**
+
+- Share validated best practices
+- Create educational quizzes
+- Moderate community content
+- Support farmer knowledge
+
+### **For Admins**
+
+- Manage user accounts & roles
+- Content moderation & quality control
+- Platform analytics & insights
+- System administration
+
+## 🔄 State Management Architecture
+
+```typescript
+// RTK Query for API calls
+const { data, isLoading } = useGetPostsQuery();
+
+// Redux slices for local state
+const user = useAppSelector((state) => state.auth.user);
+const dispatch = useAppDispatch();
+```
+
+## 🚧 Development Roadmap
+
+- [ ] **Real-time Chat** - Instant farmer communication
+- [ ] **Advanced Analytics** - Farm performance insights
+- [ ] **Mobile App** - Native iOS/Android support
+- [ ] **API Integration** - External agricultural data sources
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit changes (`git commit -m 'Add amazing feature'`)
+4. Push to branch (`git push origin feature/amazing-feature`)
+5. Open Pull Request
+
+## 📚 Documentation
+
+Comprehensive documentation is available in the [`docs/`](./docs/) folder:
+
+- **[Use Cases](./docs/use-cases.md)** - Complete functional specifications
+- **[Documentation Index](./docs/README.md)** - Full documentation overview
+
+---
+
+**FarmConnect** - _Empowering farmers. Enabling growth. Building the future of agriculture._

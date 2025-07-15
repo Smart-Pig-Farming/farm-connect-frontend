@@ -1,0 +1,298 @@
+@startuml
+' General settings for cleaner diagrams
+skinparam handwritten false
+skinparam monochrome false
+skinparam shadowing false
+skinparam linetype ortho
+
+' Core User Management Entities
+entity "User" {
+  *id : int <<PK>>
+  firstname : varchar
+  lastname : varchar
+  email : varchar
+  username : varchar
+  password : varchar
+  organization : varchar
+  sector : varchar
+  district : varchar
+  province : varchar
+  points : int
+  isLocked : boolean
+  isVerified : boolean
+  created_at : timestamp
+  updated_at : timestamp
+  --
+  level_id : int <<FK>>
+  role_id : int <<FK>>
+}
+
+entity "Role" {
+  *id : int <<PK>>
+  name : varchar
+  description : text
+  created_at : timestamp
+  updated_at : timestamp
+}
+
+entity "Permission" {
+  *id : int <<PK>>
+  name : varchar
+  description : text
+  is_active : boolean
+  --
+  resource_id : int <<FK>>
+  action_id : int <<FK>>
+}
+
+entity "Role_Permission" {
+  *id : int <<PK>>
+  assigned_at : timestamp
+  --
+  role_id : int <<FK>>
+  permission_id : int <<FK>>
+}
+
+entity "Resource" {
+  *id : int <<PK>>
+  name : varchar
+  description : text
+  is_active : boolean
+}
+
+entity "Action" {
+  *id : int <<PK>>
+  name : varchar
+  description : text
+  is_active : boolean
+}
+
+entity "Level" {
+  *id : int <<PK>>
+  name : varchar
+  description : text
+  min_points : int
+  max_points : int
+}
+
+' Content Management Entities
+entity "Content" {
+  *id : int <<PK>>
+  title : varchar
+  text_content : text
+  content_type : enum
+  is_approved : boolean
+  approved_at : timestamp
+  is_deleted : boolean
+  still_available : boolean
+  created_at : timestamp
+  updated_at : timestamp
+  --
+  user_id : int <<FK>>
+  parent_id : int <<FK>>
+  content_media_id : int <<FK>>
+}
+
+entity "Content_Media_Files" {
+  *id : int <<PK>>
+  media_type : enum
+  file_url : varchar
+  file_size : bigint
+  uploaded_at : timestamp
+  --
+  content_id : int <<FK>>
+}
+
+entity "Post_Tag" {
+  *id : int <<PK>>
+  name : varchar
+  description : text
+  is_active : boolean
+  created_at : timestamp
+}
+
+entity "Content_Tag_Assignment" {
+  *id : int <<PK>>
+  assigned_at : timestamp
+  --
+  content_id : int <<FK>>
+  tag_id : int <<FK>>
+}
+
+entity "Content_Reactions" {
+  *id : int <<PK>>
+  reaction_type : enum
+  created_at : timestamp
+  --
+  content_id : int <<FK>>
+  user_id : int <<FK>>
+}
+
+entity "Content_Reports" {
+  *id : int <<PK>>
+  reason : varchar
+  comment : text
+  status : enum
+  created_at : timestamp
+  resolved_at : timestamp
+  --
+  content_id : int <<FK>>
+  reporter_id : int <<FK>>
+  resolver_id : int <<FK>>
+}
+
+entity "Moderation_Log" {
+  *id : int <<PK>>
+  action : enum
+  reason : text
+  created_at : timestamp
+  --
+  content_id : int <<FK>>
+  moderator_id : int <<FK>>
+}
+
+' Best Practices Entities
+entity "Best_Practice_Content" {
+  *id : int <<PK>>
+  title : varchar
+  description : text
+  benefits : text
+  steps : text
+  language : varchar
+  isPublished : boolean
+  created_at : timestamp
+  updated_at : timestamp
+  --
+  created_by : int <<FK>>
+}
+
+entity "Best_Practice_Translate_Content" {
+  *id : int <<PK>>
+  language : varchar
+  title : varchar
+  description : text
+  benefits : text
+  steps : text
+  translated_at : timestamp
+  --
+  best_practice_id : int <<FK>>
+}
+
+entity "Best_Practice_Tag" {
+  *id : int <<PK>>
+  name : varchar
+  description : text
+  is_active : boolean
+  created_at : timestamp
+}
+
+entity "Best_Practice_Tag_Assignment" {
+  *id : int <<PK>>
+  assigned_at : timestamp
+  --
+  best_practice_id : int <<FK>>
+  tag_id : int <<FK>>
+  assigned_by : int <<FK>>
+}
+
+entity "Best_Practice_Media_Files" {
+  *id : int <<PK>>
+  media_type : enum
+  file_url : varchar
+  file_size : bigint
+  uploaded_at : timestamp
+  --
+  best_practice_id : int <<FK>>
+}
+
+' Quiz Entities
+entity "Quiz" {
+  *id : int <<PK>>
+  title : varchar
+  description : text
+  duration : int
+  passing_score : int
+  is_active : boolean
+  created_at : timestamp
+  --
+  best_practice_tag_id : int <<FK>>
+  created_by : int <<FK>>
+}
+
+entity "Question" {
+  *id : int <<PK>>
+  question_text : text
+  question_order : int
+  explanation : text
+  is_active : boolean
+  created_at : timestamp
+  --
+  quiz_id : int <<FK>>
+  parent_role_id : int <<FK>>
+}
+
+entity "Answer" {
+  *id : int <<PK>>
+  answer_text : text
+  is_correct : boolean
+  option_order : int
+  explanation : text
+  is_active : boolean
+  --
+  question_id : int <<FK>>
+  parent_role_id : int <<FK>>
+}
+
+entity "Quiz_History" {
+  *id : int <<PK>>
+  started_at : timestamp
+  completed_at : timestamp
+  correct_questions : int
+  total_questions : int
+  score : decimal
+  --
+  user_id : int <<FK>>
+  quiz_id : int <<FK>>
+}
+
+' Relationships - User Management
+User }o--|| Role : has
+User }o--|| Level : belongs_to
+Role ||--o{ Role_Permission : has
+Permission ||--o{ Role_Permission : assigned_to
+Permission }o--|| Resource : applies_to
+Permission }o--|| Action : defines
+User ||--o{ Content : creates
+User ||--o{ Best_Practice_Content : authors
+
+' Relationships - Content Management
+Content }o--|| Content : replies_to
+Content ||--o{ Content_Media_Files : has_media
+Content ||--o{ Content_Tag_Assignment : tagged_with
+Post_Tag ||--o{ Content_Tag_Assignment : categorizes
+Content ||--o{ Content_Reactions : receives
+User ||--o{ Content_Reactions : makes
+Content ||--o{ Content_Reports : reported_as
+User ||--o{ Content_Reports : reports
+User ||--o{ Content_Reports : resolves
+Content ||--o{ Moderation_Log : moderated_by
+User ||--o{ Moderation_Log : moderates
+
+' Relationships - Best Practices
+Best_Practice_Content ||--o{ Best_Practice_Translate_Content : translated_to
+Best_Practice_Content ||--o{ Best_Practice_Tag_Assignment : categorized_by
+Best_Practice_Tag ||--o{ Best_Practice_Tag_Assignment : assigns
+User ||--o{ Best_Practice_Tag_Assignment : assigns
+Best_Practice_Content ||--o{ Best_Practice_Media_Files : has_media
+
+' Relationships - Quiz System
+Best_Practice_Tag ||--o{ Quiz : has_quiz
+User ||--o{ Quiz : creates
+Quiz ||--o{ Question : contains
+Question ||--o{ Answer : has_options
+Role ||--o{ Question : created_by
+Role ||--o{ Answer : created_by
+User ||--o{ Quiz_History : attempts
+Quiz ||--o{ Quiz_History : attempted_by
+
+@enduml
