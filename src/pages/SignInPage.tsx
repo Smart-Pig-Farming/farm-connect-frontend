@@ -1,9 +1,12 @@
 import { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { HeroBackground } from "@/components/ui/hero-background";
-import { Notification } from "@/components/ui/notification";
+import { useLoginMutation } from "@/store/api/authApi";
+import { setCredentials } from "@/store/slices/authSlice";
+import { useAppDispatch } from "@/store/hooks";
 
 interface SignInData {
   email: string;
@@ -13,24 +16,15 @@ interface SignInData {
 const SignInPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const dispatch = useAppDispatch();
+  const [login, { isLoading }] = useLoginMutation();
+
   const [formData, setFormData] = useState<SignInData>({
     email: "",
     password: "",
   });
 
   const [errors, setErrors] = useState<Partial<SignInData>>({});
-  const [isLoading, setIsLoading] = useState(false);
-  const [notification, setNotification] = useState<{
-    show: boolean;
-    type: "success" | "error" | "info" | "warning";
-    title: string;
-    message: string;
-  }>({
-    show: false,
-    type: "success",
-    title: "",
-    message: "",
-  });
 
   // Get the redirect path if user was redirected from protected route
   const from = location.state?.from?.pathname || "/dashboard";
@@ -77,41 +71,123 @@ const SignInPage = () => {
 
     if (Object.keys(formErrors).length > 0) {
       setErrors(formErrors);
+      toast.error("Please fix the errors", {
+        description: "Complete all required fields to continue.",
+        duration: 3000,
+      });
       return;
     }
 
-    setIsLoading(true);
+    let loadingToastId: string | number | undefined;
 
     try {
-      // Here you would typically submit the form data to your backend
-      console.log("Sign in attempt:", formData);
-
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      // Show success notification
-      setNotification({
-        show: true,
-        type: "success",
-        title: "Welcome back!",
-        message: "You have been successfully signed in.",
+      // Show loading toast
+      loadingToastId = toast.loading("Signing you in...", {
+        description: "Please wait while we verify your credentials.",
       });
 
-      // On successful sign in, navigate to intended destination or dashboard
+      // Attempt login
+      const response = await login({
+        email: formData.email,
+        password: formData.password,
+      }).unwrap();
+
+      // Dismiss loading toast
+      toast.dismiss(loadingToastId);
+
+      // Store credentials in Redux
+      dispatch(
+        setCredentials({
+          user: response.data.user,
+          token: response.data.token,
+        })
+      );
+
+      // Store token in localStorage for persistence
+      localStorage.setItem("token", response.data.token);
+
+      // Show success toast
+      toast.success("Welcome back!", {
+        description: `Hello ${response.data.user.firstname}! Redirecting to your dashboard...`,
+        duration: 3000,
+      });
+
+      // Determine redirect path based on user role
+      let redirectPath = from;
+      if (from === "/dashboard") {
+        // If no specific redirect, go to role-appropriate dashboard
+        switch (response.data.user.role) {
+          case "admin":
+            redirectPath = "/dashboard/users";
+            break;
+          case "vet":
+          case "govt":
+            redirectPath = "/dashboard/overview";
+            break;
+          case "farmer":
+          default:
+            redirectPath = "/dashboard";
+            break;
+        }
+      }
+
+      // Navigate to intended destination
       setTimeout(() => {
-        navigate(from, { replace: true });
+        navigate(redirectPath, { replace: true });
       }, 1500);
     } catch (error) {
-      console.error("Sign in error:", error);
-      setErrors({ email: "Invalid credentials. Please try again." });
-      setNotification({
-        show: true,
-        type: "error",
-        title: "Sign In Failed",
-        message: "Invalid credentials. Please check your email and password.",
+      console.error("Login failed:", error);
+
+      // Dismiss loading toast if it was created
+      if (loadingToastId) {
+        toast.dismiss(loadingToastId);
+      }
+
+      // Extract error message and determine error type
+      let errorTitle = "Sign In Failed";
+      let errorMessage = "Something went wrong. Please try again.";
+
+      if (error && typeof error === "object" && "data" in error) {
+        const errorData = error as { data?: { error?: string; code?: string } };
+
+        if (errorData.data?.error) {
+          errorMessage = errorData.data.error;
+
+          // Handle specific error cases based on use case requirements
+          switch (errorData.data.code) {
+            case "INVALID_CREDENTIALS":
+              errorTitle = "Invalid Credentials";
+              errorMessage = "Invalid email or password.";
+              setErrors({ email: "Invalid email or password" });
+              break;
+
+            case "ACCOUNT_LOCKED":
+              errorTitle = "Account Locked";
+              errorMessage =
+                "Account is temporarily locked. Contact administrator.";
+              break;
+
+            case "ACCOUNT_NOT_VERIFIED":
+              errorTitle = "Account Not Verified";
+              errorMessage =
+                "Your account requires verification. Redirecting to verification...";
+              // TODO: Redirect to first-time login verification flow
+              setTimeout(() => {
+                navigate("/verify", { state: { email: formData.email } });
+              }, 2000);
+              break;
+
+            default:
+              break;
+          }
+        }
+      }
+
+      // Show error toast
+      toast.error(errorTitle, {
+        description: errorMessage,
+        duration: 5000,
       });
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -238,15 +314,6 @@ const SignInPage = () => {
           </div>
         </Card>
       </div>
-
-      {/* Notification */}
-      <Notification
-        type={notification.type}
-        title={notification.title}
-        message={notification.message}
-        show={notification.show}
-        onClose={() => setNotification({ ...notification, show: false })}
-      />
     </HeroBackground>
   );
 };
