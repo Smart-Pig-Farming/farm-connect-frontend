@@ -1,15 +1,19 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { HeroBackground } from "@/components/ui/hero-background";
 import { ArrowLeftIcon, CheckIcon } from "@/components/ui/icons";
 import { locationData } from "@/data/location";
+import { useRegisterFarmerMutation } from "@/store/api/authApi";
+import { setCredentials } from "@/store/slices/authSlice";
+import { useAppDispatch } from "@/store/hooks";
 
 interface FormData {
   // Personal Information
-  firstName: string;
-  lastName: string;
+  firstname: string;
+  lastname: string;
   email: string;
   password: string;
   confirmPassword: string;
@@ -24,10 +28,14 @@ interface FormData {
 
 const JoinUsPage = () => {
   const navigate = useNavigate();
+  const dispatch = useAppDispatch();
+  const [registerFarmer, { isLoading: isRegistering }] =
+    useRegisterFarmerMutation();
+
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState<FormData>({
-    firstName: "",
-    lastName: "",
+    firstname: "",
+    lastname: "",
     email: "",
     password: "",
     confirmPassword: "",
@@ -91,11 +99,10 @@ const JoinUsPage = () => {
   // Validation functions
   const validateStep1 = () => {
     const stepErrors: Partial<FormData> = {};
-
-    if (!formData.firstName.trim())
-      stepErrors.firstName = "First name is required";
-    if (!formData.lastName.trim())
-      stepErrors.lastName = "Last name is required";
+    if (!formData.firstname.trim())
+      stepErrors.firstname = "First name is required";
+    if (!formData.lastname.trim())
+      stepErrors.lastname = "Last name is required";
     if (!formData.email.trim()) {
       stepErrors.email = "Email is required";
     } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
@@ -161,16 +168,24 @@ const JoinUsPage = () => {
     const stepErrors = validateStep1();
     if (Object.keys(stepErrors).length > 0) {
       setErrors(stepErrors);
+      toast.error("Please fix the errors", {
+        description: "Complete all required fields before proceeding.",
+        duration: 3000,
+      });
       return;
     }
     setCurrentStep(2);
+    toast.success("Step 1 completed!", {
+      description: "Now let's add your farm information.",
+      duration: 2000,
+    });
   };
 
   const handleBack = () => {
     setCurrentStep(1);
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     const step1Errors = validateStep1();
     const step2Errors = validateStep2();
     const allErrors = { ...step1Errors, ...step2Errors };
@@ -179,15 +194,102 @@ const JoinUsPage = () => {
       setErrors(allErrors);
       if (Object.keys(step1Errors).length > 0) {
         setCurrentStep(1);
+        toast.error("Please complete Step 1", {
+          description: "Fill in all required personal information fields.",
+          duration: 3000,
+        });
+      } else {
+        toast.error("Please complete Step 2", {
+          description: "Fill in all required farm information fields.",
+          duration: 3000,
+        });
       }
       return;
     }
 
-    // Here you would typically submit the form data to your backend
-    console.log("Form submitted:", formData);
+    try {
+      // Show loading toast
+      const loadingToastId = toast.loading("Creating your account...", {
+        description: "Please wait while we set up your farmer profile.",
+      });
 
-    // For now, let's navigate to home or show success message
-    navigate("/");
+      // Prepare data for API
+      const registrationData = {
+        firstname: formData.firstname,
+        lastname: formData.lastname,
+        email: formData.email,
+        password: formData.password,
+        farmName: formData.farmName,
+        province: formData.province,
+        district: formData.district,
+        sector: formData.sector,
+        field: formData.field || undefined,
+      };
+
+      // Register farmer
+      const response = await registerFarmer(registrationData).unwrap();
+
+      // Dismiss loading toast
+      toast.dismiss(loadingToastId);
+
+      // Store credentials in Redux
+      dispatch(
+        setCredentials({
+          user: response.data.user,
+          token: response.data.token,
+        })
+      );
+
+      // Store token in localStorage for persistence
+      localStorage.setItem("token", response.data.token);
+
+      // Show success toast
+      toast.success("Welcome to FarmConnect!", {
+        description:
+          "Your account has been created successfully. Redirecting to dashboard...",
+        duration: 3000,
+      });
+
+      // On successful registration, navigate to dashboard
+      setTimeout(() => {
+        navigate("/dashboard");
+      }, 1500);
+    } catch (error) {
+      console.error("Registration failed:", error);
+
+      // Extract error message and details
+      let errorMessage = "Something went wrong. Please try again.";
+      let errorDescription = "";
+
+      if (error && typeof error === "object" && "data" in error) {
+        const errorData = error as {
+          data?: {
+            error?: string;
+            details?: Array<{ msg: string; path: string }>;
+          };
+        };
+
+        if (errorData.data?.error) {
+          errorMessage = errorData.data.error;
+        }
+
+        // If there are validation details, show the first few
+        if (errorData.data?.details && errorData.data.details.length > 0) {
+          const firstErrors = errorData.data.details.slice(0, 3);
+          errorDescription = firstErrors.map((detail) => detail.msg).join(", ");
+          if (errorData.data.details.length > 3) {
+            errorDescription += "...";
+          }
+        }
+      }
+
+      // Show error toast
+      toast.error(errorMessage, {
+        description:
+          errorDescription || "Please check your information and try again.",
+        duration: 6000,
+      });
+    }
   };
 
   return (
@@ -260,18 +362,18 @@ const JoinUsPage = () => {
                   </label>
                   <input
                     type="text"
-                    value={formData.firstName}
+                    value={formData.firstname}
                     onChange={(e) =>
-                      handleInputChange("firstName", e.target.value)
+                      handleInputChange("firstname", e.target.value)
                     }
                     className={`w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent placeholder-white/60 text-white ${
-                      errors.firstName ? "border-red-400 bg-red-500/10" : ""
+                      errors.firstname ? "border-red-400 bg-red-500/10" : ""
                     }`}
                     placeholder="John"
                   />
-                  {errors.firstName && (
+                  {errors.firstname && (
                     <p className="mt-1 text-sm text-red-300">
-                      {errors.firstName}
+                      {errors.firstname}
                     </p>
                   )}
                 </div>
@@ -282,18 +384,18 @@ const JoinUsPage = () => {
                   </label>
                   <input
                     type="text"
-                    value={formData.lastName}
+                    value={formData.lastname}
                     onChange={(e) =>
-                      handleInputChange("lastName", e.target.value)
+                      handleInputChange("lastname", e.target.value)
                     }
                     className={`w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent placeholder-white/60 text-white ${
-                      errors.lastName ? "border-red-400 bg-red-500/10" : ""
+                      errors.lastname ? "border-red-400 bg-red-500/10" : ""
                     }`}
                     placeholder="Doe"
                   />
-                  {errors.lastName && (
+                  {errors.lastname && (
                     <p className="mt-1 text-sm text-red-300">
-                      {errors.lastName}
+                      {errors.lastname}
                     </p>
                   )}
                 </div>
@@ -514,13 +616,13 @@ const JoinUsPage = () => {
                 <Button
                   onClick={handleSubmit}
                   className={`flex-1 py-3 font-semibold transition-all duration-300 ${
-                    isFormValid()
+                    isFormValid() && !isRegistering
                       ? "bg-orange-500 hover:bg-orange-600 text-white cursor-pointer"
                       : "bg-white/20 text-white/60 cursor-not-allowed"
                   }`}
-                  disabled={!isFormValid()}
+                  disabled={!isFormValid() || isRegistering}
                 >
-                  Create Account
+                  {isRegistering ? "Creating Account..." : "Create Account"}
                 </Button>
               </div>
             </div>

@@ -6,35 +6,33 @@ export interface LoginRequest {
   password: string;
 }
 
-export interface RegisterRequest {
-  firstName: string;
-  lastName: string;
+export interface RegisterFarmerRequest {
+  firstname: string;
+  lastname: string;
   email: string;
   password: string;
   farmName: string;
   province: string;
   district: string;
   sector: string;
-  field: string;
+  field?: string;
 }
 
 export interface AuthResponse {
-  user: {
-    id: string;
-    email: string;
-    firstName: string;
-    lastName: string;
-    farmName?: string;
-    province?: string;
-    district?: string;
-    sector?: string;
-    role: "farmer" | "vet" | "government" | "admin";
-    isVerified: boolean;
-    isLocked: boolean;
-    points: number;
-    level: "Amateur" | "Knight" | "Expert";
+  success: boolean;
+  message: string;
+  data: {
+    user: {
+      id: number;
+      firstname: string;
+      lastname: string;
+      email: string;
+      username: string;
+      role: string;
+      permissions: string[];
+    };
+    token: string;
   };
-  token: string;
 }
 
 export interface ForgotPasswordRequest {
@@ -59,10 +57,10 @@ export const authApi = baseApi.injectEndpoints({
       invalidatesTags: ["User"],
     }),
 
-    // Register endpoint
-    register: builder.mutation<AuthResponse, RegisterRequest>({
+    // Register farmer endpoint
+    registerFarmer: builder.mutation<AuthResponse, RegisterFarmerRequest>({
       query: (userData) => ({
-        url: "/auth/register",
+        url: "/auth/register/farmer",
         method: "POST",
         body: userData,
       }),
@@ -112,7 +110,7 @@ export const authApi = baseApi.injectEndpoints({
     }),
 
     // Get current user
-    getCurrentUser: builder.query<AuthResponse["user"], void>({
+    getCurrentUser: builder.query<AuthResponse["data"]["user"], void>({
       query: () => "/auth/me",
       providesTags: ["User"],
     }),
@@ -122,7 +120,7 @@ export const authApi = baseApi.injectEndpoints({
 // Export hooks for usage in components
 export const {
   useLoginMutation,
-  useRegisterMutation,
+  useRegisterFarmerMutation,
   useLogoutMutation,
   useForgotPasswordMutation,
   useResetPasswordMutation,

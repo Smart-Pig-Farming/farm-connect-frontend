@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { HeroBackground } from "@/components/ui/hero-background";
+import { Notification } from "@/components/ui/notification";
 
 interface SignInData {
   email: string;
@@ -11,6 +12,7 @@ interface SignInData {
 
 const SignInPage = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [formData, setFormData] = useState<SignInData>({
     email: "",
     password: "",
@@ -18,6 +20,20 @@ const SignInPage = () => {
 
   const [errors, setErrors] = useState<Partial<SignInData>>({});
   const [isLoading, setIsLoading] = useState(false);
+  const [notification, setNotification] = useState<{
+    show: boolean;
+    type: "success" | "error" | "info" | "warning";
+    title: string;
+    message: string;
+  }>({
+    show: false,
+    type: "success",
+    title: "",
+    message: "",
+  });
+
+  // Get the redirect path if user was redirected from protected route
+  const from = location.state?.from?.pathname || "/dashboard";
 
   // Validation function
   const validateForm = () => {
@@ -73,11 +89,27 @@ const SignInPage = () => {
       // Simulate API call
       await new Promise((resolve) => setTimeout(resolve, 1000));
 
-      // For now, let's navigate to home
-      navigate("/");
+      // Show success notification
+      setNotification({
+        show: true,
+        type: "success",
+        title: "Welcome back!",
+        message: "You have been successfully signed in.",
+      });
+
+      // On successful sign in, navigate to intended destination or dashboard
+      setTimeout(() => {
+        navigate(from, { replace: true });
+      }, 1500);
     } catch (error) {
       console.error("Sign in error:", error);
       setErrors({ email: "Invalid credentials. Please try again." });
+      setNotification({
+        show: true,
+        type: "error",
+        title: "Sign In Failed",
+        message: "Invalid credentials. Please check your email and password.",
+      });
     } finally {
       setIsLoading(false);
     }
@@ -206,6 +238,15 @@ const SignInPage = () => {
           </div>
         </Card>
       </div>
+
+      {/* Notification */}
+      <Notification
+        type={notification.type}
+        title={notification.title}
+        message={notification.message}
+        show={notification.show}
+        onClose={() => setNotification({ ...notification, show: false })}
+      />
     </HeroBackground>
   );
 };

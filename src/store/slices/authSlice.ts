@@ -2,15 +2,13 @@ import { createSlice } from "@reduxjs/toolkit";
 import type { PayloadAction } from "@reduxjs/toolkit";
 
 interface User {
-  id: string;
+  id: number;
+  firstname: string;
+  lastname: string;
   email: string;
-  firstName: string;
-  lastName: string;
-  farmName?: string;
-  province?: string;
-  district?: string;
-  sector?: string;
-  profilePicture?: string;
+  username: string;
+  role: string;
+  permissions: string[];
 }
 
 interface AuthState {
