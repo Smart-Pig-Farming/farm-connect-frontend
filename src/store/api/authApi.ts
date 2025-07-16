@@ -40,8 +40,9 @@ export interface ForgotPasswordRequest {
 }
 
 export interface ResetPasswordRequest {
-  token: string;
+  resetToken: string;
   newPassword: string;
+  confirmPassword: string;
 }
 
 // Auth API slice - extending the base API
@@ -99,11 +100,23 @@ export const authApi = baseApi.injectEndpoints({
 
     // Verify OTP endpoint
     verifyOtp: builder.mutation<
-      { message: string },
+      { success: boolean; message: string; data?: { resetToken: string } },
       { email: string; otp: string }
     >({
       query: (data) => ({
         url: "/auth/verify-otp",
+        method: "POST",
+        body: data,
+      }),
+    }),
+
+    // Resend OTP endpoint
+    resendOtp: builder.mutation<
+      { success: boolean; message: string },
+      { email: string }
+    >({
+      query: (data) => ({
+        url: "/auth/resend-otp",
         method: "POST",
         body: data,
       }),
@@ -126,4 +139,5 @@ export const {
   useResetPasswordMutation,
   useVerifyOtpMutation,
   useGetCurrentUserQuery,
+  useResendOtpMutation,
 } = authApi;

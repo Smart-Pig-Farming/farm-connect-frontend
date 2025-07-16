@@ -1,9 +1,11 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { HeroBackground } from "@/components/ui/hero-background";
 import { ArrowLeftIcon } from "@/components/ui/icons";
+import { useForgotPasswordMutation } from "@/store/api/authApi";
 
 interface ForgotPasswordData {
   email: string;
@@ -11,12 +13,13 @@ interface ForgotPasswordData {
 
 const ForgotPasswordPage = () => {
   const navigate = useNavigate();
+  const [forgotPassword, { isLoading }] = useForgotPasswordMutation();
+
   const [formData, setFormData] = useState<ForgotPasswordData>({
     email: "",
   });
 
   const [errors, setErrors] = useState<Partial<ForgotPasswordData>>({});
-  const [isLoading, setIsLoading] = useState(false);
 
   // Validation function
   const validateForm = () => {
@@ -59,17 +62,30 @@ const ForgotPasswordPage = () => {
 
     if (Object.keys(formErrors).length > 0) {
       setErrors(formErrors);
+      toast.error("Please fix the errors", {
+        description: "Enter a valid email address to continue.",
+        duration: 3000,
+      });
       return;
     }
 
-    setIsLoading(true);
-
     try {
-      // Here you would typically submit the email to your backend
-      console.log("Password reset request:", formData.email);
+      // Show loading toast
+      const loadingToastId = toast.loading("Sending verification code...", {
+        description: "Please wait while we send a code to your email.",
+      });
 
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      // Call the API
+      await forgotPassword({ email: formData.email }).unwrap();
+
+      // Dismiss loading toast
+      toast.dismiss(loadingToastId);
+
+      // Show success toast
+      toast.success("Code sent successfully!", {
+        description: "Check your email for the 6-digit verification code.",
+        duration: 4000,
+      });
 
       // Navigate to OTP verification page with email
       navigate(
@@ -77,9 +93,21 @@ const ForgotPasswordPage = () => {
       );
     } catch (error) {
       console.error("Password reset error:", error);
-      setErrors({ email: "Unable to send reset email. Please try again." });
-    } finally {
-      setIsLoading(false);
+
+      let errorMessage = "Unable to send reset email. Please try again.";
+
+      if (error && typeof error === "object" && "data" in error) {
+        const errorData = error as { data?: { error?: string } };
+        if (errorData.data?.error) {
+          errorMessage = errorData.data.error;
+        }
+      }
+
+      setErrors({ email: errorMessage });
+      toast.error("Failed to send code", {
+        description: errorMessage,
+        duration: 5000,
+      });
     }
   };
 

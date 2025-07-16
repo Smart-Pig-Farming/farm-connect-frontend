@@ -130,7 +130,6 @@ const JoinUsPage = () => {
     if (!formData.province.trim()) stepErrors.province = "Province is required";
     if (!formData.district.trim()) stepErrors.district = "District is required";
     if (!formData.sector.trim()) stepErrors.sector = "Sector is required";
-    if (!formData.field.trim()) stepErrors.field = "Field is required";
 
     return stepErrors;
   };
@@ -207,9 +206,11 @@ const JoinUsPage = () => {
       return;
     }
 
+    let loadingToastId: string | number | undefined;
+
     try {
       // Show loading toast
-      const loadingToastId = toast.loading("Creating your account...", {
+      loadingToastId = toast.loading("Creating your account...", {
         description: "Please wait while we set up your farmer profile.",
       });
 
@@ -256,6 +257,11 @@ const JoinUsPage = () => {
       }, 1500);
     } catch (error) {
       console.error("Registration failed:", error);
+
+      // Dismiss loading toast if it was created
+      if (loadingToastId) {
+        toast.dismiss(loadingToastId);
+      }
 
       // Extract error message and details
       let errorMessage = "Something went wrong. Please try again.";

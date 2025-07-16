@@ -1,9 +1,11 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { HeroBackground } from "@/components/ui/hero-background";
 import { CheckIcon } from "@/components/ui/icons";
+import { useResetPasswordMutation } from "@/store/api/authApi";
 
 interface PasswordResetData {
   newPassword: string;
@@ -13,8 +15,8 @@ interface PasswordResetData {
 const PasswordResetPage = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const email = searchParams.get("email") || "";
   const token = searchParams.get("token") || "";
+  const [resetPassword, { isLoading }] = useResetPasswordMutation();
 
   const [formData, setFormData] = useState<PasswordResetData>({
     newPassword: "",
@@ -22,15 +24,14 @@ const PasswordResetPage = () => {
   });
 
   const [errors, setErrors] = useState<Partial<PasswordResetData>>({});
-  const [isLoading, setIsLoading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
 
   // Redirect if missing required params
   useEffect(() => {
-    if (!email || !token) {
+    if (!token) {
       navigate("/forgot-password");
     }
-  }, [email, token, navigate]);
+  }, [token, navigate]);
 
   // Password strength calculation
   const getPasswordStrength = (password: string) => {
@@ -132,21 +133,35 @@ const PasswordResetPage = () => {
 
     if (Object.keys(formErrors).length > 0) {
       setErrors(formErrors);
+      toast.error("Please fix the errors", {
+        description: "Complete all required fields to continue.",
+        duration: 3000,
+      });
       return;
     }
 
-    setIsLoading(true);
+    // Show loading toast
+    const loadingToastId = toast.loading("Resetting password...", {
+      description: "Please wait while we update your password.",
+    });
 
     try {
-      // Here you would typically submit the form data to your backend
-      console.log("Password reset attempt:", {
-        email,
-        token,
+      // Call the API
+      await resetPassword({
+        resetToken: token,
         newPassword: formData.newPassword,
-      });
+        confirmPassword: formData.confirmPassword,
+      }).unwrap();
 
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+      // Dismiss loading toast
+      toast.dismiss(loadingToastId);
+
+      // Show success toast
+      toast.success("Password reset successful!", {
+        description:
+          "Your password has been updated. Redirecting to sign in...",
+        duration: 4000,
+      });
 
       // Show success state
       setShowSuccess(true);
@@ -157,9 +172,24 @@ const PasswordResetPage = () => {
       }, 3000);
     } catch (error) {
       console.error("Password reset error:", error);
-      setErrors({ newPassword: "Password reset failed. Please try again." });
-    } finally {
-      setIsLoading(false);
+
+      // Dismiss loading toast
+      toast.dismiss(loadingToastId);
+
+      let errorMessage = "Password reset failed. Please try again.";
+
+      if (error && typeof error === "object" && "data" in error) {
+        const errorData = error as { data?: { error?: string } };
+        if (errorData.data?.error) {
+          errorMessage = errorData.data.error;
+        }
+      }
+
+      setErrors({ newPassword: errorMessage });
+      toast.error("Password reset failed", {
+        description: errorMessage,
+        duration: 5000,
+      });
     }
   };
 
@@ -228,9 +258,8 @@ const PasswordResetPage = () => {
             <h1 className="text-3xl font-bold text-white mb-2">
               Set New Password
             </h1>
-            <p className="text-white/80 mb-2">Create a strong password for</p>
-            <p className="text-orange-400 font-medium text-sm bg-white/10 px-3 py-1 rounded-lg inline-block">
-              {email}
+            <p className="text-white/80">
+              Create a strong password for your account
             </p>
           </div>
 
