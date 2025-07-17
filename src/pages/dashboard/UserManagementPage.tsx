@@ -12,13 +12,10 @@ import {
   UserFormModal,
   ConfirmationModal,
   RoleFormModal,
-  ActionFormModal,
-  ResourceFormModal,
-  PermissionFormModal,
   UsersTabContent,
   RolesTabContent,
-  PermissionsTabContent,
 } from "../../components/usermanagement";
+import { PermissionsTabContainer } from "../../components/usermanagement/PermissionsTabContainer";
 
 // Mock data for demonstration
 interface User {
@@ -52,18 +49,6 @@ interface Permission {
   description: string;
 }
 
-interface Action {
-  id: number;
-  name: string;
-  description: string;
-}
-
-interface Resource {
-  id: number;
-  name: string;
-  description: string;
-}
-
 // Form data types
 interface UserFormData {
   firstname: string;
@@ -82,22 +67,6 @@ interface RoleFormData {
   name: string;
   description: string;
   permissions: string[];
-}
-
-interface ActionFormData {
-  name: string;
-  description: string;
-}
-
-interface ResourceFormData {
-  name: string;
-  description: string;
-}
-
-interface PermissionFormData {
-  action: string;
-  resource: string;
-  description: string;
 }
 
 const mockUsers: User[] = [
@@ -193,47 +162,6 @@ const mockPermissions: Permission[] = [
   },
 ];
 
-const mockActions: Action[] = [
-  {
-    id: 1,
-    name: "create",
-    description: "Create new resources",
-  },
-  {
-    id: 2,
-    name: "read",
-    description: "View existing resources",
-  },
-  {
-    id: 3,
-    name: "update",
-    description: "Modify existing resources",
-  },
-  {
-    id: 4,
-    name: "delete",
-    description: "Remove resources",
-  },
-];
-
-const mockResources: Resource[] = [
-  {
-    id: 1,
-    name: "users",
-    description: "User management system",
-  },
-  {
-    id: 2,
-    name: "livestock",
-    description: "Livestock management system",
-  },
-  {
-    id: 3,
-    name: "feed",
-    description: "Feed management system",
-  },
-];
-
 export default function UserManagementPage() {
   // State for active tab
   const [activeTab, setActiveTab] = useState<"users" | "roles" | "permissions">(
@@ -245,39 +173,16 @@ export default function UserManagementPage() {
   const [showCreateRole, setShowCreateRole] = useState(false);
   const [showEditRole, setShowEditRole] = useState(false);
   const [showEditUser, setShowEditUser] = useState(false);
-  const [showCreateAction, setShowCreateAction] = useState(false);
-  const [showEditAction, setShowEditAction] = useState(false);
-  const [showCreateResource, setShowCreateResource] = useState(false);
-  const [showEditResource, setShowEditResource] = useState(false);
-  const [showCreatePermission, setShowCreatePermission] = useState(false);
-  const [showEditPermission, setShowEditPermission] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showLockConfirm, setShowLockConfirm] = useState(false);
-  const [showDeletePermissionConfirm, setShowDeletePermissionConfirm] =
-    useState(false);
   const [showResendEmailConfirm, setShowResendEmailConfirm] = useState(false);
 
   // Selected items for editing/deleting
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [selectedRole, setSelectedRole] = useState<Role | null>(null);
-  const [selectedAction, setSelectedAction] = useState<Action | null>(null);
-  const [selectedResource, setSelectedResource] = useState<Resource | null>(
-    null
-  );
-  const [selectedPermission, setSelectedPermission] =
-    useState<Permission | null>(null);
 
   // State for users data
   const [users, setUsers] = useState<User[]>(mockUsers);
-
-  // Helper function to confirm delete permission
-  const confirmDeletePermission = () => {
-    if (selectedPermission) {
-      console.log("Deleting permission:", selectedPermission);
-      setShowDeletePermissionConfirm(false);
-      setSelectedPermission(null);
-    }
-  };
 
   // Event handlers
   const handleCreateUser = (userData: UserFormData) => {
@@ -383,59 +288,6 @@ export default function UserManagementPage() {
     setSelectedRole(null);
   };
 
-  const handleCreateAction = (actionData: ActionFormData) => {
-    console.log("Creating action:", actionData);
-    setShowCreateAction(false);
-  };
-
-  const handleEditAction = (action: Action) => {
-    setSelectedAction(action);
-    setShowEditAction(true);
-  };
-
-  const handleUpdateAction = (actionData: ActionFormData) => {
-    console.log("Updating action:", actionData);
-    setShowEditAction(false);
-    setSelectedAction(null);
-  };
-
-  const handleCreateResource = (resourceData: ResourceFormData) => {
-    console.log("Creating resource:", resourceData);
-    setShowCreateResource(false);
-  };
-
-  const handleEditResource = (resource: Resource) => {
-    setSelectedResource(resource);
-    setShowEditResource(true);
-  };
-
-  const handleUpdateResource = (resourceData: ResourceFormData) => {
-    console.log("Updating resource:", resourceData);
-    setShowEditResource(false);
-    setSelectedResource(null);
-  };
-
-  const handleCreatePermission = (permissionData: PermissionFormData) => {
-    console.log("Creating permission:", permissionData);
-    setShowCreatePermission(false);
-  };
-
-  const handleEditPermission = (permission: Permission) => {
-    setSelectedPermission(permission);
-    setShowEditPermission(true);
-  };
-
-  const handleDeletePermission = (permission: Permission) => {
-    setSelectedPermission(permission);
-    setShowDeletePermissionConfirm(true);
-  };
-
-  const handleUpdatePermission = (permissionData: PermissionFormData) => {
-    console.log("Updating permission:", permissionData);
-    setShowEditPermission(false);
-    setSelectedPermission(null);
-  };
-
   return (
     <div className="p-3 sm:p-6 w-full min-w-0 max-w-full overflow-hidden">
       <div className="mb-6">
@@ -524,20 +376,7 @@ export default function UserManagementPage() {
         )}
 
         {/* Permissions Tab Content */}
-        {activeTab === "permissions" && (
-          <PermissionsTabContent
-            permissions={mockPermissions}
-            actions={mockActions}
-            resources={mockResources}
-            onCreatePermission={() => setShowCreatePermission(true)}
-            onEditPermission={handleEditPermission}
-            onDeletePermission={handleDeletePermission}
-            onCreateAction={() => setShowCreateAction(true)}
-            onEditAction={handleEditAction}
-            onCreateResource={() => setShowCreateResource(true)}
-            onEditResource={handleEditResource}
-          />
-        )}
+        {activeTab === "permissions" && <PermissionsTabContainer />}
       </div>
 
       {/* User Form Modals */}
@@ -572,58 +411,6 @@ export default function UserManagementPage() {
         mode="edit"
         role={selectedRole}
         availablePermissions={mockPermissions}
-      />
-
-      {/* Action Form Modals */}
-      <ActionFormModal
-        isOpen={showCreateAction}
-        onClose={() => setShowCreateAction(false)}
-        onSubmit={handleCreateAction}
-        mode="create"
-      />
-
-      <ActionFormModal
-        isOpen={showEditAction}
-        onClose={() => setShowEditAction(false)}
-        onSubmit={handleUpdateAction}
-        mode="edit"
-        action={selectedAction}
-      />
-
-      {/* Resource Form Modals */}
-      <ResourceFormModal
-        isOpen={showCreateResource}
-        onClose={() => setShowCreateResource(false)}
-        onSubmit={handleCreateResource}
-        mode="create"
-      />
-
-      <ResourceFormModal
-        isOpen={showEditResource}
-        onClose={() => setShowEditResource(false)}
-        onSubmit={handleUpdateResource}
-        mode="edit"
-        resource={selectedResource}
-      />
-
-      {/* Permission Form Modals */}
-      <PermissionFormModal
-        isOpen={showCreatePermission}
-        onClose={() => setShowCreatePermission(false)}
-        onSubmit={handleCreatePermission}
-        mode="create"
-        availableActions={mockActions}
-        availableResources={mockResources}
-      />
-
-      <PermissionFormModal
-        isOpen={showEditPermission}
-        onClose={() => setShowEditPermission(false)}
-        onSubmit={handleUpdatePermission}
-        mode="edit"
-        permission={selectedPermission}
-        availableActions={mockActions}
-        availableResources={mockResources}
       />
 
       {/* Confirmation Modals */}
@@ -670,17 +457,6 @@ export default function UserManagementPage() {
         confirmText="Resend Email"
         confirmButtonClass="bg-blue-600 hover:bg-blue-700"
         icon={<Mail className="w-6 h-6 text-blue-600" />}
-      />
-
-      <ConfirmationModal
-        isOpen={showDeletePermissionConfirm}
-        onClose={() => setShowDeletePermissionConfirm(false)}
-        onConfirm={confirmDeletePermission}
-        title="Delete Permission"
-        message={`Are you sure you want to delete the permission "${selectedPermission?.name}"? This action cannot be undone.`}
-        confirmText="Delete"
-        confirmButtonClass="bg-red-600 hover:bg-red-700"
-        icon={<AlertTriangle className="w-6 h-6 text-red-600" />}
       />
     </div>
   );

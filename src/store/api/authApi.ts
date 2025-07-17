@@ -127,6 +127,12 @@ export const authApi = baseApi.injectEndpoints({
       query: () => "/auth/me",
       providesTags: ["User"],
     }),
+
+    // Get current user permissions
+    getCurrentUserPermissions: builder.query<{ permissions: string[] }, void>({
+      query: () => "/auth/permissions",
+      providesTags: ["Permission"],
+    }),
   }),
 });
 
@@ -139,5 +145,6 @@ export const {
   useResetPasswordMutation,
   useVerifyOtpMutation,
   useGetCurrentUserQuery,
+  useGetCurrentUserPermissionsQuery,
   useResendOtpMutation,
 } = authApi;

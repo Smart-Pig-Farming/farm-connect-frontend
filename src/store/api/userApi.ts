@@ -49,6 +49,12 @@ export interface CreateUserRequest {
 // User API slice
 export const userApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
+    // Get current user profile
+    getCurrentUser: builder.query<User, void>({
+      query: () => "/auth/me",
+      providesTags: ["User"],
+    }),
+
     // Get all users (admin only)
     getUsers: builder.query<
       User[],
@@ -133,6 +139,7 @@ export const userApi = baseApi.injectEndpoints({
 
 // Export hooks for usage in components
 export const {
+  useGetCurrentUserQuery,
   useGetUsersQuery,
   useGetUserByIdQuery,
   useUpdateUserMutation,

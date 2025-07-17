@@ -25,6 +25,10 @@ export const baseApi = createApi({
     "Quiz",
     "Comment",
     "Report",
+    "Action",
+    "Resource",
+    "Permission",
+    "RolePermission",
   ],
   endpoints: () => ({}),
 });

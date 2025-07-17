@@ -42,6 +42,19 @@ const authSlice = createSlice({
       state.error = null;
     },
 
+    // Only set token without user data (for initial load from persisted storage)
+    setToken: (state, action: PayloadAction<string>) => {
+      state.token = action.payload;
+      state.isAuthenticated = true;
+      state.error = null;
+    },
+
+    // Set user data (fetched from API after token is available)
+    setUser: (state, action: PayloadAction<User>) => {
+      state.user = action.payload;
+      state.isLoading = false;
+    },
+
     logout: (state) => {
       state.user = null;
       state.token = null;
@@ -71,6 +84,8 @@ const authSlice = createSlice({
 
 export const {
   setCredentials,
+  setToken,
+  setUser,
   logout,
   updateUser,
   setLoading,
