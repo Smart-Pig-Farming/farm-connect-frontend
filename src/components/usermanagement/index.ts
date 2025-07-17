@@ -4,3 +4,6 @@ export { RoleFormModal } from "./RoleFormModal";
 export { ActionFormModal } from "./ActionFormModal";
 export { ResourceFormModal } from "./ResourceFormModal";
 export { PermissionFormModal } from "./PermissionFormModal";
+export { UsersTabContent } from "./UsersTabContent";
+export { RolesTabContent } from "./RolesTabContent";
+export { PermissionsTabContent } from "./PermissionsTabContent";
