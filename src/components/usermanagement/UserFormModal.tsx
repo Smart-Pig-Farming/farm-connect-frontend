@@ -163,13 +163,16 @@ export function UserFormModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg p-4 sm:p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
         <div className="flex justify-between items-center mb-4">
-          <h3 className="text-lg font-semibold">
+          <h3 className="text-lg font-semibold break-words pr-4">
             {mode === "create" ? "Create New User" : "Edit User"}
           </h3>
-          <button onClick={handleClose}>
+          <button
+            onClick={handleClose}
+            className="text-gray-400 hover:text-gray-600 flex-shrink-0"
+          >
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -177,13 +180,13 @@ export function UserFormModal({
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Personal Information Section */}
           <div>
-            <h4 className="text-md font-medium text-gray-900 mb-4 border-b border-gray-200 pb-2">
+            <h4 className="text-md font-medium text-gray-900 mb-4 border-b border-gray-200 pb-2 break-words">
               Personal Information
             </h4>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 mb-1 break-words">
                   First Name *
                 </label>
                 <input
@@ -199,7 +202,7 @@ export function UserFormModal({
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 mb-1 break-words">
                   Last Name *
                 </label>
                 <input
@@ -214,7 +217,7 @@ export function UserFormModal({
             </div>
 
             <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 mb-1 break-words">
                 Email Address *
               </label>
               <input
@@ -266,7 +269,7 @@ export function UserFormModal({
 
           {/* Organization Details Section */}
           <div>
-            <h4 className="text-md font-medium text-gray-900 mb-4 border-b border-gray-200 pb-2">
+            <h4 className="text-md font-medium text-gray-900 mb-4 border-b border-gray-200 pb-2 break-words">
               Farm/Organization Details
             </h4>
 
@@ -285,27 +288,36 @@ export function UserFormModal({
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 mb-1 break-words">
                   Province
                 </label>
-                <select
-                  value={formData.province}
-                  onChange={(e) =>
-                    handleLocationChange("province", e.target.value)
-                  }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                >
-                  <option value="">Select Province</option>
-                  {getProvinces().map((province) => (
-                    <option key={province} value={province}>
-                      {province}
-                    </option>
-                  ))}
-                </select>
+                <div className="relative">
+                  <select
+                    value={formData.province}
+                    onChange={(e) =>
+                      handleLocationChange("province", e.target.value)
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 appearance-none bg-white"
+                    style={{
+                      backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e")`,
+                      backgroundPosition: "right 0.5rem center",
+                      backgroundRepeat: "no-repeat",
+                      backgroundSize: "1.5em 1.5em",
+                      paddingRight: "2.5rem",
+                    }}
+                  >
+                    <option value="">Select Province</option>
+                    {getProvinces().map((province) => (
+                      <option key={province} value={province}>
+                        {province}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 mb-1 break-words">
                   District
                 </label>
                 <select
@@ -330,37 +342,46 @@ export function UserFormModal({
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 mb-1 break-words">
                   Sector
                 </label>
-                <select
-                  value={formData.sector}
-                  onChange={(e) =>
-                    handleLocationChange("sector", e.target.value)
-                  }
-                  disabled={!formData.province || !formData.district}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <option value="">
-                    {formData.province && formData.district
-                      ? "Select Sector"
-                      : "Select district first"}
-                  </option>
-                  {getSectors(formData.province, formData.district).map(
-                    (sector) => (
-                      <option key={sector} value={sector}>
-                        {sector}
-                      </option>
-                    )
-                  )}
-                </select>
+                <div className="relative">
+                  <select
+                    value={formData.sector}
+                    onChange={(e) =>
+                      handleLocationChange("sector", e.target.value)
+                    }
+                    disabled={!formData.province || !formData.district}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 disabled:opacity-50 disabled:cursor-not-allowed appearance-none bg-white"
+                    style={{
+                      backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e")`,
+                      backgroundPosition: "right 0.5rem center",
+                      backgroundRepeat: "no-repeat",
+                      backgroundSize: "1.5em 1.5em",
+                      paddingRight: "2.5rem",
+                    }}
+                  >
+                    <option value="">
+                      {formData.province && formData.district
+                        ? "Select Sector"
+                        : "Select district first"}
+                    </option>
+                    {getSectors(formData.province, formData.district).map(
+                      (sector) => (
+                        <option key={sector} value={sector}>
+                          {sector}
+                        </option>
+                      )
+                    )}
+                  </select>
+                </div>
               </div>
             </div>
           </div>
 
           {/* Role Assignment Section */}
           <div>
-            <h4 className="text-md font-medium text-gray-900 mb-4 border-b border-gray-200 pb-2">
+            <h4 className="text-md font-medium text-gray-900 mb-4 border-b border-gray-200 pb-2 break-words">
               Role Assignment
             </h4>
 
@@ -380,24 +401,24 @@ export function UserFormModal({
                 <option value="government">Government Official</option>
                 <option value="farmer">Farmer</option>
               </select>
-              <p className="text-sm text-gray-500 mt-1">
+              <p className="text-sm text-gray-500 mt-1 break-words">
                 Select the appropriate role for this user. This determines their
                 permissions and access level.
               </p>
             </div>
           </div>
 
-          <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-gray-200">
+          <div className="flex flex-col sm:flex-row justify-end gap-3 mt-6 pt-4 border-t border-gray-200">
             <button
               type="button"
               onClick={handleClose}
-              className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50"
+              className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 order-2 sm:order-1 break-words"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700"
+              className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 order-1 sm:order-2 break-words"
             >
               {mode === "create" ? "Create User" : "Update User"}
             </button>

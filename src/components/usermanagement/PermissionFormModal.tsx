@@ -131,14 +131,14 @@ export function PermissionFormModal({
       <div className="bg-white rounded-lg w-full max-w-lg max-h-[90vh] overflow-y-auto">
         <div className="sticky top-0 bg-white border-b border-gray-200 p-6">
           <div className="flex justify-between items-center">
-            <h3 className="text-lg font-semibold text-gray-900">
+            <h3 className="text-lg font-semibold text-gray-900 break-words pr-4">
               {mode === "create"
                 ? "Create New Permission"
                 : `Edit Permission: ${permission?.name}`}
             </h3>
             <button
               onClick={handleClose}
-              className="text-gray-400 hover:text-gray-600 hover:cursor-pointer"
+              className="text-gray-400 hover:text-gray-600 hover:cursor-pointer flex-shrink-0"
               type="button"
             >
               <X className="w-5 h-5" />
@@ -150,19 +150,19 @@ export function PermissionFormModal({
           {/* Permission Preview */}
           {getPermissionName() && (
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <label className="block text-sm font-medium text-blue-900 mb-2">
+              <label className="block text-sm font-medium text-blue-900 mb-2 break-words">
                 Permission Name Preview
               </label>
-              <div className="flex items-center gap-2">
-                <span className="font-mono text-sm bg-blue-100 text-blue-800 px-2 py-1 rounded">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="font-mono text-sm bg-blue-100 text-blue-800 px-2 py-1 rounded break-words">
                   {getPermissionName()}
                 </span>
-                <div className="flex items-center gap-1">
-                  <span className="px-2 py-1 text-xs bg-green-100 text-green-800 rounded">
+                <div className="flex items-center gap-1 flex-wrap">
+                  <span className="px-2 py-1 text-xs bg-green-100 text-green-800 rounded break-words">
                     {formData.action}
                   </span>
                   <span className="text-gray-400">:</span>
-                  <span className="px-2 py-1 text-xs bg-purple-100 text-purple-800 rounded">
+                  <span className="px-2 py-1 text-xs bg-purple-100 text-purple-800 rounded break-words">
                     {formData.resource}
                   </span>
                 </div>
@@ -172,7 +172,7 @@ export function PermissionFormModal({
 
           {/* Action Selection */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-gray-700 mb-2 break-words">
               Action *
             </label>
             <select
@@ -193,10 +193,12 @@ export function PermissionFormModal({
               ))}
             </select>
             {errors.action && (
-              <p className="mt-1 text-sm text-red-600">{errors.action}</p>
+              <p className="mt-1 text-sm text-red-600 break-words">
+                {errors.action}
+              </p>
             )}
             {mode === "edit" && (
-              <p className="mt-1 text-sm text-gray-500">
+              <p className="mt-1 text-sm text-gray-500 break-words">
                 Action cannot be changed when editing a permission
               </p>
             )}
@@ -204,7 +206,7 @@ export function PermissionFormModal({
 
           {/* Resource Selection */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-gray-700 mb-2 break-words">
               Resource *
             </label>
             <select
@@ -225,10 +227,12 @@ export function PermissionFormModal({
               ))}
             </select>
             {errors.resource && (
-              <p className="mt-1 text-sm text-red-600">{errors.resource}</p>
+              <p className="mt-1 text-sm text-red-600 break-words">
+                {errors.resource}
+              </p>
             )}
             {mode === "edit" && (
-              <p className="mt-1 text-sm text-gray-500">
+              <p className="mt-1 text-sm text-gray-500 break-words">
                 Resource cannot be changed when editing a permission
               </p>
             )}
@@ -236,7 +240,7 @@ export function PermissionFormModal({
 
           {/* Description */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-gray-700 mb-2 break-words">
               Description *
             </label>
             <textarea
@@ -251,22 +255,24 @@ export function PermissionFormModal({
               placeholder="Describe what this permission allows users to do with the selected resource..."
             />
             {errors.description && (
-              <p className="mt-1 text-sm text-red-600">{errors.description}</p>
+              <p className="mt-1 text-sm text-red-600 break-words">
+                {errors.description}
+              </p>
             )}
           </div>
 
           {/* Form Actions */}
-          <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
+          <div className="flex flex-col sm:flex-row justify-end space-y-3 sm:space-y-0 sm:space-x-3 pt-4 border-t border-gray-200">
             <button
               type="button"
               onClick={handleClose}
-              className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 hover:cursor-pointer"
+              className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 hover:cursor-pointer order-2 sm:order-1 break-words"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 hover:cursor-pointer"
+              className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 hover:cursor-pointer order-1 sm:order-2 break-words"
             >
               {mode === "create" ? "Create Permission" : "Update Permission"}
             </button>

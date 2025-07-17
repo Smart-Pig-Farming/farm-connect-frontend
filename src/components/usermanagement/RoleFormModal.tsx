@@ -136,14 +136,14 @@ export function RoleFormModal({
       <div className="bg-white rounded-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto">
         <div className="sticky top-0 bg-white border-b border-gray-200 p-6">
           <div className="flex justify-between items-center">
-            <h3 className="text-lg font-semibold text-gray-900">
+            <h3 className="text-lg font-semibold text-gray-900 break-words pr-4">
               {mode === "create"
                 ? "Create New Role"
                 : `Edit Role: ${role?.name}`}
             </h3>
             <button
               onClick={handleClose}
-              className="text-gray-400 hover:text-gray-600 hover:cursor-pointer"
+              className="text-gray-400 hover:text-gray-600 hover:cursor-pointer flex-shrink-0"
               type="button"
             >
               <X className="w-5 h-5" />
@@ -157,7 +157,7 @@ export function RoleFormModal({
             <div>
               <label
                 htmlFor="name"
-                className="block text-sm font-medium text-gray-700 mb-1"
+                className="block text-sm font-medium text-gray-700 mb-1 break-words"
               >
                 Role Name *
               </label>
@@ -173,7 +173,9 @@ export function RoleFormModal({
                 placeholder="Enter role name"
               />
               {errors.name && (
-                <p className="mt-1 text-sm text-red-600">{errors.name}</p>
+                <p className="mt-1 text-sm text-red-600 break-words">
+                  {errors.name}
+                </p>
               )}
             </div>
 
@@ -181,7 +183,7 @@ export function RoleFormModal({
             <div>
               <label
                 htmlFor="description"
-                className="block text-sm font-medium text-gray-700 mb-1"
+                className="block text-sm font-medium text-gray-700 mb-1 break-words"
               >
                 Description *
               </label>
@@ -197,7 +199,7 @@ export function RoleFormModal({
                 placeholder="Describe the role and its responsibilities"
               />
               {errors.description && (
-                <p className="mt-1 text-sm text-red-600">
+                <p className="mt-1 text-sm text-red-600 break-words">
                   {errors.description}
                 </p>
               )}
@@ -205,7 +207,7 @@ export function RoleFormModal({
 
             {/* Permissions */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 mb-2 break-words">
                 Permissions *
               </label>
               <div
@@ -252,11 +254,11 @@ export function RoleFormModal({
                 ))}
               </div>
               {errors.permissions && (
-                <p className="mt-1 text-sm text-red-600">
+                <p className="mt-1 text-sm text-red-600 break-words">
                   {errors.permissions}
                 </p>
               )}
-              <p className="mt-1 text-sm text-gray-500">
+              <p className="mt-1 text-sm text-gray-500 break-words">
                 Selected: {formData.permissions.length} permission
                 {formData.permissions.length !== 1 ? "s" : ""}
               </p>
@@ -264,25 +266,25 @@ export function RoleFormModal({
           </div>
 
           {/* Form Actions */}
-          <div className="flex justify-end gap-3 mt-8 pt-6 border-t border-gray-200">
+          <div className="flex flex-col sm:flex-row justify-end gap-3 mt-8 pt-6 border-t border-gray-200">
             <button
               type="button"
               onClick={handleClose}
-              className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 hover:cursor-pointer"
+              className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 hover:cursor-pointer order-2 sm:order-1 break-words"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 hover:cursor-pointer flex items-center gap-2"
+              className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 hover:cursor-pointer flex items-center justify-center gap-2 order-1 sm:order-2 break-words"
             >
               {mode === "create" ? (
                 <>
                   <Plus className="w-4 h-4" />
-                  Create Role
+                  <span className="break-words">Create Role</span>
                 </>
               ) : (
-                "Update Role"
+                <span className="break-words">Update Role</span>
               )}
             </button>
           </div>
