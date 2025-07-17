@@ -1,7 +1,11 @@
 import { useNavigate } from "react-router-dom";
 import { useState, useEffect, useRef } from "react";
 import { Bell, ChevronDown, LogOut, User } from "lucide-react";
+import { toast } from "sonner";
 import { Logo } from "@/components/ui/logo";
+import { useLogoutMutation } from "@/store/api/authApi";
+import { useAppDispatch } from "@/store/hooks";
+import { logout } from "@/store/slices/authSlice";
 
 interface HeaderProps {
   sidebarCollapsed: boolean;
@@ -10,6 +14,8 @@ interface HeaderProps {
 
 export function Header({ sidebarCollapsed, isMobile = false }: HeaderProps) {
   const navigate = useNavigate();
+  const dispatch = useAppDispatch();
+  const [logoutMutation, { isLoading: isLoggingOut }] = useLogoutMutation();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -30,9 +36,54 @@ export function Header({ sidebarCollapsed, isMobile = false }: HeaderProps) {
     };
   }, []);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     setDropdownOpen(false);
-    navigate("/");
+
+    // Show loading toast
+    const loadingToastId = toast.loading("Signing out...", {
+      description: "Please wait while we sign you out.",
+    });
+
+    try {
+      // Call the logout API
+      await logoutMutation().unwrap();
+
+      // Dismiss loading toast
+      toast.dismiss(loadingToastId);
+
+      // Clear local state
+      dispatch(logout());
+
+      // Clear token from localStorage
+      localStorage.removeItem("token");
+
+      // Show success toast
+      toast.success("Signed out successfully!", {
+        description: "You have been logged out of your account.",
+        duration: 3000,
+      });
+
+      // Navigate to homepage
+      navigate("/");
+    } catch (error) {
+      console.error("Logout error:", error);
+
+      // Dismiss loading toast
+      toast.dismiss(loadingToastId);
+
+      // Even if API fails, clear local state for security
+      dispatch(logout());
+      localStorage.removeItem("token");
+
+      // Show error toast
+      toast.error("Logout completed with warnings", {
+        description: "You have been logged out locally.",
+        duration: 4000,
+      });
+
+      // Navigate to homepage
+      navigate("/");
+    }
   };
 
   return (
@@ -145,10 +196,15 @@ export function Header({ sidebarCollapsed, isMobile = false }: HeaderProps) {
                   </button>
                   <button
                     onClick={handleLogout}
-                    className="w-full flex items-center px-4 py-3 text-sm text-red-600 hover:bg-red-50/80 transition-colors group"
+                    disabled={isLoggingOut}
+                    className="w-full flex items-center px-4 py-3 text-sm text-red-600 hover:bg-red-50/80 transition-colors group disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    <LogOut className="h-4 w-4 mr-3 group-hover:scale-110 transition-transform" />
-                    Sign Out
+                    {isLoggingOut ? (
+                      <div className="w-4 h-4 mr-3 border-2 border-red-300 border-t-red-600 rounded-full animate-spin" />
+                    ) : (
+                      <LogOut className="h-4 w-4 mr-3 group-hover:scale-110 transition-transform" />
+                    )}
+                    {isLoggingOut ? "Signing Out..." : "Sign Out"}
                   </button>
                 </div>
               </div>
