@@ -57,9 +57,6 @@ export function ResourceFormModal({
       newErrors.name = "Resource name is required";
     } else if (formData.name.trim().length < 2) {
       newErrors.name = "Resource name must be at least 2 characters";
-    } else if (!/^[a-z_]+$/.test(formData.name.trim())) {
-      newErrors.name =
-        "Resource name must be lowercase letters and underscores only";
     }
 
     if (!formData.description.trim()) {
@@ -138,9 +135,6 @@ export function ResourceFormModal({
                 {errors.name}
               </p>
             )}
-            <p className="mt-1 text-sm text-gray-500 break-words">
-              Use lowercase letters and underscores only (e.g., farm_data)
-            </p>
           </div>
 
           {/* Description */}

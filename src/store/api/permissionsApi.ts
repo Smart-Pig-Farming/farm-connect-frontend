@@ -71,6 +71,43 @@ export const permissionsApi = baseApi.injectEndpoints({
       providesTags: ["Action"],
     }),
 
+    // Create action
+    createAction: builder.mutation<
+      Action,
+      { name: string; description: string }
+    >({
+      query: (data) => ({
+        url: "/admin/actions",
+        method: "POST",
+        body: data,
+      }),
+      transformResponse: (response: ApiResponse<Action>) => response.data,
+      invalidatesTags: ["Action"],
+    }),
+
+    // Update action
+    updateAction: builder.mutation<
+      Action,
+      { id: number; name?: string; description?: string; is_active?: boolean }
+    >({
+      query: ({ id, ...data }) => ({
+        url: `/admin/actions/${id}`,
+        method: "PUT",
+        body: data,
+      }),
+      transformResponse: (response: ApiResponse<Action>) => response.data,
+      invalidatesTags: ["Action"],
+    }),
+
+    // Delete action
+    deleteAction: builder.mutation<{ message: string }, number>({
+      query: (id) => ({
+        url: `/admin/actions/${id}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: ["Action"],
+    }),
+
     // Get all resources
     getResources: builder.query<Resource[], void>({
       query: () => "/admin/resources",
@@ -78,11 +115,85 @@ export const permissionsApi = baseApi.injectEndpoints({
       providesTags: ["Resource"],
     }),
 
+    // Create resource
+    createResource: builder.mutation<
+      Resource,
+      { name: string; description: string }
+    >({
+      query: (data) => ({
+        url: "/admin/resources",
+        method: "POST",
+        body: data,
+      }),
+      transformResponse: (response: ApiResponse<Resource>) => response.data,
+      invalidatesTags: ["Resource"],
+    }),
+
+    // Update resource
+    updateResource: builder.mutation<
+      Resource,
+      { id: number; name?: string; description?: string; is_active?: boolean }
+    >({
+      query: ({ id, ...data }) => ({
+        url: `/admin/resources/${id}`,
+        method: "PUT",
+        body: data,
+      }),
+      transformResponse: (response: ApiResponse<Resource>) => response.data,
+      invalidatesTags: ["Resource"],
+    }),
+
+    // Delete resource
+    deleteResource: builder.mutation<{ message: string }, number>({
+      query: (id) => ({
+        url: `/admin/resources/${id}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: ["Resource"],
+    }),
+
     // Get all permissions
     getPermissions: builder.query<Permission[], void>({
       query: () => "/admin/permissions",
       transformResponse: (response: ApiResponse<Permission[]>) => response.data,
       providesTags: ["Permission"],
+    }),
+
+    // Create permission
+    createPermission: builder.mutation<
+      Permission,
+      { action: string; resource: string; description: string }
+    >({
+      query: (data) => ({
+        url: "/admin/permissions",
+        method: "POST",
+        body: data,
+      }),
+      transformResponse: (response: ApiResponse<Permission>) => response.data,
+      invalidatesTags: ["Permission"],
+    }),
+
+    // Update permission
+    updatePermission: builder.mutation<
+      Permission,
+      { id: number; description?: string; is_active?: boolean }
+    >({
+      query: ({ id, ...data }) => ({
+        url: `/admin/permissions/${id}`,
+        method: "PUT",
+        body: data,
+      }),
+      transformResponse: (response: ApiResponse<Permission>) => response.data,
+      invalidatesTags: ["Permission"],
+    }),
+
+    // Delete permission
+    deletePermission: builder.mutation<{ message: string }, number>({
+      query: (id) => ({
+        url: `/admin/permissions/${id}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: ["Permission"],
     }),
 
     // Get role permissions
@@ -117,8 +228,17 @@ export const permissionsApi = baseApi.injectEndpoints({
 // Export hooks for usage in components
 export const {
   useGetActionsQuery,
+  useCreateActionMutation,
+  useUpdateActionMutation,
+  useDeleteActionMutation,
   useGetResourcesQuery,
+  useCreateResourceMutation,
+  useUpdateResourceMutation,
+  useDeleteResourceMutation,
   useGetPermissionsQuery,
+  useCreatePermissionMutation,
+  useUpdatePermissionMutation,
+  useDeletePermissionMutation,
   useGetRolePermissionsQuery,
   useUpdateRolePermissionsMutation,
   useGetUserPermissionsQuery,

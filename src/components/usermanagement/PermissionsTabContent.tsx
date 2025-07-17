@@ -31,8 +31,10 @@ interface PermissionsTabContentProps {
   onDeletePermission: (permission: Permission) => void;
   onCreateAction: () => void;
   onEditAction: (action: Action) => void;
+  onDeleteAction?: (action: Action) => void;
   onCreateResource: () => void;
   onEditResource: (resource: Resource) => void;
+  onDeleteResource?: (resource: Resource) => void;
 }
 
 export function PermissionsTabContent({
@@ -44,8 +46,10 @@ export function PermissionsTabContent({
   onDeletePermission,
   onCreateAction,
   onEditAction,
+  onDeleteAction,
   onCreateResource,
   onEditResource,
+  onDeleteResource,
 }: PermissionsTabContentProps) {
   const [permissionsSubTab, setPermissionsSubTab] = useState<
     "permissions" | "actions" | "resources"
@@ -278,6 +282,14 @@ export function PermissionsTabContent({
                   >
                     Edit Action
                   </button>
+                  {onDeleteAction && (
+                    <button
+                      onClick={() => onDeleteAction(action)}
+                      className="text-sm text-red-600 border border-red-600 px-3 py-2 rounded hover:bg-red-50 hover:cursor-pointer transition-colors"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
                 </div>
               </div>
             ))}
@@ -343,6 +355,14 @@ export function PermissionsTabContent({
                   >
                     Edit Resource
                   </button>
+                  {onDeleteResource && (
+                    <button
+                      onClick={() => onDeleteResource(resource)}
+                      className="text-sm text-red-600 border border-red-600 px-3 py-2 rounded hover:bg-red-50 hover:cursor-pointer transition-colors"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
                 </div>
               </div>
             ))}
