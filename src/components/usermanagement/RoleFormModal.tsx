@@ -9,7 +9,8 @@ interface Permission {
   description: string;
 }
 
-interface Role {
+// Types
+interface ComponentRole {
   id: number;
   name: string;
   description: string;
@@ -26,8 +27,8 @@ interface RoleFormData {
 interface RoleFormModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (data: RoleFormData) => void;
-  role?: Role | null;
+  onSubmit: (data: { name: string; description: string }) => void;
+  role?: ComponentRole | null;
   mode: "create" | "edit";
   availablePermissions: Permission[];
 }

@@ -13,9 +13,9 @@ import {
   ConfirmationModal,
   RoleFormModal,
   UsersTabContent,
-  RolesTabContent,
 } from "../../components/usermanagement";
 import { PermissionsTabContainer } from "../../components/usermanagement/PermissionsTabContainer";
+import { RolesTabContainer } from "../../components/usermanagement/RolesTabContainer";
 
 // Mock data for demonstration
 interface User {
@@ -63,12 +63,6 @@ interface UserFormData {
   role: string;
 }
 
-interface RoleFormData {
-  name: string;
-  description: string;
-  permissions: string[];
-}
-
 const mockUsers: User[] = [
   {
     id: 1,
@@ -111,30 +105,6 @@ const mockUsers: User[] = [
     isLocked: false,
     lastLogin: null,
     createdAt: "2024-02-01",
-  },
-];
-
-const mockRoles: Role[] = [
-  {
-    id: 1,
-    name: "Admin",
-    description: "Full system access with all permissions",
-    permissions: ["create:users", "read:users", "update:users", "delete:users"],
-    userCount: 1,
-  },
-  {
-    id: 2,
-    name: "Farm Manager",
-    description: "Manage farm operations and limited user access",
-    permissions: ["read:users", "create:livestock", "read:livestock"],
-    userCount: 1,
-  },
-  {
-    id: 3,
-    name: "Farm Worker",
-    description: "Basic access to view and update livestock data",
-    permissions: ["read:livestock", "update:livestock"],
-    userCount: 1,
   },
 ];
 
@@ -272,17 +242,18 @@ export default function UserManagementPage() {
     setSelectedUser(null);
   };
 
-  const handleCreateRole = (roleData: RoleFormData) => {
+  const handleCreateRole = (roleData: {
+    name: string;
+    description: string;
+  }) => {
     console.log("Creating role:", roleData);
     setShowCreateRole(false);
   };
 
-  const handleEditRole = (role: Role) => {
-    setSelectedRole(role);
-    setShowEditRole(true);
-  };
-
-  const handleUpdateRole = (roleData: RoleFormData) => {
+  const handleUpdateRole = (roleData: {
+    name: string;
+    description: string;
+  }) => {
     console.log("Updating role:", roleData);
     setShowEditRole(false);
     setSelectedRole(null);
@@ -367,13 +338,7 @@ export default function UserManagementPage() {
         )}
 
         {/* Roles Tab Content */}
-        {activeTab === "roles" && (
-          <RolesTabContent
-            roles={mockRoles}
-            onCreateRole={() => setShowCreateRole(true)}
-            onEditRole={handleEditRole}
-          />
-        )}
+        {activeTab === "roles" && <RolesTabContainer />}
 
         {/* Permissions Tab Content */}
         {activeTab === "permissions" && <PermissionsTabContainer />}

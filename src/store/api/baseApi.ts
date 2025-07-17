@@ -28,6 +28,8 @@ export const baseApi = createApi({
     "Action",
     "Resource",
     "Permission",
+    "Role",
+    "Role",
     "RolePermission",
   ],
   endpoints: () => ({}),

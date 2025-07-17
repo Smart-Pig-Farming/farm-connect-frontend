@@ -28,8 +28,22 @@ export interface Permission {
   resource_id: number;
   createdAt: string;
   updatedAt: string;
-  action?: string;
-  resource?: string;
+  action?: {
+    id: number;
+    name: string;
+    description: string;
+    is_active: boolean;
+    createdAt: string;
+    updatedAt: string;
+  };
+  resource?: {
+    id: number;
+    name: string;
+    description: string;
+    is_active: boolean;
+    createdAt: string;
+    updatedAt: string;
+  };
 }
 
 export interface RolePermission {

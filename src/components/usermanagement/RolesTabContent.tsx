@@ -13,12 +13,14 @@ interface RolesTabContentProps {
   roles: Role[];
   onCreateRole: () => void;
   onEditRole: (role: Role) => void;
+  onDeleteRole: (role: Role) => void;
 }
 
 export function RolesTabContent({
   roles,
   onCreateRole,
   onEditRole,
+  onDeleteRole,
 }: RolesTabContentProps) {
   return (
     <div className="p-3 sm:p-6 w-full min-w-0">
@@ -97,6 +99,12 @@ export function RolesTabContent({
               >
                 <span className="break-words">Edit Role</span>
               </button>
+              <button
+                onClick={() => onDeleteRole(role)}
+                className="flex-1 text-sm text-red-600 border border-red-600 px-3 py-2 rounded hover:bg-red-50 hover:cursor-pointer transition-colors break-words"
+              >
+                <span className="break-words">Delete</span>
+              </button>
             </div>
           </div>
         ))}
@@ -164,15 +172,23 @@ export function RolesTabContent({
               </div>
             </div>
 
-            {/* Action Button */}
+            {/* Action Buttons */}
             <div className="pt-3 border-t border-gray-100">
-              <button
-                onClick={() => onEditRole(role)}
-                className="w-full text-sm text-orange-600 border border-orange-600 px-4 py-2 rounded-lg hover:bg-orange-50 hover:cursor-pointer transition-colors flex items-center justify-center gap-2 break-words"
-              >
-                <Edit className="w-4 h-4" />
-                <span className="break-words">Edit Role</span>
-              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => onEditRole(role)}
+                  className="flex-1 text-sm text-orange-600 border border-orange-600 px-4 py-2 rounded-lg hover:bg-orange-50 hover:cursor-pointer transition-colors flex items-center justify-center gap-2 break-words"
+                >
+                  <Edit className="w-4 h-4" />
+                  <span className="break-words">Edit</span>
+                </button>
+                <button
+                  onClick={() => onDeleteRole(role)}
+                  className="flex-1 text-sm text-red-600 border border-red-600 px-4 py-2 rounded-lg hover:bg-red-50 hover:cursor-pointer transition-colors flex items-center justify-center gap-2 break-words"
+                >
+                  <span className="break-words">Delete</span>
+                </button>
+              </div>
             </div>
           </div>
         ))}
