@@ -19,18 +19,14 @@ import {
   useToggleUserLockMutation,
   useResendUserCredentialsMutation,
   useCreateUserMutation,
+  useUpdateUserMutation,
   type User,
 } from "../../store/api/userApi";
 import { UserFormModal } from "./UserFormModal";
 import { ConfirmationModal } from "./ConfirmationModal";
 
 type FilterStatus = "all" | "active" | "locked" | "unverified";
-type FilterRole =
-  | "all"
-  | "Administrator"
-  | "Veterinarian"
-  | "Government Official"
-  | "Farmer";
+type FilterRole = "all" | "admin" | "vet" | "govt" | "farmer";
 
 export function UsersTabContent() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -64,11 +60,12 @@ export function UsersTabContent() {
     limit: 1000, // Get all users for client-side filtering
   });
   const users = data?.data || [];
-  const [deleteUser] = useDeleteUserMutation();
+  const [deleteUser, { isLoading: isDeletingUser }] = useDeleteUserMutation();
   const [toggleUserLock] = useToggleUserLockMutation();
   const [resendUserCredentials, { isLoading: isResendingCredentials }] =
     useResendUserCredentialsMutation();
-  const [createUser] = useCreateUserMutation();
+  const [createUser, { isLoading: isCreatingUser }] = useCreateUserMutation();
+  const [updateUser, { isLoading: isUpdatingUser }] = useUpdateUserMutation();
 
   const handleSearchChange = (value: string) => {
     setSearchTerm(value);
@@ -206,41 +203,72 @@ export function UsersTabContent() {
     role: string;
   }) => {
     try {
-      // Map role name to role_id (based on database roles)
-      const roleIdMap: { [key: string]: number } = {
-        farmer: 1,
-        administrator: 2,
-        veterinarian: 3,
-        "government official": 4,
-      };
+      if (userModal.mode === "create") {
+        // Map role name to role_id (based on database roles)
+        const roleIdMap: { [key: string]: number } = {
+          farmer: 1,
+          admin: 2,
+          vet: 3,
+          govt: 4,
+        };
 
-      const createUserData = {
-        firstname: data.firstname,
-        lastname: data.lastname,
-        email: data.email,
-        username: data.email.split("@")[0], // Generate username from email
-        organization: data.farmName,
-        province: data.province,
-        district: data.district,
-        sector: data.sector,
-        role_id: roleIdMap[data.role.toLowerCase()] || 1, // Default to farmer
-      };
+        const createUserData = {
+          firstname: data.firstname,
+          lastname: data.lastname,
+          email: data.email,
+          username: data.email.split("@")[0], // Generate username from email
+          organization: data.farmName,
+          province: data.province,
+          district: data.district,
+          sector: data.sector,
+          role_id: roleIdMap[data.role] || 1, // Default to farmer
+        };
 
-      const result = await createUser(createUserData).unwrap();
+        const result = await createUser(createUserData).unwrap();
 
-      // Check if email was sent (based on backend response)
-      const emailStatus = result.warning
-        ? "Credentials need to be sent manually"
-        : "credentials sent via email";
+        // Check if email was sent (based on backend response)
+        const emailStatus = result.warning
+          ? "Credentials need to be sent manually"
+          : "credentials sent via email";
 
-      toast.success("User created successfully", {
-        description: `User "${data.firstname} ${data.lastname}" has been created and ${emailStatus}.`,
-      });
+        toast.success("User created successfully", {
+          description: `User "${data.firstname} ${data.lastname}" has been created and ${emailStatus}.`,
+        });
 
-      // Show warning if email failed
-      if (result.warning) {
-        toast.warning("Email delivery failed", {
-          description: result.warning,
+        // Show warning if email failed
+        if (result.warning) {
+          toast.warning("Email delivery failed", {
+            description: result.warning,
+          });
+        }
+      } else if (userModal.mode === "edit" && userModal.user) {
+        // Map role name to role_id for edit mode
+        const roleIdMap: { [key: string]: number } = {
+          farmer: 1,
+          admin: 2,
+          vet: 3,
+          govt: 4,
+        };
+
+        const updateUserData = {
+          firstname: data.firstname,
+          lastname: data.lastname,
+          email: data.email,
+          username: data.email.split("@")[0], // Generate username from email
+          organization: data.farmName,
+          province: data.province,
+          district: data.district,
+          sector: data.sector,
+          role_id: roleIdMap[data.role] || 1, // Default to farmer
+        };
+
+        await updateUser({
+          id: userModal.user.id,
+          data: updateUserData,
+        }).unwrap();
+
+        toast.success("User updated successfully", {
+          description: `User "${data.firstname} ${data.lastname}" has been updated.`,
         });
       }
 
@@ -250,7 +278,7 @@ export function UsersTabContent() {
         error && typeof error === "object" && "data" in error
           ? (error as { data?: { error?: string } }).data?.error
           : "An unexpected error occurred.";
-      toast.error("Failed to create user", {
+      toast.error(`Failed to ${userModal.mode} user`, {
         description: errorMessage,
       });
     }
@@ -373,10 +401,10 @@ export function UsersTabContent() {
               className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 w-full sm:w-auto text-sm"
             >
               <option value="all">All Roles</option>
-              <option value="Administrator">Administrator</option>
-              <option value="Veterinarian">Veterinarian</option>
-              <option value="Government Official">Government Official</option>
-              <option value="Farmer">Farmer</option>
+              <option value="admin">Administrator</option>
+              <option value="vet">Veterinarian</option>
+              <option value="govt">Government Official</option>
+              <option value="farmer">Farmer</option>
             </select>
           </div>
         </div>
@@ -480,11 +508,20 @@ export function UsersTabContent() {
                             <Edit className="w-4 h-4" />
                           </button>
                           <button
-                            className="text-red-600 hover:text-red-900 hover:cursor-pointer p-1 rounded hover:bg-red-50"
+                            className={`p-1 rounded hover:bg-red-50 ${
+                              isDeletingUser
+                                ? "text-red-400 cursor-not-allowed"
+                                : "text-red-600 hover:text-red-900 hover:cursor-pointer"
+                            }`}
                             title="Delete User"
                             onClick={() => handleDeleteUser(user)}
+                            disabled={isDeletingUser}
                           >
-                            <Trash2 className="w-4 h-4" />
+                            {isDeletingUser ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <Trash2 className="w-4 h-4" />
+                            )}
                           </button>
                         </div>
                       </td>
@@ -589,11 +626,20 @@ export function UsersTabContent() {
                             <Edit className="w-4 h-4" />
                           </button>
                           <button
-                            className="text-red-600 hover:text-red-900 hover:cursor-pointer p-2 rounded-lg hover:bg-red-50"
+                            className={`p-2 rounded-lg hover:bg-red-50 ${
+                              isDeletingUser
+                                ? "text-red-400 cursor-not-allowed"
+                                : "text-red-600 hover:text-red-900 hover:cursor-pointer"
+                            }`}
                             title="Delete User"
                             onClick={() => handleDeleteUser(user)}
+                            disabled={isDeletingUser}
                           >
-                            <Trash2 className="w-4 h-4" />
+                            {isDeletingUser ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <Trash2 className="w-4 h-4" />
+                            )}
                           </button>
                         </div>
                       </td>
@@ -709,11 +755,25 @@ export function UsersTabContent() {
                     Edit
                   </button>
                   <button
-                    className="text-red-600 border border-red-600 px-3 py-1 rounded text-sm hover:bg-red-50 flex items-center gap-1"
+                    className={`border px-3 py-1 rounded text-sm flex items-center gap-1 ${
+                      isDeletingUser
+                        ? "text-red-400 border-red-400 cursor-not-allowed"
+                        : "text-red-600 border-red-600 hover:bg-red-50"
+                    }`}
                     onClick={() => handleDeleteUser(user)}
+                    disabled={isDeletingUser}
                   >
-                    <Trash2 className="w-3 h-3" />
-                    Delete
+                    {isDeletingUser ? (
+                      <>
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                        Deleting...
+                      </>
+                    ) : (
+                      <>
+                        <Trash2 className="w-3 h-3" />
+                        Delete
+                      </>
+                    )}
                   </button>
                 </div>
               </div>
@@ -818,6 +878,9 @@ export function UsersTabContent() {
           onSubmit={handleUserSubmit}
           user={userModal.user}
           mode={userModal.mode}
+          isLoading={
+            userModal.mode === "create" ? isCreatingUser : isUpdatingUser
+          }
         />
       )}
 

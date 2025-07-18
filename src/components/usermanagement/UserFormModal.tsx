@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { X } from "lucide-react";
+import { X, Loader2 } from "lucide-react";
 import { locationData } from "@/data/location";
 
 // Types - Updated to match backend structure
@@ -48,6 +48,7 @@ interface UserFormModalProps {
   onSubmit: (data: UserFormData) => void;
   user?: User | null;
   mode: "create" | "edit";
+  isLoading?: boolean;
 }
 
 export function UserFormModal({
@@ -56,6 +57,7 @@ export function UserFormModal({
   onSubmit,
   user,
   mode,
+  isLoading = false,
 }: UserFormModalProps) {
   const [formData, setFormData] = useState<UserFormData>({
     firstname: "",
@@ -83,7 +85,7 @@ export function UserFormModal({
         province: user.province || "",
         district: user.district || "",
         sector: user.sector || "",
-        role: user.role.name.toLowerCase(),
+        role: user.role.name, // Use the actual database role name directly
       });
     } else if (mode === "create") {
       resetForm();
@@ -400,9 +402,9 @@ export function UserFormModal({
                 required
               >
                 <option value="">Select Role</option>
-                <option value="administrator">Administrator</option>
-                <option value="veterinarian">Veterinarian</option>
-                <option value="government">Government Official</option>
+                <option value="admin">Administrator</option>
+                <option value="vet">Veterinarian</option>
+                <option value="govt">Government Official</option>
                 <option value="farmer">Farmer</option>
               </select>
               <p className="text-sm text-gray-500 mt-1 break-words">
@@ -416,15 +418,34 @@ export function UserFormModal({
             <button
               type="button"
               onClick={handleClose}
-              className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 order-2 sm:order-1 break-words"
+              disabled={isLoading}
+              className={`px-4 py-2 border border-gray-300 rounded-lg order-2 sm:order-1 break-words ${
+                isLoading
+                  ? "text-gray-400 cursor-not-allowed"
+                  : "text-gray-700 hover:bg-gray-50"
+              }`}
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 order-1 sm:order-2 break-words"
+              disabled={isLoading}
+              className={`px-4 py-2 rounded-lg order-1 sm:order-2 break-words flex items-center gap-2 justify-center ${
+                isLoading
+                  ? "bg-orange-400 cursor-not-allowed"
+                  : "bg-orange-600 hover:bg-orange-700"
+              } text-white`}
             >
-              {mode === "create" ? "Create User" : "Update User"}
+              {isLoading ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  {mode === "create" ? "Creating..." : "Updating..."}
+                </>
+              ) : mode === "create" ? (
+                "Create User"
+              ) : (
+                "Update User"
+              )}
             </button>
           </div>
         </form>
