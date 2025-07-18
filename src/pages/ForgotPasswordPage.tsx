@@ -34,11 +34,6 @@ const ForgotPasswordPage = () => {
     return formErrors;
   };
 
-  const isFormValid = () => {
-    const formErrors = validateForm();
-    return Object.keys(formErrors).length === 0;
-  };
-
   const handleInputChange = (
     field: keyof ForgotPasswordData,
     value: string
@@ -62,10 +57,15 @@ const ForgotPasswordPage = () => {
 
     if (Object.keys(formErrors).length > 0) {
       setErrors(formErrors);
-      toast.error("Please fix the errors", {
-        description: "Enter a valid email address to continue.",
-        duration: 3000,
-      });
+
+      // Focus the email field for better UX
+      const emailField = document.getElementById("email");
+      if (emailField) {
+        emailField.focus();
+      }
+
+      // Show a general toast for immediate feedback
+      toast.error("Please fix the errors below to continue");
       return;
     }
 
@@ -112,7 +112,7 @@ const ForgotPasswordPage = () => {
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && isFormValid()) {
+    if (e.key === "Enter") {
       handleSubmit();
     }
   };
@@ -157,6 +157,7 @@ const ForgotPasswordPage = () => {
               </label>
               <input
                 type="email"
+                id="email"
                 value={formData.email}
                 onChange={(e) => handleInputChange("email", e.target.value)}
                 onKeyPress={handleKeyPress}
@@ -177,12 +178,12 @@ const ForgotPasswordPage = () => {
             {/* Send Code Button */}
             <Button
               onClick={handleSubmit}
-              disabled={!isFormValid() || isLoading}
+              disabled={isLoading}
               className={`w-full py-3 font-semibold transition-all duration-300 ${
-                isFormValid() && !isLoading
-                  ? "bg-orange-500 hover:bg-orange-600 text-white cursor-pointer"
-                  : "bg-white/20 text-white/60 cursor-not-allowed"
-              }`}
+                isLoading
+                  ? "bg-orange-400 cursor-not-allowed"
+                  : "bg-orange-500 hover:bg-orange-600 cursor-pointer"
+              } text-white`}
             >
               {isLoading ? (
                 <div className="flex items-center justify-center">

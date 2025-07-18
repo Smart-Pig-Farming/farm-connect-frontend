@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
+import { Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { HeroBackground } from "@/components/ui/hero-background";
@@ -25,6 +26,8 @@ const PasswordResetPage = () => {
 
   const [errors, setErrors] = useState<Partial<PasswordResetData>>({});
   const [showSuccess, setShowSuccess] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   // Redirect if missing required params
   useEffect(() => {
@@ -108,11 +111,6 @@ const PasswordResetPage = () => {
     return formErrors;
   };
 
-  const isFormValid = () => {
-    const formErrors = validateForm();
-    return Object.keys(formErrors).length === 0;
-  };
-
   const handleInputChange = (field: keyof PasswordResetData, value: string) => {
     setFormData((prev) => ({
       ...prev,
@@ -133,10 +131,18 @@ const PasswordResetPage = () => {
 
     if (Object.keys(formErrors).length > 0) {
       setErrors(formErrors);
-      toast.error("Please fix the errors", {
-        description: "Complete all required fields to continue.",
-        duration: 3000,
-      });
+
+      // Focus the first field with an error for better UX
+      const firstErrorField = Object.keys(
+        formErrors
+      )[0] as keyof PasswordResetData;
+      const fieldElement = document.getElementById(firstErrorField);
+      if (fieldElement) {
+        fieldElement.focus();
+      }
+
+      // Show a general toast for immediate feedback
+      toast.error("Please fix the errors below to continue");
       return;
     }
 
@@ -194,7 +200,7 @@ const PasswordResetPage = () => {
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && isFormValid()) {
+    if (e.key === "Enter") {
       handleSubmit();
     }
   };
@@ -269,19 +275,33 @@ const PasswordResetPage = () => {
               <label className="block text-sm font-medium text-white/90 mb-2">
                 New Password
               </label>
-              <input
-                type="password"
-                value={formData.newPassword}
-                onChange={(e) =>
-                  handleInputChange("newPassword", e.target.value)
-                }
-                onKeyPress={handleKeyPress}
-                className={`w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent placeholder-white/60 text-white ${
-                  errors.newPassword ? "border-red-400 bg-red-500/10" : ""
-                }`}
-                placeholder="Create a secure password"
-                autoFocus
-              />
+              <div className="relative">
+                <input
+                  type={showNewPassword ? "text" : "password"}
+                  id="newPassword"
+                  value={formData.newPassword}
+                  onChange={(e) =>
+                    handleInputChange("newPassword", e.target.value)
+                  }
+                  onKeyPress={handleKeyPress}
+                  className={`w-full px-4 py-3 pr-12 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent placeholder-white/60 text-white ${
+                    errors.newPassword ? "border-red-400 bg-red-500/10" : ""
+                  }`}
+                  placeholder="Create a secure password"
+                  autoFocus
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowNewPassword(!showNewPassword)}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-white/60 hover:text-white/80 transition-colors"
+                >
+                  {showNewPassword ? (
+                    <EyeOff className="w-5 h-5" />
+                  ) : (
+                    <Eye className="w-5 h-5" />
+                  )}
+                </button>
+              </div>
 
               {/* Password Strength Indicator */}
               {formData.newPassword && (
@@ -361,22 +381,36 @@ const PasswordResetPage = () => {
               <label className="block text-sm font-medium text-white/90 mb-2">
                 Confirm New Password
               </label>
-              <input
-                type="password"
-                value={formData.confirmPassword}
-                onChange={(e) =>
-                  handleInputChange("confirmPassword", e.target.value)
-                }
-                onKeyPress={handleKeyPress}
-                onPaste={(e) => {
-                  e.preventDefault();
-                  return false;
-                }}
-                className={`w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent placeholder-white/60 text-white ${
-                  errors.confirmPassword ? "border-red-400 bg-red-500/10" : ""
-                }`}
-                placeholder="Confirm your new password"
-              />
+              <div className="relative">
+                <input
+                  type={showConfirmPassword ? "text" : "password"}
+                  id="confirmPassword"
+                  value={formData.confirmPassword}
+                  onChange={(e) =>
+                    handleInputChange("confirmPassword", e.target.value)
+                  }
+                  onKeyPress={handleKeyPress}
+                  onPaste={(e) => {
+                    e.preventDefault();
+                    return false;
+                  }}
+                  className={`w-full px-4 py-3 pr-12 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent placeholder-white/60 text-white ${
+                    errors.confirmPassword ? "border-red-400 bg-red-500/10" : ""
+                  }`}
+                  placeholder="Confirm your new password"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-white/60 hover:text-white/80 transition-colors"
+                >
+                  {showConfirmPassword ? (
+                    <EyeOff className="w-5 h-5" />
+                  ) : (
+                    <Eye className="w-5 h-5" />
+                  )}
+                </button>
+              </div>
               {errors.confirmPassword && (
                 <p className="mt-1 text-sm text-red-300">
                   {errors.confirmPassword}
@@ -387,12 +421,12 @@ const PasswordResetPage = () => {
             {/* Reset Password Button */}
             <Button
               onClick={handleSubmit}
-              disabled={!isFormValid() || isLoading}
+              disabled={isLoading}
               className={`w-full py-3 font-semibold transition-all duration-300 ${
-                isFormValid() && !isLoading
-                  ? "bg-orange-500 hover:bg-orange-600 text-white cursor-pointer"
-                  : "bg-white/20 text-white/60 cursor-not-allowed"
-              }`}
+                isLoading
+                  ? "bg-orange-400 cursor-not-allowed"
+                  : "bg-orange-500 hover:bg-orange-600 cursor-pointer"
+              } text-white`}
             >
               {isLoading ? (
                 <div className="flex items-center justify-center">

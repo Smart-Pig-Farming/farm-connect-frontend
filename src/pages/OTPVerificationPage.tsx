@@ -70,7 +70,7 @@ const OTPVerificationPage = () => {
       inputRefs.current[index - 1]?.focus();
     }
 
-    if (e.key === "Enter" && isFormValid()) {
+    if (e.key === "Enter") {
       handleSubmit();
     }
   };
@@ -93,13 +93,18 @@ const OTPVerificationPage = () => {
     inputRefs.current[focusIndex]?.focus();
   };
 
-  const isFormValid = () => {
-    return otp.every((digit) => digit !== "") && !isLoading;
-  };
-
   const handleSubmit = async () => {
-    if (!isFormValid()) {
+    if (!otp.every((digit) => digit !== "")) {
       setErrors("Please enter the complete 4-digit code");
+
+      // Focus the first empty input for better UX
+      const firstEmptyIndex = otp.findIndex((digit) => digit === "");
+      if (firstEmptyIndex !== -1) {
+        inputRefs.current[firstEmptyIndex]?.focus();
+      }
+
+      // Show a general toast for immediate feedback
+      toast.error("Please complete the verification code");
       return;
     }
 
@@ -300,12 +305,12 @@ const OTPVerificationPage = () => {
             {/* Verify Button */}
             <Button
               onClick={handleSubmit}
-              disabled={!isFormValid()}
+              disabled={isLoading}
               className={`w-full py-3 font-semibold transition-all duration-300 ${
-                isFormValid()
-                  ? "bg-orange-500 hover:bg-orange-600 text-white cursor-pointer"
-                  : "bg-white/20 text-white/60 cursor-not-allowed"
-              }`}
+                isLoading
+                  ? "bg-orange-400 cursor-not-allowed"
+                  : "bg-orange-500 hover:bg-orange-600 cursor-pointer"
+              } text-white`}
             >
               {isLoading ? (
                 <div className="flex items-center justify-center">

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import { Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { HeroBackground } from "@/components/ui/hero-background";
@@ -47,6 +48,8 @@ const JoinUsPage = () => {
   });
 
   const [errors, setErrors] = useState<Partial<FormData>>({});
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   // Helper functions for location data
   const getProvinces = () => Object.keys(locationData);
@@ -134,20 +137,6 @@ const JoinUsPage = () => {
     return stepErrors;
   };
 
-  const isStep1Valid = () => {
-    const stepErrors = validateStep1();
-    return Object.keys(stepErrors).length === 0;
-  };
-
-  const isStep2Valid = () => {
-    const stepErrors = validateStep2();
-    return Object.keys(stepErrors).length === 0;
-  };
-
-  const isFormValid = () => {
-    return isStep1Valid() && isStep2Valid();
-  };
-
   const handleInputChange = (field: keyof FormData, value: string) => {
     setFormData((prev) => ({
       ...prev,
@@ -167,10 +156,16 @@ const JoinUsPage = () => {
     const stepErrors = validateStep1();
     if (Object.keys(stepErrors).length > 0) {
       setErrors(stepErrors);
-      toast.error("Please fix the errors", {
-        description: "Complete all required fields before proceeding.",
-        duration: 3000,
-      });
+
+      // Focus the first field with an error for better UX
+      const firstErrorField = Object.keys(stepErrors)[0] as keyof FormData;
+      const fieldElement = document.getElementById(firstErrorField);
+      if (fieldElement) {
+        fieldElement.focus();
+      }
+
+      // Show a general toast for immediate feedback
+      toast.error("Please fix the errors below to continue");
       return;
     }
     setCurrentStep(2);
@@ -191,17 +186,26 @@ const JoinUsPage = () => {
 
     if (Object.keys(allErrors).length > 0) {
       setErrors(allErrors);
+
+      // Focus first error field and navigate to appropriate step
+      const firstErrorField = Object.keys(allErrors)[0] as keyof FormData;
       if (Object.keys(step1Errors).length > 0) {
         setCurrentStep(1);
-        toast.error("Please complete Step 1", {
-          description: "Fill in all required personal information fields.",
-          duration: 3000,
-        });
+        setTimeout(() => {
+          const fieldElement = document.getElementById(firstErrorField);
+          if (fieldElement) {
+            fieldElement.focus();
+          }
+        }, 100);
+        toast.error("Please fix the errors in Step 1");
       } else {
-        toast.error("Please complete Step 2", {
-          description: "Fill in all required farm information fields.",
-          duration: 3000,
-        });
+        setTimeout(() => {
+          const fieldElement = document.getElementById(firstErrorField);
+          if (fieldElement) {
+            fieldElement.focus();
+          }
+        }, 100);
+        toast.error("Please fix the errors in Step 2");
       }
       return;
     }
@@ -368,6 +372,7 @@ const JoinUsPage = () => {
                   </label>
                   <input
                     type="text"
+                    id="firstname"
                     value={formData.firstname}
                     onChange={(e) =>
                       handleInputChange("firstname", e.target.value)
@@ -390,6 +395,7 @@ const JoinUsPage = () => {
                   </label>
                   <input
                     type="text"
+                    id="lastname"
                     value={formData.lastname}
                     onChange={(e) =>
                       handleInputChange("lastname", e.target.value)
@@ -413,6 +419,7 @@ const JoinUsPage = () => {
                 </label>
                 <input
                   type="email"
+                  id="email"
                   value={formData.email}
                   onChange={(e) => handleInputChange("email", e.target.value)}
                   className={`w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent placeholder-white/60 text-white ${
@@ -429,17 +436,31 @@ const JoinUsPage = () => {
                 <label className="block text-sm font-medium text-white/90 mb-2">
                   Password
                 </label>
-                <input
-                  type="password"
-                  value={formData.password}
-                  onChange={(e) =>
-                    handleInputChange("password", e.target.value)
-                  }
-                  className={`w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent placeholder-white/60 text-white ${
-                    errors.password ? "border-red-400 bg-red-500/10" : ""
-                  }`}
-                  placeholder="Enter a secure password"
-                />
+                <div className="relative">
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    id="password"
+                    value={formData.password}
+                    onChange={(e) =>
+                      handleInputChange("password", e.target.value)
+                    }
+                    className={`w-full px-4 py-3 pr-12 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent placeholder-white/60 text-white ${
+                      errors.password ? "border-red-400 bg-red-500/10" : ""
+                    }`}
+                    placeholder="Enter a secure password"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-white/60 hover:text-white/80 transition-colors"
+                  >
+                    {showPassword ? (
+                      <EyeOff className="w-5 h-5" />
+                    ) : (
+                      <Eye className="w-5 h-5" />
+                    )}
+                  </button>
+                </div>
                 {errors.password && (
                   <p className="mt-1 text-sm text-red-300">{errors.password}</p>
                 )}
@@ -449,21 +470,37 @@ const JoinUsPage = () => {
                 <label className="block text-sm font-medium text-white/90 mb-2">
                   Confirm Password
                 </label>
-                <input
-                  type="password"
-                  value={formData.confirmPassword}
-                  onChange={(e) =>
-                    handleInputChange("confirmPassword", e.target.value)
-                  }
-                  onPaste={(e) => {
-                    e.preventDefault();
-                    return false;
-                  }}
-                  className={`w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent placeholder-white/60 text-white ${
-                    errors.confirmPassword ? "border-red-400 bg-red-500/10" : ""
-                  }`}
-                  placeholder="Re-enter your password"
-                />
+                <div className="relative">
+                  <input
+                    type={showConfirmPassword ? "text" : "password"}
+                    id="confirmPassword"
+                    value={formData.confirmPassword}
+                    onChange={(e) =>
+                      handleInputChange("confirmPassword", e.target.value)
+                    }
+                    onPaste={(e) => {
+                      e.preventDefault();
+                      return false;
+                    }}
+                    className={`w-full px-4 py-3 pr-12 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent placeholder-white/60 text-white ${
+                      errors.confirmPassword
+                        ? "border-red-400 bg-red-500/10"
+                        : ""
+                    }`}
+                    placeholder="Re-enter your password"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-white/60 hover:text-white/80 transition-colors"
+                  >
+                    {showConfirmPassword ? (
+                      <EyeOff className="w-5 h-5" />
+                    ) : (
+                      <Eye className="w-5 h-5" />
+                    )}
+                  </button>
+                </div>
                 {errors.confirmPassword && (
                   <p className="mt-1 text-sm text-red-300">
                     {errors.confirmPassword}
@@ -473,12 +510,7 @@ const JoinUsPage = () => {
 
               <Button
                 onClick={handleNext}
-                className={`w-full py-3 font-semibold transition-all duration-300 ${
-                  isStep1Valid()
-                    ? "bg-orange-500 hover:bg-orange-600 text-white cursor-pointer"
-                    : "bg-gray-300 text-gray-500 cursor-not-allowed"
-                }`}
-                disabled={!isStep1Valid()}
+                className={`w-full py-3 font-semibold transition-all duration-300 bg-orange-500 hover:bg-orange-600 text-white cursor-pointer`}
               >
                 Next Step
               </Button>
@@ -494,6 +526,7 @@ const JoinUsPage = () => {
                 </label>
                 <input
                   type="text"
+                  id="farmName"
                   value={formData.farmName}
                   onChange={(e) =>
                     handleInputChange("farmName", e.target.value)
@@ -513,6 +546,7 @@ const JoinUsPage = () => {
                   Province
                 </label>
                 <select
+                  id="province"
                   value={formData.province}
                   onChange={(e) =>
                     handleLocationChange("province", e.target.value)
@@ -544,6 +578,7 @@ const JoinUsPage = () => {
                   District
                 </label>
                 <select
+                  id="district"
                   value={formData.district}
                   onChange={(e) =>
                     handleLocationChange("district", e.target.value)
@@ -578,6 +613,7 @@ const JoinUsPage = () => {
                   Sector
                 </label>
                 <select
+                  id="sector"
                   value={formData.sector}
                   onChange={(e) =>
                     handleLocationChange("sector", e.target.value)
@@ -622,11 +658,11 @@ const JoinUsPage = () => {
                 <Button
                   onClick={handleSubmit}
                   className={`flex-1 py-3 font-semibold transition-all duration-300 ${
-                    isFormValid() && !isRegistering
-                      ? "bg-orange-500 hover:bg-orange-600 text-white cursor-pointer"
-                      : "bg-white/20 text-white/60 cursor-not-allowed"
-                  }`}
-                  disabled={!isFormValid() || isRegistering}
+                    isRegistering
+                      ? "bg-orange-400 cursor-not-allowed"
+                      : "bg-orange-500 hover:bg-orange-600 cursor-pointer"
+                  } text-white`}
+                  disabled={isRegistering}
                 >
                   {isRegistering ? "Creating Account..." : "Create Account"}
                 </Button>
