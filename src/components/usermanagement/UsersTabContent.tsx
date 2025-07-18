@@ -507,22 +507,24 @@ export function UsersTabContent() {
                           >
                             <Edit className="w-4 h-4" />
                           </button>
-                          <button
-                            className={`p-1 rounded hover:bg-red-50 ${
-                              isDeletingUser
-                                ? "text-red-400 cursor-not-allowed"
-                                : "text-red-600 hover:text-red-900 hover:cursor-pointer"
-                            }`}
-                            title="Delete User"
-                            onClick={() => handleDeleteUser(user)}
-                            disabled={isDeletingUser}
-                          >
-                            {isDeletingUser ? (
-                              <Loader2 className="w-4 h-4 animate-spin" />
-                            ) : (
-                              <Trash2 className="w-4 h-4" />
-                            )}
-                          </button>
+                          {user.role?.name !== "admin" && (
+                            <button
+                              className={`p-1 rounded hover:bg-red-50 ${
+                                isDeletingUser
+                                  ? "text-red-400 cursor-not-allowed"
+                                  : "text-red-600 hover:text-red-900 hover:cursor-pointer"
+                              }`}
+                              title="Delete User"
+                              onClick={() => handleDeleteUser(user)}
+                              disabled={isDeletingUser}
+                            >
+                              {isDeletingUser ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <Trash2 className="w-4 h-4" />
+                              )}
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -625,22 +627,24 @@ export function UsersTabContent() {
                           >
                             <Edit className="w-4 h-4" />
                           </button>
-                          <button
-                            className={`p-2 rounded-lg hover:bg-red-50 ${
-                              isDeletingUser
-                                ? "text-red-400 cursor-not-allowed"
-                                : "text-red-600 hover:text-red-900 hover:cursor-pointer"
-                            }`}
-                            title="Delete User"
-                            onClick={() => handleDeleteUser(user)}
-                            disabled={isDeletingUser}
-                          >
-                            {isDeletingUser ? (
-                              <Loader2 className="w-4 h-4 animate-spin" />
-                            ) : (
-                              <Trash2 className="w-4 h-4" />
-                            )}
-                          </button>
+                          {user.role?.name !== "admin" && (
+                            <button
+                              className={`p-2 rounded-lg hover:bg-red-50 ${
+                                isDeletingUser
+                                  ? "text-red-400 cursor-not-allowed"
+                                  : "text-red-600 hover:text-red-900 hover:cursor-pointer"
+                              }`}
+                              title="Delete User"
+                              onClick={() => handleDeleteUser(user)}
+                              disabled={isDeletingUser}
+                            >
+                              {isDeletingUser ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <Trash2 className="w-4 h-4" />
+                              )}
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -754,27 +758,29 @@ export function UsersTabContent() {
                     <Edit className="w-3 h-3" />
                     Edit
                   </button>
-                  <button
-                    className={`border px-3 py-1 rounded text-sm flex items-center gap-1 ${
-                      isDeletingUser
-                        ? "text-red-400 border-red-400 cursor-not-allowed"
-                        : "text-red-600 border-red-600 hover:bg-red-50"
-                    }`}
-                    onClick={() => handleDeleteUser(user)}
-                    disabled={isDeletingUser}
-                  >
-                    {isDeletingUser ? (
-                      <>
-                        <Loader2 className="w-3 h-3 animate-spin" />
-                        Deleting...
-                      </>
-                    ) : (
-                      <>
-                        <Trash2 className="w-3 h-3" />
-                        Delete
-                      </>
-                    )}
-                  </button>
+                  {user.role?.name !== "admin" && (
+                    <button
+                      className={`border px-3 py-1 rounded text-sm flex items-center gap-1 ${
+                        isDeletingUser
+                          ? "text-red-400 border-red-400 cursor-not-allowed"
+                          : "text-red-600 border-red-600 hover:bg-red-50"
+                      }`}
+                      onClick={() => handleDeleteUser(user)}
+                      disabled={isDeletingUser}
+                    >
+                      {isDeletingUser ? (
+                        <>
+                          <Loader2 className="w-3 h-3 animate-spin" />
+                          Deleting...
+                        </>
+                      ) : (
+                        <>
+                          <Trash2 className="w-3 h-3" />
+                          Delete
+                        </>
+                      )}
+                    </button>
+                  )}
                 </div>
               </div>
             ))

@@ -123,7 +123,21 @@ export const authApi = baseApi.injectEndpoints({
     }),
 
     // Get current user
-    getCurrentUser: builder.query<AuthResponse["data"]["user"], void>({
+    getCurrentUser: builder.query<
+      {
+        success: boolean;
+        data: {
+          id: number;
+          firstname: string;
+          lastname: string;
+          email: string;
+          username: string;
+          role: string;
+          permissions: string[];
+        };
+      },
+      void
+    >({
       query: () => "/auth/me",
       providesTags: ["User"],
     }),
@@ -132,6 +146,19 @@ export const authApi = baseApi.injectEndpoints({
     getCurrentUserPermissions: builder.query<{ permissions: string[] }, void>({
       query: () => "/auth/permissions",
       providesTags: ["Permission"],
+    }),
+
+    // First-time account verification
+    verifyAccount: builder.mutation<
+      AuthResponse,
+      { email: string; newPassword: string }
+    >({
+      query: (data) => ({
+        url: "/auth/verify-account",
+        method: "POST",
+        body: data,
+      }),
+      invalidatesTags: ["User"],
     }),
   }),
 });
@@ -147,4 +174,5 @@ export const {
   useGetCurrentUserQuery,
   useGetCurrentUserPermissionsQuery,
   useResendOtpMutation,
+  useVerifyAccountMutation,
 } = authApi;

@@ -6,6 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { HeroBackground } from "@/components/ui/hero-background";
 import { CheckIcon } from "@/components/ui/icons";
+import { useVerifyAccountMutation } from "@/store/api/authApi";
+import { setCredentials } from "@/store/slices/authSlice";
+import { useAppDispatch } from "@/store/hooks";
 
 interface VerificationData {
   newPassword: string;
@@ -15,13 +18,15 @@ interface VerificationData {
 const VerificationPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const dispatch = useAppDispatch();
+  const [verifyAccount, { isLoading }] = useVerifyAccountMutation();
+
   const [formData, setFormData] = useState<VerificationData>({
     newPassword: "",
     confirmPassword: "",
   });
 
   const [errors, setErrors] = useState<Partial<VerificationData>>({});
-  const [isLoading, setIsLoading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -147,8 +152,6 @@ const VerificationPage = () => {
       return;
     }
 
-    setIsLoading(true);
-
     try {
       // Check if we have the email from navigation state
       if (!userEmail) {
@@ -157,31 +160,36 @@ const VerificationPage = () => {
         return;
       }
 
-      // Call backend API for verification
-      const response = await fetch("/api/auth/verify-account", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          email: userEmail,
-          newPassword: formData.newPassword,
-        }),
+      // Show loading toast
+      const loadingToastId = toast.loading("Verifying account...", {
+        description: "Please wait while we update your password.",
       });
 
-      const data = await response.json();
+      // Call the verification API
+      const response = await verifyAccount({
+        email: userEmail,
+        newPassword: formData.newPassword,
+      }).unwrap();
 
-      if (!response.ok) {
-        throw new Error(data.error || "Verification failed");
-      }
+      // Dismiss loading toast
+      toast.dismiss(loadingToastId);
 
-      // Store the token and user data
-      localStorage.setItem("token", data.data.token);
-      localStorage.setItem("user", JSON.stringify(data.data.user));
+      // Store credentials in Redux (same as login/register flows)
+      dispatch(
+        setCredentials({
+          user: response.data.user,
+          token: response.data.token,
+        })
+      );
+
+      // Store token in localStorage for persistence
+      localStorage.setItem("token", response.data.token);
 
       // Show success state
       setShowSuccess(true);
-      toast.success("Account verified successfully!");
+      toast.success("Account verified successfully!", {
+        description: `Welcome ${response.data.user.firstname}! Redirecting to your dashboard...`,
+      });
 
       // After a delay, navigate to dashboard
       setTimeout(() => {
@@ -189,16 +197,21 @@ const VerificationPage = () => {
       }, 3000);
     } catch (error) {
       console.error("Verification error:", error);
-      const errorMessage =
-        error instanceof Error
-          ? error.message
-          : "Verification failed. Please try again.";
-      toast.error(errorMessage);
+      let errorMessage = "Verification failed. Please try again.";
+
+      if (error && typeof error === "object" && "data" in error) {
+        const errorData = error as { data?: { error?: string } };
+        if (errorData.data?.error) {
+          errorMessage = errorData.data.error;
+        }
+      }
+
+      toast.error("Verification failed", {
+        description: errorMessage,
+      });
       setErrors({
         newPassword: errorMessage,
       });
-    } finally {
-      setIsLoading(false);
     }
   };
 

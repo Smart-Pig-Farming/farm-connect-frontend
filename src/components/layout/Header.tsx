@@ -3,8 +3,8 @@ import { useState, useEffect, useRef } from "react";
 import { Bell, ChevronDown, LogOut, User } from "lucide-react";
 import { toast } from "sonner";
 import { Logo } from "@/components/ui/logo";
-import { useLogoutMutation } from "@/store/api/authApi";
-import { useAppDispatch } from "@/store/hooks";
+import { useLogoutMutation, useGetCurrentUserQuery } from "@/store/api/authApi";
+import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { logout } from "@/store/slices/authSlice";
 
 interface HeaderProps {
@@ -18,6 +18,36 @@ export function Header({ sidebarCollapsed, isMobile = false }: HeaderProps) {
   const [logoutMutation, { isLoading: isLoggingOut }] = useLogoutMutation();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  // Get current user data from Redux state and API
+  const authUser = useAppSelector((state) => state.auth.user);
+  const { data: currentUserResponse } = useGetCurrentUserQuery(undefined, {
+    skip: !authUser, // Skip if no auth user in state
+  });
+
+  // Extract user data from API response
+  const currentUser = currentUserResponse?.data;
+
+  // Use current user data, fallback to auth user, then to defaults
+  const user = currentUser || authUser;
+
+  // Function to get display role name
+  const getRoleDisplayName = (role: string): string => {
+    const roleMap: Record<string, string> = {
+      admin: "Administrator",
+      farmer: "Farm Manager",
+      vet: "Veterinarian",
+      govt: "Government Official",
+    };
+    return roleMap[role.toLowerCase()] || role;
+  };
+
+  // Generate user initials
+  const getUserInitials = (firstname?: string, lastname?: string): string => {
+    if (!firstname && !lastname) return "U";
+    const first = firstname?.charAt(0).toUpperCase() || "";
+    const last = lastname?.charAt(0).toUpperCase() || "";
+    return `${first}${last}`;
+  };
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -131,17 +161,17 @@ export function Header({ sidebarCollapsed, isMobile = false }: HeaderProps) {
             >
               <div className="w-8 h-8 sm:w-9 sm:h-9 bg-gradient-to-r from-orange-400 to-orange-500 rounded-xl flex items-center justify-center shadow-md ring-2 ring-white/50">
                 <span className="text-white text-xs sm:text-sm font-bold">
-                  JD
+                  {getUserInitials(user?.firstname, user?.lastname)}
                 </span>
               </div>
 
               <div className="hidden sm:flex items-center space-x-2">
                 <div className="text-left">
                   <div className="text-sm font-semibold text-gray-700 leading-tight">
-                    John Doe
+                    {user ? `${user.firstname} ${user.lastname}` : "User Name"}
                   </div>
                   <div className="text-xs text-gray-500 leading-tight">
-                    Farm Manager
+                    {user?.role ? getRoleDisplayName(user.role) : "Role"}
                   </div>
                 </div>
                 <ChevronDown
@@ -167,17 +197,21 @@ export function Header({ sidebarCollapsed, isMobile = false }: HeaderProps) {
                 <div className="px-4 py-3 border-b border-gray-100/50">
                   <div className="flex items-center space-x-3">
                     <div className="w-12 h-12 bg-gradient-to-r from-orange-400 to-orange-500 rounded-xl flex items-center justify-center shadow-md">
-                      <span className="text-white font-bold text-sm">JD</span>
+                      <span className="text-white font-bold text-sm">
+                        {getUserInitials(user?.firstname, user?.lastname)}
+                      </span>
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="font-semibold text-gray-900 text-sm leading-tight">
-                        John Doe
+                        {user
+                          ? `${user.firstname} ${user.lastname}`
+                          : "User Name"}
                       </div>
                       <div className="text-sm text-gray-500 truncate leading-tight">
-                        john@farmconnect.com
+                        {user?.email || "user@farmconnect.com"}
                       </div>
                       <div className="text-xs text-orange-600 font-medium mt-1">
-                        Farm Manager
+                        {user?.role ? getRoleDisplayName(user.role) : "Role"}
                       </div>
                     </div>
                   </div>
