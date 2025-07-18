@@ -66,7 +66,8 @@ export function UsersTabContent() {
   const users = data?.data || [];
   const [deleteUser] = useDeleteUserMutation();
   const [toggleUserLock] = useToggleUserLockMutation();
-  const [resendUserCredentials] = useResendUserCredentialsMutation();
+  const [resendUserCredentials, { isLoading: isResendingCredentials }] =
+    useResendUserCredentialsMutation();
   const [createUser] = useCreateUserMutation();
 
   const handleSearchChange = (value: string) => {
@@ -440,11 +441,20 @@ export function UsersTabContent() {
                         <div className="flex items-center justify-end gap-1">
                           {!user.is_verified && (
                             <button
-                              className="text-blue-600 hover:text-blue-900 hover:cursor-pointer p-1 rounded hover:bg-blue-50"
+                              className={`p-1 rounded hover:bg-blue-50 ${
+                                isResendingCredentials
+                                  ? "text-blue-400 cursor-not-allowed"
+                                  : "text-blue-600 hover:text-blue-900 hover:cursor-pointer"
+                              }`}
                               title="Resend Verification Email"
                               onClick={() => handleResendEmail(user)}
+                              disabled={isResendingCredentials}
                             >
-                              <Mail className="w-4 h-4" />
+                              {isResendingCredentials ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <Mail className="w-4 h-4" />
+                              )}
                             </button>
                           )}
                           <button
@@ -540,11 +550,20 @@ export function UsersTabContent() {
                         <div className="flex items-center justify-end gap-1">
                           {!user.is_verified && (
                             <button
-                              className="text-blue-600 hover:text-blue-900 hover:cursor-pointer p-2 rounded-lg hover:bg-blue-50"
+                              className={`p-2 rounded-lg hover:bg-blue-50 ${
+                                isResendingCredentials
+                                  ? "text-blue-400 cursor-not-allowed"
+                                  : "text-blue-600 hover:text-blue-900 hover:cursor-pointer"
+                              }`}
                               title="Resend Verification Email"
                               onClick={() => handleResendEmail(user)}
+                              disabled={isResendingCredentials}
                             >
-                              <Mail className="w-4 h-4" />
+                              {isResendingCredentials ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <Mail className="w-4 h-4" />
+                              )}
                             </button>
                           )}
                           <button
@@ -641,11 +660,25 @@ export function UsersTabContent() {
                 <div className="flex flex-wrap justify-center gap-2 pt-3 border-t border-gray-100 w-full">
                   {!user.is_verified && (
                     <button
-                      className="text-blue-600 border border-blue-600 px-3 py-1 rounded text-sm hover:bg-blue-50 flex items-center gap-1"
+                      className={`border px-3 py-1 rounded text-sm flex items-center gap-1 ${
+                        isResendingCredentials
+                          ? "text-blue-400 border-blue-400 cursor-not-allowed"
+                          : "text-blue-600 border-blue-600 hover:bg-blue-50"
+                      }`}
                       onClick={() => handleResendEmail(user)}
+                      disabled={isResendingCredentials}
                     >
-                      <Mail className="w-3 h-3" />
-                      Resend Email
+                      {isResendingCredentials ? (
+                        <>
+                          <Loader2 className="w-3 h-3 animate-spin" />
+                          Sending...
+                        </>
+                      ) : (
+                        <>
+                          <Mail className="w-3 h-3" />
+                          Resend Email
+                        </>
+                      )}
                     </button>
                   )}
                   <button
