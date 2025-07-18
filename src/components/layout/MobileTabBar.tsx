@@ -1,7 +1,22 @@
 import { useNavigate, useLocation } from "react-router-dom";
-import { Home, MessageSquare, BookOpen, Users } from "lucide-react";
+import {
+  Home,
+  MessageSquare,
+  BookOpen,
+  Users,
+  type LucideIcon,
+} from "lucide-react";
+import { usePermissions } from "@/hooks/usePermissions";
 
-const navigation = [
+interface MobileNavigationItem {
+  name: string;
+  href: string;
+  icon: LucideIcon;
+  shortName: string;
+  permission?: string;
+}
+
+const baseNavigation: MobileNavigationItem[] = [
   {
     name: "Overview",
     href: "/dashboard",
@@ -25,12 +40,34 @@ const navigation = [
     href: "/dashboard/users",
     icon: Users,
     shortName: "Users",
+    permission: "MANAGE:USERS",
   },
 ];
 
 export function MobileTabBar() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { hasPermission } = usePermissions();
+
+  // Filter navigation items based on user permissions
+  const navigation = baseNavigation.filter((item) => {
+    if (item.permission) {
+      return hasPermission(item.permission);
+    }
+    return true; // Show items without permission requirements
+  });
+
+  // Dynamic grid columns based on number of items
+  const getGridCols = (itemCount: number) => {
+    switch (itemCount) {
+      case 3:
+        return "grid-cols-3";
+      case 4:
+        return "grid-cols-4";
+      default:
+        return "grid-cols-4";
+    }
+  };
 
   return (
     <div className="lg:hidden fixed bottom-0 left-0 right-0 w-screen bg-white/98 backdrop-blur-xl border-t border-gray-300/50 z-40 shadow-2xl safe-area-pb overflow-x-hidden">
@@ -38,7 +75,11 @@ export function MobileTabBar() {
       <div className="absolute inset-0 bg-gradient-to-t from-white/80 via-white/40 to-transparent pointer-events-none" />
 
       {/* Refined grid layout with improved aesthetics */}
-      <div className="grid grid-cols-4 w-full min-w-0 relative">
+      <div
+        className={`grid ${getGridCols(
+          navigation.length
+        )} w-full min-w-0 relative`}
+      >
         {navigation.map((item) => {
           const isActive = location.pathname === item.href;
           const Icon = item.icon;

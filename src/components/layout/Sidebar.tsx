@@ -9,16 +9,30 @@ import {
   ChevronLeft,
   ChevronRight,
   LogOut,
+  type LucideIcon,
 } from "lucide-react";
 import { useLogoutMutation } from "@/store/api/authApi";
 import { useAppDispatch } from "@/store/hooks";
 import { logout } from "@/store/slices/authSlice";
+import { usePermissions } from "@/hooks/usePermissions";
 
-const navigation = [
+interface NavigationItem {
+  name: string;
+  href: string;
+  icon: LucideIcon;
+  permission?: string;
+}
+
+const baseNavigation: NavigationItem[] = [
   { name: "Overview", href: "/dashboard", icon: Home },
   { name: "Discussions", href: "/dashboard/discussions", icon: MessageSquare },
   { name: "Best Practices", href: "/dashboard/best-practices", icon: BookOpen },
-  { name: "User Management", href: "/dashboard/users", icon: Users },
+  {
+    name: "User Management",
+    href: "/dashboard/users",
+    icon: Users,
+    permission: "MANAGE:USERS",
+  },
   { name: "Profile", href: "/dashboard/profile", icon: User },
 ];
 
@@ -36,7 +50,16 @@ export function Sidebar({
   const navigate = useNavigate();
   const location = useLocation();
   const dispatch = useAppDispatch();
+  const { hasPermission } = usePermissions();
   const [logoutMutation, { isLoading: isLoggingOut }] = useLogoutMutation();
+
+  // Filter navigation items based on user permissions
+  const navigation = baseNavigation.filter((item) => {
+    if (item.permission) {
+      return hasPermission(item.permission);
+    }
+    return true; // Show items without permission requirements
+  });
 
   const handleLogout = async () => {
     // Show loading toast

@@ -1,5 +1,6 @@
 import { type ReactNode } from "react";
 import { Navigate, useLocation } from "react-router-dom";
+import { useAppSelector } from "@/store/hooks";
 
 interface ProtectedRouteProps {
   children: ReactNode;
@@ -7,13 +8,11 @@ interface ProtectedRouteProps {
 
 export function ProtectedRoute({ children }: ProtectedRouteProps) {
   const location = useLocation();
+  const isAuthenticated = useAppSelector((state) => state.auth.isAuthenticated);
+  const token = useAppSelector((state) => state.auth.token);
 
-  // TODO: Replace with actual authentication check
-  // For now, we'll assume user is authenticated
-  // In a real app, you'd check authentication state from your store/context
-  const isAuthenticated = true; // This should come from your auth state
-
-  if (!isAuthenticated) {
+  // Check if user is authenticated by verifying auth state and token
+  if (!isAuthenticated || !token) {
     // Redirect to signin with return url
     return <Navigate to="/signin" state={{ from: location }} replace />;
   }

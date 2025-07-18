@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { Logo } from "@/components/ui/logo";
 import { useLogoutMutation, useGetCurrentUserQuery } from "@/store/api/authApi";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
-import { logout } from "@/store/slices/authSlice";
+import { logout, setUser } from "@/store/slices/authSlice";
 
 interface HeaderProps {
   sidebarCollapsed: boolean;
@@ -26,6 +26,16 @@ export function Header({ sidebarCollapsed, isMobile = false }: HeaderProps) {
 
   // Extract user data from API response
   const currentUser = currentUserResponse?.data;
+
+  // Update Redux store when fresh user data is fetched
+  useEffect(() => {
+    if (
+      currentUser &&
+      (!authUser || authUser.permissions !== currentUser.permissions)
+    ) {
+      dispatch(setUser(currentUser));
+    }
+  }, [currentUser, authUser, dispatch]);
 
   // Use current user data, fallback to auth user, then to defaults
   const user = currentUser || authUser;
