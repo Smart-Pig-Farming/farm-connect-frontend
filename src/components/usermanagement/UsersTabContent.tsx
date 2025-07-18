@@ -17,7 +17,7 @@ import {
   useGetUsersQuery,
   useDeleteUserMutation,
   useToggleUserLockMutation,
-  useVerifyUserMutation,
+  useResendUserCredentialsMutation,
   useCreateUserMutation,
   type User,
 } from "../../store/api/userApi";
@@ -66,7 +66,7 @@ export function UsersTabContent() {
   const users = data?.data || [];
   const [deleteUser] = useDeleteUserMutation();
   const [toggleUserLock] = useToggleUserLockMutation();
-  const [verifyUser] = useVerifyUserMutation();
+  const [resendUserCredentials] = useResendUserCredentialsMutation();
   const [createUser] = useCreateUserMutation();
 
   const handleSearchChange = (value: string) => {
@@ -176,16 +176,16 @@ export function UsersTabContent() {
 
   const handleResendEmail = async (user: User) => {
     try {
-      await verifyUser(user.id).unwrap();
-      toast.success("Verification email sent", {
-        description: `New verification email has been sent to ${user.email}.`,
+      await resendUserCredentials(user.id).unwrap();
+      toast.success("Credentials resent successfully", {
+        description: `New login credentials have been sent to ${user.email}.`,
       });
     } catch (error: unknown) {
       const errorMessage =
         error && typeof error === "object" && "data" in error
           ? (error as { data?: { error?: string } }).data?.error
           : "An unexpected error occurred.";
-      toast.error("Failed to send verification email", {
+      toast.error("Failed to resend credentials", {
         description: errorMessage,
       });
     }
@@ -196,8 +196,8 @@ export function UsersTabContent() {
     firstname: string;
     lastname: string;
     email: string;
-    password: string;
-    confirmPassword: string;
+    password?: string;
+    confirmPassword?: string;
     farmName: string;
     province: string;
     district: string;

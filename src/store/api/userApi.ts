@@ -92,6 +92,7 @@ export interface UserResponse {
   success: boolean;
   data: User;
   message?: string;
+  warning?: string;
 }
 
 export interface UserListApiResponse {
@@ -201,6 +202,15 @@ export const userApi = baseApi.injectEndpoints({
       invalidatesTags: (_result, _error, id) => [{ type: "User", id }, "User"],
     }),
 
+    // Resend user credentials
+    resendUserCredentials: builder.mutation<UserResponse, number>({
+      query: (id) => ({
+        url: `/admin/users/${id}/resend-credentials`,
+        method: "POST",
+      }),
+      invalidatesTags: (_result, _error, id) => [{ type: "User", id }, "User"],
+    }),
+
     // Get user statistics
     getUserStats: builder.query<UserStatsResponse, void>({
       query: () => "/admin/users-stats",
@@ -218,5 +228,6 @@ export const {
   useDeleteUserMutation,
   useToggleUserLockMutation,
   useVerifyUserMutation,
+  useResendUserCredentialsMutation,
   useGetUserStatsQuery,
 } = userApi;

@@ -1,20 +1,20 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { HeroBackground } from "@/components/ui/hero-background";
 import { CheckIcon } from "@/components/ui/icons";
 
 interface VerificationData {
-  currentPassword: string;
   newPassword: string;
   confirmPassword: string;
 }
 
 const VerificationPage = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [formData, setFormData] = useState<VerificationData>({
-    currentPassword: "",
     newPassword: "",
     confirmPassword: "",
   });
@@ -22,6 +22,17 @@ const VerificationPage = () => {
   const [errors, setErrors] = useState<Partial<VerificationData>>({});
   const [isLoading, setIsLoading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+
+  // Get email from navigation state
+  const userEmail = location.state?.email;
+
+  // Redirect if no email is provided
+  useEffect(() => {
+    if (!userEmail) {
+      toast.error("Invalid access. Please login first.");
+      navigate("/signin");
+    }
+  }, [userEmail, navigate]);
 
   // Password strength calculation
   const getPasswordStrength = (password: string) => {
@@ -80,10 +91,6 @@ const VerificationPage = () => {
   const validateForm = () => {
     const formErrors: Partial<VerificationData> = {};
 
-    if (!formData.currentPassword) {
-      formErrors.currentPassword = "Current password is required";
-    }
-
     if (!formData.newPassword) {
       formErrors.newPassword = "New password is required";
     } else if (formData.newPassword.length < 8) {
@@ -97,14 +104,6 @@ const VerificationPage = () => {
       formErrors.confirmPassword = "Please confirm your new password";
     } else if (formData.newPassword !== formData.confirmPassword) {
       formErrors.confirmPassword = "Passwords do not match";
-    }
-
-    if (
-      formData.currentPassword === formData.newPassword &&
-      formData.currentPassword
-    ) {
-      formErrors.newPassword =
-        "New password must be different from current password";
     }
 
     return formErrors;
@@ -141,26 +140,52 @@ const VerificationPage = () => {
     setIsLoading(true);
 
     try {
-      // Here you would typically submit the form data to your backend
-      console.log("Password verification attempt:", {
-        currentPassword: formData.currentPassword,
-        newPassword: formData.newPassword,
+      // Check if we have the email from navigation state
+      if (!userEmail) {
+        toast.error("Session expired. Please login again.");
+        navigate("/signin");
+        return;
+      }
+
+      // Call backend API for verification
+      const response = await fetch("/api/auth/verify-account", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: userEmail,
+          newPassword: formData.newPassword,
+        }),
       });
 
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Verification failed");
+      }
+
+      // Store the token and user data
+      localStorage.setItem("token", data.data.token);
+      localStorage.setItem("user", JSON.stringify(data.data.user));
 
       // Show success state
       setShowSuccess(true);
+      toast.success("Account verified successfully!");
 
-      // After a delay, navigate to home
+      // After a delay, navigate to dashboard
       setTimeout(() => {
-        navigate("/");
+        navigate("/dashboard");
       }, 3000);
     } catch (error) {
       console.error("Verification error:", error);
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "Verification failed. Please try again.";
+      toast.error(errorMessage);
       setErrors({
-        currentPassword: "Invalid current password. Please try again.",
+        newPassword: errorMessage,
       });
     } finally {
       setIsLoading(false);
