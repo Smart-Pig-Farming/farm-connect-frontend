@@ -2,20 +2,31 @@ import { useState, useEffect } from "react";
 import { X } from "lucide-react";
 import { locationData } from "@/data/location";
 
-// Types
+// Types - Updated to match backend structure
 interface User {
   id: number;
-  name: string;
-  firstName: string;
-  lastName: string;
+  firstname: string;
+  lastname: string;
   email: string;
-  phone: string;
-  role: string;
-  status: string;
-  isVerified: boolean;
-  isLocked: boolean;
-  lastLogin: string | null;
+  username: string;
+  organization?: string;
+  sector?: string;
+  district?: string;
+  province?: string;
+  is_verified: boolean;
+  is_locked: boolean;
   createdAt: string;
+  updatedAt: string;
+  role: {
+    id: number;
+    name: string;
+    description?: string;
+  };
+  level?: {
+    id: number;
+    name: string;
+    description?: string;
+  };
 }
 
 interface UserFormData {
@@ -63,16 +74,16 @@ export function UserFormModal({
   useEffect(() => {
     if (mode === "edit" && user) {
       setFormData({
-        firstname: user.firstName,
-        lastname: user.lastName,
+        firstname: user.firstname,
+        lastname: user.lastname,
         email: user.email,
         password: "",
         confirmPassword: "",
-        farmName: "", // Would need to be fetched from user data
-        province: "",
-        district: "",
-        sector: "",
-        role: user.role,
+        farmName: user.organization || "",
+        province: user.province || "",
+        district: user.district || "",
+        sector: user.sector || "",
+        role: user.role.name.toLowerCase(),
       });
     } else if (mode === "create") {
       resetForm();

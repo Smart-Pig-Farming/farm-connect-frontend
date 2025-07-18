@@ -26,11 +26,12 @@ const transformRole = (role: Role): ComponentRole => ({
   name: role.name,
   description: role.description || "",
   userCount: role.userCount || 0,
-  permissions: role.permissions?.map(permission => {
-    const action = permission.action?.name || "Unknown";
-    const resource = permission.resource?.name || "Unknown";
-    return `${action}:${resource}`;
-  }) || [],
+  permissions:
+    role.permissions?.map((permission) => {
+      const action = permission.action?.name || "Unknown";
+      const resource = permission.resource?.name || "Unknown";
+      return `${action}:${resource}`;
+    }) || [],
 });
 
 export function RolesTabContainer() {

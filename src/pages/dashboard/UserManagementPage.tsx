@@ -1,38 +1,13 @@
 import { useState } from "react";
+import { Users, Shield, Settings } from "lucide-react";
 import {
-  Users,
-  Shield,
-  Settings,
-  AlertTriangle,
-  Lock,
-  Unlock,
-  Mail,
-} from "lucide-react";
-import {
-  UserFormModal,
-  ConfirmationModal,
   RoleFormModal,
   UsersTabContent,
 } from "../../components/usermanagement";
 import { PermissionsTabContainer } from "../../components/usermanagement/PermissionsTabContainer";
 import { RolesTabContainer } from "../../components/usermanagement/RolesTabContainer";
 
-// Mock data for demonstration
-interface User {
-  id: number;
-  name: string;
-  firstName: string;
-  lastName: string;
-  email: string;
-  phone: string;
-  role: string;
-  status: string;
-  isVerified: boolean;
-  isLocked: boolean;
-  lastLogin: string | null;
-  createdAt: string;
-}
-
+// Types for roles and permissions
 interface Role {
   id: number;
   name: string;
@@ -48,65 +23,6 @@ interface Permission {
   resource: string;
   description: string;
 }
-
-// Form data types
-interface UserFormData {
-  firstname: string;
-  lastname: string;
-  email: string;
-  password: string;
-  confirmPassword: string;
-  farmName: string;
-  province: string;
-  district: string;
-  sector: string;
-  role: string;
-}
-
-const mockUsers: User[] = [
-  {
-    id: 1,
-    name: "John Doe",
-    firstName: "John",
-    lastName: "Doe",
-    email: "john@example.com",
-    phone: "+1-555-0123",
-    role: "Admin",
-    status: "active",
-    isVerified: true,
-    isLocked: false,
-    lastLogin: "2024-02-15T10:30:00Z",
-    createdAt: "2024-01-15",
-  },
-  {
-    id: 2,
-    name: "Jane Smith",
-    firstName: "Jane",
-    lastName: "Smith",
-    email: "jane@example.com",
-    phone: "+1-555-0124",
-    role: "Farm Manager",
-    status: "active",
-    isVerified: true,
-    isLocked: false,
-    lastLogin: "2024-02-14T15:45:00Z",
-    createdAt: "2024-01-20",
-  },
-  {
-    id: 3,
-    name: "Bob Wilson",
-    firstName: "Bob",
-    lastName: "Wilson",
-    email: "bob@example.com",
-    phone: "+1-555-0125",
-    role: "Farm Worker",
-    status: "pending",
-    isVerified: false,
-    isLocked: false,
-    lastLogin: null,
-    createdAt: "2024-02-01",
-  },
-];
 
 const mockPermissions: Permission[] = [
   {
@@ -138,109 +54,10 @@ export default function UserManagementPage() {
     "users"
   );
 
-  // Modal states
-  const [showCreateUser, setShowCreateUser] = useState(false);
+  // Modal states for roles
   const [showCreateRole, setShowCreateRole] = useState(false);
   const [showEditRole, setShowEditRole] = useState(false);
-  const [showEditUser, setShowEditUser] = useState(false);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [showLockConfirm, setShowLockConfirm] = useState(false);
-  const [showResendEmailConfirm, setShowResendEmailConfirm] = useState(false);
-
-  // Selected items for editing/deleting
-  const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [selectedRole, setSelectedRole] = useState<Role | null>(null);
-
-  // State for users data
-  const [users, setUsers] = useState<User[]>(mockUsers);
-
-  // Event handlers
-  const handleCreateUser = (userData: UserFormData) => {
-    const newUser: User = {
-      id: users.length + 1,
-      name: `${userData.firstname} ${userData.lastname}`,
-      firstName: userData.firstname,
-      lastName: userData.lastname,
-      email: userData.email,
-      phone: "",
-      role: userData.role,
-      status: "pending",
-      isVerified: false,
-      isLocked: false,
-      lastLogin: null,
-      createdAt: new Date().toISOString().split("T")[0],
-    };
-    setUsers([...users, newUser]);
-    setShowCreateUser(false);
-  };
-
-  const handleEditUser = (user: User) => {
-    setSelectedUser(user);
-    setShowEditUser(true);
-  };
-
-  const handleUpdateUser = (userData: UserFormData) => {
-    if (selectedUser) {
-      const updatedUsers = users.map((user) =>
-        user.id === selectedUser.id
-          ? {
-              ...user,
-              name: `${userData.firstname} ${userData.lastname}`,
-              firstName: userData.firstname,
-              lastName: userData.lastname,
-              email: userData.email,
-              role: userData.role,
-            }
-          : user
-      );
-      setUsers(updatedUsers);
-      setShowEditUser(false);
-      setSelectedUser(null);
-    }
-  };
-
-  const handleDeleteUser = (user: User) => {
-    setSelectedUser(user);
-    setShowDeleteConfirm(true);
-  };
-
-  const confirmDeleteUser = () => {
-    if (selectedUser) {
-      setUsers(users.filter((user) => user.id !== selectedUser.id));
-      setShowDeleteConfirm(false);
-      setSelectedUser(null);
-    }
-  };
-
-  const handleLockUnlockUser = (user: User) => {
-    setSelectedUser(user);
-    setShowLockConfirm(true);
-  };
-
-  const confirmLockUnlockUser = () => {
-    if (selectedUser) {
-      const updatedUsers = users.map((user) =>
-        user.id === selectedUser.id
-          ? { ...user, isLocked: !user.isLocked }
-          : user
-      );
-      setUsers(updatedUsers);
-      setShowLockConfirm(false);
-      setSelectedUser(null);
-    }
-  };
-
-  const handleResendEmail = (user: User) => {
-    setSelectedUser(user);
-    setShowResendEmailConfirm(true);
-  };
-
-  const confirmResendEmail = () => {
-    // In a real app, this would trigger an email resend
-    console.log("Resending verification email to:", selectedUser?.email);
-    setShowResendEmailConfirm(false);
-    setSelectedUser(null);
-  };
 
   const handleCreateRole = (roleData: {
     name: string;
@@ -326,16 +143,7 @@ export default function UserManagementPage() {
       {/* Tab Content */}
       <div className="w-full min-w-0">
         {/* Users Tab Content */}
-        {activeTab === "users" && (
-          <UsersTabContent
-            users={users}
-            onCreateUser={() => setShowCreateUser(true)}
-            onEditUser={handleEditUser}
-            onDeleteUser={handleDeleteUser}
-            onLockUnlockUser={handleLockUnlockUser}
-            onResendEmail={handleResendEmail}
-          />
-        )}
+        {activeTab === "users" && <UsersTabContent />}
 
         {/* Roles Tab Content */}
         {activeTab === "roles" && <RolesTabContainer />}
@@ -343,22 +151,6 @@ export default function UserManagementPage() {
         {/* Permissions Tab Content */}
         {activeTab === "permissions" && <PermissionsTabContainer />}
       </div>
-
-      {/* User Form Modals */}
-      <UserFormModal
-        isOpen={showCreateUser}
-        onClose={() => setShowCreateUser(false)}
-        onSubmit={handleCreateUser}
-        mode="create"
-      />
-
-      <UserFormModal
-        isOpen={showEditUser}
-        onClose={() => setShowEditUser(false)}
-        onSubmit={handleUpdateUser}
-        mode="edit"
-        user={selectedUser}
-      />
 
       {/* Role Form Modals */}
       <RoleFormModal
@@ -376,52 +168,6 @@ export default function UserManagementPage() {
         mode="edit"
         role={selectedRole}
         availablePermissions={mockPermissions}
-      />
-
-      {/* Confirmation Modals */}
-      <ConfirmationModal
-        isOpen={showDeleteConfirm}
-        onClose={() => setShowDeleteConfirm(false)}
-        onConfirm={confirmDeleteUser}
-        title="Delete User"
-        message={`Are you sure you want to delete ${selectedUser?.name}? This action cannot be undone.`}
-        confirmText="Delete"
-        confirmButtonClass="bg-red-600 hover:bg-red-700"
-        icon={<AlertTriangle className="w-6 h-6 text-red-600" />}
-      />
-
-      <ConfirmationModal
-        isOpen={showLockConfirm}
-        onClose={() => setShowLockConfirm(false)}
-        onConfirm={confirmLockUnlockUser}
-        title={selectedUser?.isLocked ? "Unlock User" : "Lock User"}
-        message={`Are you sure you want to ${
-          selectedUser?.isLocked ? "unlock" : "lock"
-        } ${selectedUser?.name}?`}
-        confirmText={selectedUser?.isLocked ? "Unlock" : "Lock"}
-        confirmButtonClass={
-          selectedUser?.isLocked
-            ? "bg-green-600 hover:bg-green-700"
-            : "bg-red-600 hover:bg-red-700"
-        }
-        icon={
-          selectedUser?.isLocked ? (
-            <Unlock className="w-6 h-6 text-green-600" />
-          ) : (
-            <Lock className="w-6 h-6 text-red-600" />
-          )
-        }
-      />
-
-      <ConfirmationModal
-        isOpen={showResendEmailConfirm}
-        onClose={() => setShowResendEmailConfirm(false)}
-        onConfirm={confirmResendEmail}
-        title="Resend Verification Email"
-        message={`Are you sure you want to resend the verification email to ${selectedUser?.email}?`}
-        confirmText="Resend Email"
-        confirmButtonClass="bg-blue-600 hover:bg-blue-700"
-        icon={<Mail className="w-6 h-6 text-blue-600" />}
       />
     </div>
   );
