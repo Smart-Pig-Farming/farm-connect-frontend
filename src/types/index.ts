@@ -1,5 +1,5 @@
 // User types
-export type { User } from './user';
+export type { User } from "./user";
 
 // Auth types
 export type {
@@ -12,4 +12,4 @@ export type {
   ChangePasswordRequest,
   UpdateProfileRequest,
   UpdateProfileResponse,
-} from './auth';
+} from "./auth";

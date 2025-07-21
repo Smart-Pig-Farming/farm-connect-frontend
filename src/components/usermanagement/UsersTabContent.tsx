@@ -22,11 +22,12 @@ import {
   useUpdateUserMutation,
   type User,
 } from "../../store/api/userApi";
+import { useGetRolesQuery } from "../../store/api/rolesApi";
 import { UserFormModal } from "./UserFormModal";
 import { ConfirmationModal } from "./ConfirmationModal";
 
 type FilterStatus = "all" | "active" | "locked" | "unverified";
-type FilterRole = "all" | "admin" | "vet" | "govt" | "farmer";
+type FilterRole = string; // Make this dynamic instead of hardcoded
 
 export function UsersTabContent() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -56,10 +57,17 @@ export function UsersTabContent() {
 
   // API queries and mutations
   const { data, isLoading, error } = useGetUsersQuery({
-    page: 1,
-    limit: 1000, // Get all users for client-side filtering
+    page: currentPage,
+    limit: itemsPerPage,
+    search: searchTerm || undefined,
+    status: filterStatus,
+    role: filterRole !== "all" ? filterRole : undefined,
   });
   const users = data?.data || [];
+  const pagination = data?.pagination;
+
+  const { data: rolesData } = useGetRolesQuery();
+  const availableRoles = rolesData || [];
   const [deleteUser, { isLoading: isDeletingUser }] = useDeleteUserMutation();
   const [toggleUserLock] = useToggleUserLockMutation();
   const [resendUserCredentials, { isLoading: isResendingCredentials }] =
@@ -82,29 +90,9 @@ export function UsersTabContent() {
     setCurrentPage(1);
   };
 
-  // Filter users based on search term, status, and role
-  const filteredUsers = users.filter((user) => {
-    const userName = `${user.firstname} ${user.lastname}`.toLowerCase();
-    const matchesSearch =
-      userName.includes(searchTerm.toLowerCase()) ||
-      user.email.toLowerCase().includes(searchTerm.toLowerCase());
-
-    const matchesStatus =
-      filterStatus === "all" ||
-      (filterStatus === "active" && user.is_verified && !user.is_locked) ||
-      (filterStatus === "locked" && user.is_locked) ||
-      (filterStatus === "unverified" && !user.is_verified);
-
-    const matchesRole = filterRole === "all" || user.role?.name === filterRole;
-
-    return matchesSearch && matchesStatus && matchesRole;
-  });
-
-  // Pagination
-  const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
-  const paginatedUsers = filteredUsers.slice(startIndex, endIndex);
+  // Since we're using server-side filtering, no need for client-side filtering
+  const paginatedUsers = users;
+  const totalPages = pagination?.totalPages || 0;
 
   const getStatusBadge = (user: User) => {
     if (!user.is_verified) {
@@ -401,10 +389,11 @@ export function UsersTabContent() {
               className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 w-full sm:w-auto text-sm"
             >
               <option value="all">All Roles</option>
-              <option value="admin">Administrator</option>
-              <option value="vet">Veterinarian</option>
-              <option value="govt">Government Official</option>
-              <option value="farmer">Farmer</option>
+              {availableRoles.map((role) => (
+                <option key={role.id} value={role.name}>
+                  {role.name.charAt(0).toUpperCase() + role.name.slice(1)}
+                </option>
+              ))}
             </select>
           </div>
         </div>
@@ -808,13 +797,13 @@ export function UsersTabContent() {
         </div>
 
         {/* Pagination Controls */}
-        {filteredUsers.length > 0 && (
+        {pagination && pagination.totalCount > 0 && (
           <div className="flex flex-col gap-4 mt-6 w-full">
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
               <div className="text-sm text-gray-500">
-                Showing {startIndex + 1} to{" "}
-                {Math.min(endIndex, filteredUsers.length)} of{" "}
-                {filteredUsers.length} users
+                Showing {(currentPage - 1) * itemsPerPage + 1} to{" "}
+                {Math.min(currentPage * itemsPerPage, pagination.totalCount)} of{" "}
+                {pagination.totalCount} users
               </div>
               <select
                 value={itemsPerPage}
@@ -834,7 +823,7 @@ export function UsersTabContent() {
               <div className="flex items-center justify-center gap-2">
                 <button
                   onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                  disabled={currentPage === 1}
+                  disabled={!pagination?.hasPreviousPage}
                   className="flex items-center gap-1 px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <ChevronLeft className="w-4 h-4" />
@@ -872,7 +861,7 @@ export function UsersTabContent() {
                   onClick={() =>
                     setCurrentPage(Math.min(totalPages, currentPage + 1))
                   }
-                  disabled={currentPage === totalPages}
+                  disabled={!pagination?.hasNextPage}
                   className="flex items-center gap-1 px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Next

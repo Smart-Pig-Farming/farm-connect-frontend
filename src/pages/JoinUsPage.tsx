@@ -241,12 +241,8 @@ const JoinUsPage = () => {
       dispatch(
         setCredentials({
           user: response.data.user,
-          token: response.data.token,
         })
       );
-
-      // Store token in localStorage for persistence
-      localStorage.setItem("token", response.data.token);
 
       // Show success toast
       toast.success("Welcome to FarmConnect!", {
@@ -255,9 +251,9 @@ const JoinUsPage = () => {
         duration: 3000,
       });
 
-      // On successful registration, navigate to dashboard
+      // On successful registration, navigate to dashboard overview
       setTimeout(() => {
-        navigate("/dashboard");
+        navigate("/dashboard/overview");
       }, 1500);
     } catch (error) {
       console.error("Registration failed:", error);

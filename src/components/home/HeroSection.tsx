@@ -14,8 +14,8 @@ export function HeroSection({ onScrollToSection }: HeroSectionProps) {
 
   return (
     <HeroBackground>
-      {/* Vertical "How It Works" Tab - Left Side */}
-      <div className="fixed left-0 top-1/2 transform -translate-y-1/2 z-20">
+      {/* Vertical "How It Works" Tab - Left Side - Only visible on lg+ screens (921px+) */}
+      <div className="hidden lg:block fixed left-0 top-1/2 transform -translate-y-1/2 z-20">
         <button
           onClick={() => onScrollToSection("how-it-works")}
           className="group cursor-pointer transition-all duration-300 hover:scale-105"

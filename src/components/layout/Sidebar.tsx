@@ -77,9 +77,6 @@ export function Sidebar({
       // Clear local state
       dispatch(logout());
 
-      // Clear token from localStorage
-      localStorage.removeItem("token");
-
       // Show success toast
       toast.success("Signed out successfully!", {
         description: "You have been logged out of your account.",
@@ -96,7 +93,6 @@ export function Sidebar({
 
       // Even if API fails, clear local state for security
       dispatch(logout());
-      localStorage.removeItem("token");
 
       // Show error toast
       toast.error("Logout completed with warnings", {
