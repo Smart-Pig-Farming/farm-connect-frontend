@@ -485,21 +485,25 @@ export function UsersTabContent() {
                               )}
                             </button>
                           )}
-                          <button
-                            className={`hover:cursor-pointer p-1 rounded ${
-                              user.is_locked
-                                ? "text-green-600 hover:text-green-900 hover:bg-green-50"
-                                : "text-red-600 hover:text-red-900 hover:bg-red-50"
-                            }`}
-                            title={user.is_locked ? "Unlock User" : "Lock User"}
-                            onClick={() => handleLockUnlockUser(user)}
-                          >
-                            {user.is_locked ? (
-                              <Unlock className="w-4 h-4" />
-                            ) : (
-                              <Lock className="w-4 h-4" />
-                            )}
-                          </button>
+                          {user.role?.name !== "admin" && (
+                            <button
+                              className={`hover:cursor-pointer p-1 rounded ${
+                                user.is_locked
+                                  ? "text-green-600 hover:text-green-900 hover:bg-green-50"
+                                  : "text-red-600 hover:text-red-900 hover:bg-red-50"
+                              }`}
+                              title={
+                                user.is_locked ? "Unlock User" : "Lock User"
+                              }
+                              onClick={() => handleLockUnlockUser(user)}
+                            >
+                              {user.is_locked ? (
+                                <Unlock className="w-4 h-4" />
+                              ) : (
+                                <Lock className="w-4 h-4" />
+                              )}
+                            </button>
+                          )}
                           <button
                             className="text-gray-600 hover:text-gray-900 hover:cursor-pointer p-1 rounded hover:bg-gray-50"
                             title="Edit User"
@@ -605,21 +609,25 @@ export function UsersTabContent() {
                               )}
                             </button>
                           )}
-                          <button
-                            className={`hover:cursor-pointer p-2 rounded-lg ${
-                              user.is_locked
-                                ? "text-green-600 hover:text-green-900 hover:bg-green-50"
-                                : "text-red-600 hover:text-red-900 hover:bg-red-50"
-                            }`}
-                            title={user.is_locked ? "Unlock User" : "Lock User"}
-                            onClick={() => handleLockUnlockUser(user)}
-                          >
-                            {user.is_locked ? (
-                              <Unlock className="w-4 h-4" />
-                            ) : (
-                              <Lock className="w-4 h-4" />
-                            )}
-                          </button>
+                          {user.role?.name !== "admin" && (
+                            <button
+                              className={`hover:cursor-pointer p-2 rounded-lg ${
+                                user.is_locked
+                                  ? "text-green-600 hover:text-green-900 hover:bg-green-50"
+                                  : "text-red-600 hover:text-red-900 hover:bg-red-50"
+                              }`}
+                              title={
+                                user.is_locked ? "Unlock User" : "Lock User"
+                              }
+                              onClick={() => handleLockUnlockUser(user)}
+                            >
+                              {user.is_locked ? (
+                                <Unlock className="w-4 h-4" />
+                              ) : (
+                                <Lock className="w-4 h-4" />
+                              )}
+                            </button>
+                          )}
                           <button
                             className="text-gray-600 hover:text-gray-900 hover:cursor-pointer p-2 rounded-lg hover:bg-gray-50"
                             title="Edit User"
@@ -731,26 +739,28 @@ export function UsersTabContent() {
                       )}
                     </button>
                   )}
-                  <button
-                    className={`border px-3 py-1 rounded text-sm flex items-center gap-1 ${
-                      user.is_locked
-                        ? "text-green-600 border-green-600 hover:bg-green-50"
-                        : "text-red-600 border-red-600 hover:bg-red-50"
-                    }`}
-                    onClick={() => handleLockUnlockUser(user)}
-                  >
-                    {user.is_locked ? (
-                      <>
-                        <Unlock className="w-3 h-3" />
-                        Unlock
-                      </>
-                    ) : (
-                      <>
-                        <Lock className="w-3 h-3" />
-                        Lock
-                      </>
-                    )}
-                  </button>
+                  {user.role?.name !== "admin" && (
+                    <button
+                      className={`border px-3 py-1 rounded text-sm flex items-center gap-1 ${
+                        user.is_locked
+                          ? "text-green-600 border-green-600 hover:bg-green-50"
+                          : "text-red-600 border-red-600 hover:bg-red-50"
+                      }`}
+                      onClick={() => handleLockUnlockUser(user)}
+                    >
+                      {user.is_locked ? (
+                        <>
+                          <Unlock className="w-3 h-3" />
+                          Unlock
+                        </>
+                      ) : (
+                        <>
+                          <Lock className="w-3 h-3" />
+                          Lock
+                        </>
+                      )}
+                    </button>
+                  )}
                   <button
                     className="text-orange-600 border border-orange-600 px-3 py-1 rounded text-sm hover:bg-orange-50 flex items-center gap-1"
                     onClick={() => handleEditUser(user)}
