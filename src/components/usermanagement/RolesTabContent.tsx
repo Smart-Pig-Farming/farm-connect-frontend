@@ -14,6 +14,7 @@ interface RolesTabContentProps {
   onCreateRole: () => void;
   onEditRole: (role: Role) => void;
   onDeleteRole: (role: Role) => void;
+  onViewRole: (role: Role) => void;
 }
 
 export function RolesTabContent({
@@ -21,6 +22,7 @@ export function RolesTabContent({
   onCreateRole,
   onEditRole,
   onDeleteRole,
+  onViewRole,
 }: RolesTabContentProps) {
   return (
     <div className="p-3 sm:p-6 w-full min-w-0">
@@ -46,11 +48,12 @@ export function RolesTabContent({
         {roles.map((role) => (
           <div
             key={role.id}
-            className="border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow bg-white"
+            className="border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow bg-white cursor-pointer group"
+            onClick={() => onViewRole(role)}
           >
             <div className="mb-4">
               <div className="flex items-start justify-between mb-2">
-                <h3 className="text-lg font-medium text-gray-900 flex-1 break-words">
+                <h3 className="text-lg font-medium text-gray-900 flex-1 break-words group-hover:text-orange-600 transition-colors">
                   {role.name}
                 </h3>
                 <span className="ml-2 px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded-full break-words">
@@ -85,14 +88,19 @@ export function RolesTabContent({
                   );
                 })}
                 {role.permissions.length > 3 && (
-                  <span className="px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded break-words">
+                  <span className="px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded break-words hover:bg-orange-100 hover:text-orange-700 transition-colors">
                     +{role.permissions.length - 3} more
                   </span>
                 )}
               </div>
+              {role.permissions.length > 0 && (
+                <div className="mt-2 text-xs text-gray-400 group-hover:text-orange-500 transition-colors">
+                  Click to view all permissions
+                </div>
+              )}
             </div>
 
-            <div className="flex gap-2">
+            <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
               <button
                 onClick={() => onEditRole(role)}
                 className="flex-1 text-sm text-orange-600 border border-orange-600 px-3 py-2 rounded hover:bg-orange-50 hover:cursor-pointer transition-colors break-words"
@@ -115,12 +123,13 @@ export function RolesTabContent({
         {roles.map((role) => (
           <div
             key={role.id}
-            className="border border-gray-200 rounded-lg p-4 bg-white shadow-sm w-full min-w-0"
+            className="border border-gray-200 rounded-lg p-4 bg-white shadow-sm w-full min-w-0 cursor-pointer group"
+            onClick={() => onViewRole(role)}
           >
             {/* Role Header */}
             <div className="flex items-start justify-between mb-3">
               <div className="flex-1 min-w-0 pr-2">
-                <h3 className="text-lg font-medium text-gray-900 break-words">
+                <h3 className="text-lg font-medium text-gray-900 break-words group-hover:text-orange-600 transition-colors">
                   {role.name}
                 </h3>
                 <p className="text-sm text-gray-500 mt-1 break-words">
@@ -164,17 +173,22 @@ export function RolesTabContent({
                 })}
                 {role.permissions.length > 2 && (
                   <div className="text-center py-1">
-                    <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded break-words">
+                    <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded break-words hover:bg-orange-100 hover:text-orange-700 transition-colors">
                       + {role.permissions.length - 2} more permissions
                     </span>
                   </div>
                 )}
               </div>
+              {role.permissions.length > 0 && (
+                <div className="mt-2 text-xs text-gray-400 group-hover:text-orange-500 transition-colors text-center">
+                  Tap to view all permissions
+                </div>
+              )}
             </div>
 
             {/* Action Buttons */}
             <div className="pt-3 border-t border-gray-100">
-              <div className="flex gap-2">
+              <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
                 <button
                   onClick={() => onEditRole(role)}
                   className="flex-1 text-sm text-orange-600 border border-orange-600 px-4 py-2 rounded-lg hover:bg-orange-50 hover:cursor-pointer transition-colors flex items-center justify-center gap-2 break-words"

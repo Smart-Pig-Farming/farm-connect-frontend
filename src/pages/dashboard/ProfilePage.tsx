@@ -73,13 +73,15 @@ export function ProfilePage() {
   }) => {
     try {
       const result = await updateProfile(data).unwrap();
-      
+
       // Update user data in store with the response from backend
       if (result.data?.user && token) {
-        dispatch(setCredentials({ 
-          user: result.data.user, 
-          token: token 
-        }));
+        dispatch(
+          setCredentials({
+            user: result.data.user,
+            token: token,
+          })
+        );
       }
 
       toast.success("Profile updated successfully", {

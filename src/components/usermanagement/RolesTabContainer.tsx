@@ -2,6 +2,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { RolesTabContent } from "./RolesTabContent";
 import { RoleFormModal } from "./RoleFormModal";
+import { RoleDetailsModal } from "./RoleDetailsModal";
 import {
   useGetRolesQuery,
   useCreateRoleMutation,
@@ -43,6 +44,15 @@ export function RolesTabContainer() {
   }>({
     isOpen: false,
     mode: "create",
+    role: null,
+  });
+
+  // View modal state
+  const [viewModal, setViewModal] = useState<{
+    isOpen: boolean;
+    role?: ComponentRole | null;
+  }>({
+    isOpen: false,
     role: null,
   });
 
@@ -122,6 +132,13 @@ export function RolesTabContainer() {
     setRoleModal({
       isOpen: true,
       mode: "edit",
+      role: role,
+    });
+  };
+
+  const handleViewRole = (role: ComponentRole) => {
+    setViewModal({
+      isOpen: true,
       role: role,
     });
   };
@@ -244,6 +261,7 @@ export function RolesTabContainer() {
         onCreateRole={handleCreateRole}
         onEditRole={handleEditRole}
         onDeleteRole={handleDeleteRole}
+        onViewRole={handleViewRole}
       />
 
       {/* Role Modal */}
@@ -256,6 +274,13 @@ export function RolesTabContainer() {
         role={roleModal.role}
         mode={roleModal.mode}
         availablePermissions={availablePermissions}
+      />
+
+      {/* Role Details Modal */}
+      <RoleDetailsModal
+        isOpen={viewModal.isOpen}
+        onClose={() => setViewModal({ isOpen: false, role: null })}
+        role={viewModal.role || null}
       />
     </>
   );
