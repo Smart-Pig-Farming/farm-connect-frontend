@@ -1,25 +1,6 @@
 import { createSlice } from "@reduxjs/toolkit";
 import type { PayloadAction } from "@reduxjs/toolkit";
-
-interface User {
-  id: string;
-  email: string;
-  firstName: string;
-  lastName: string;
-  farmName?: string;
-  province?: string;
-  district?: string;
-  sector?: string;
-  profilePicture?: string;
-}
-
-interface AuthState {
-  user: User | null;
-  token: string | null;
-  isAuthenticated: boolean;
-  isLoading: boolean;
-  error: string | null;
-}
+import type { User, AuthState } from "@/types";
 
 const initialState: AuthState = {
   user: null,
@@ -42,6 +23,19 @@ const authSlice = createSlice({
       state.token = token;
       state.isAuthenticated = true;
       state.error = null;
+    },
+
+    // Only set token without user data (for initial load from persisted storage)
+    setToken: (state, action: PayloadAction<string>) => {
+      state.token = action.payload;
+      state.isAuthenticated = true;
+      state.error = null;
+    },
+
+    // Set user data (fetched from API after token is available)
+    setUser: (state, action: PayloadAction<User>) => {
+      state.user = action.payload;
+      state.isLoading = false;
     },
 
     logout: (state) => {
@@ -73,6 +67,8 @@ const authSlice = createSlice({
 
 export const {
   setCredentials,
+  setToken,
+  setUser,
   logout,
   updateUser,
   setLoading,

@@ -1,9 +1,12 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { toast } from "sonner";
+import { Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { HeroBackground } from "@/components/ui/hero-background";
 import { CheckIcon } from "@/components/ui/icons";
+import { useResetPasswordMutation } from "@/store/api/authApi";
 
 interface PasswordResetData {
   newPassword: string;
@@ -13,8 +16,8 @@ interface PasswordResetData {
 const PasswordResetPage = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const email = searchParams.get("email") || "";
   const token = searchParams.get("token") || "";
+  const [resetPassword, { isLoading }] = useResetPasswordMutation();
 
   const [formData, setFormData] = useState<PasswordResetData>({
     newPassword: "",
@@ -22,15 +25,16 @@ const PasswordResetPage = () => {
   });
 
   const [errors, setErrors] = useState<Partial<PasswordResetData>>({});
-  const [isLoading, setIsLoading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   // Redirect if missing required params
   useEffect(() => {
-    if (!email || !token) {
+    if (!token) {
       navigate("/forgot-password");
     }
-  }, [email, token, navigate]);
+  }, [token, navigate]);
 
   // Password strength calculation
   const getPasswordStrength = (password: string) => {
@@ -107,11 +111,6 @@ const PasswordResetPage = () => {
     return formErrors;
   };
 
-  const isFormValid = () => {
-    const formErrors = validateForm();
-    return Object.keys(formErrors).length === 0;
-  };
-
   const handleInputChange = (field: keyof PasswordResetData, value: string) => {
     setFormData((prev) => ({
       ...prev,
@@ -132,21 +131,43 @@ const PasswordResetPage = () => {
 
     if (Object.keys(formErrors).length > 0) {
       setErrors(formErrors);
+
+      // Focus the first field with an error for better UX
+      const firstErrorField = Object.keys(
+        formErrors
+      )[0] as keyof PasswordResetData;
+      const fieldElement = document.getElementById(firstErrorField);
+      if (fieldElement) {
+        fieldElement.focus();
+      }
+
+      // Show a general toast for immediate feedback
+      toast.error("Please fix the errors below to continue");
       return;
     }
 
-    setIsLoading(true);
+    // Show loading toast
+    const loadingToastId = toast.loading("Resetting password...", {
+      description: "Please wait while we update your password.",
+    });
 
     try {
-      // Here you would typically submit the form data to your backend
-      console.log("Password reset attempt:", {
-        email,
-        token,
+      // Call the API
+      await resetPassword({
+        resetToken: token,
         newPassword: formData.newPassword,
-      });
+        confirmPassword: formData.confirmPassword,
+      }).unwrap();
 
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+      // Dismiss loading toast
+      toast.dismiss(loadingToastId);
+
+      // Show success toast
+      toast.success("Password reset successful!", {
+        description:
+          "Your password has been updated. Redirecting to sign in...",
+        duration: 4000,
+      });
 
       // Show success state
       setShowSuccess(true);
@@ -157,14 +178,29 @@ const PasswordResetPage = () => {
       }, 3000);
     } catch (error) {
       console.error("Password reset error:", error);
-      setErrors({ newPassword: "Password reset failed. Please try again." });
-    } finally {
-      setIsLoading(false);
+
+      // Dismiss loading toast
+      toast.dismiss(loadingToastId);
+
+      let errorMessage = "Password reset failed. Please try again.";
+
+      if (error && typeof error === "object" && "data" in error) {
+        const errorData = error as { data?: { error?: string } };
+        if (errorData.data?.error) {
+          errorMessage = errorData.data.error;
+        }
+      }
+
+      setErrors({ newPassword: errorMessage });
+      toast.error("Password reset failed", {
+        description: errorMessage,
+        duration: 5000,
+      });
     }
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && isFormValid()) {
+    if (e.key === "Enter") {
       handleSubmit();
     }
   };
@@ -228,9 +264,8 @@ const PasswordResetPage = () => {
             <h1 className="text-3xl font-bold text-white mb-2">
               Set New Password
             </h1>
-            <p className="text-white/80 mb-2">Create a strong password for</p>
-            <p className="text-orange-400 font-medium text-sm bg-white/10 px-3 py-1 rounded-lg inline-block">
-              {email}
+            <p className="text-white/80">
+              Create a strong password for your account
             </p>
           </div>
 
@@ -240,19 +275,33 @@ const PasswordResetPage = () => {
               <label className="block text-sm font-medium text-white/90 mb-2">
                 New Password
               </label>
-              <input
-                type="password"
-                value={formData.newPassword}
-                onChange={(e) =>
-                  handleInputChange("newPassword", e.target.value)
-                }
-                onKeyPress={handleKeyPress}
-                className={`w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent placeholder-white/60 text-white ${
-                  errors.newPassword ? "border-red-400 bg-red-500/10" : ""
-                }`}
-                placeholder="Create a secure password"
-                autoFocus
-              />
+              <div className="relative">
+                <input
+                  type={showNewPassword ? "text" : "password"}
+                  id="newPassword"
+                  value={formData.newPassword}
+                  onChange={(e) =>
+                    handleInputChange("newPassword", e.target.value)
+                  }
+                  onKeyPress={handleKeyPress}
+                  className={`w-full px-4 py-3 pr-12 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent placeholder-white/60 text-white ${
+                    errors.newPassword ? "border-red-400 bg-red-500/10" : ""
+                  }`}
+                  placeholder="Create a secure password"
+                  autoFocus
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowNewPassword(!showNewPassword)}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-white/60 hover:text-white/80 transition-colors"
+                >
+                  {showNewPassword ? (
+                    <EyeOff className="w-5 h-5" />
+                  ) : (
+                    <Eye className="w-5 h-5" />
+                  )}
+                </button>
+              </div>
 
               {/* Password Strength Indicator */}
               {formData.newPassword && (
@@ -332,22 +381,36 @@ const PasswordResetPage = () => {
               <label className="block text-sm font-medium text-white/90 mb-2">
                 Confirm New Password
               </label>
-              <input
-                type="password"
-                value={formData.confirmPassword}
-                onChange={(e) =>
-                  handleInputChange("confirmPassword", e.target.value)
-                }
-                onKeyPress={handleKeyPress}
-                onPaste={(e) => {
-                  e.preventDefault();
-                  return false;
-                }}
-                className={`w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent placeholder-white/60 text-white ${
-                  errors.confirmPassword ? "border-red-400 bg-red-500/10" : ""
-                }`}
-                placeholder="Confirm your new password"
-              />
+              <div className="relative">
+                <input
+                  type={showConfirmPassword ? "text" : "password"}
+                  id="confirmPassword"
+                  value={formData.confirmPassword}
+                  onChange={(e) =>
+                    handleInputChange("confirmPassword", e.target.value)
+                  }
+                  onKeyPress={handleKeyPress}
+                  onPaste={(e) => {
+                    e.preventDefault();
+                    return false;
+                  }}
+                  className={`w-full px-4 py-3 pr-12 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent placeholder-white/60 text-white ${
+                    errors.confirmPassword ? "border-red-400 bg-red-500/10" : ""
+                  }`}
+                  placeholder="Confirm your new password"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-white/60 hover:text-white/80 transition-colors"
+                >
+                  {showConfirmPassword ? (
+                    <EyeOff className="w-5 h-5" />
+                  ) : (
+                    <Eye className="w-5 h-5" />
+                  )}
+                </button>
+              </div>
               {errors.confirmPassword && (
                 <p className="mt-1 text-sm text-red-300">
                   {errors.confirmPassword}
@@ -358,12 +421,12 @@ const PasswordResetPage = () => {
             {/* Reset Password Button */}
             <Button
               onClick={handleSubmit}
-              disabled={!isFormValid() || isLoading}
+              disabled={isLoading}
               className={`w-full py-3 font-semibold transition-all duration-300 ${
-                isFormValid() && !isLoading
-                  ? "bg-orange-500 hover:bg-orange-600 text-white cursor-pointer"
-                  : "bg-white/20 text-white/60 cursor-not-allowed"
-              }`}
+                isLoading
+                  ? "bg-orange-400 cursor-not-allowed"
+                  : "bg-orange-500 hover:bg-orange-600 cursor-pointer"
+              } text-white`}
             >
               {isLoading ? (
                 <div className="flex items-center justify-center">

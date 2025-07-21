@@ -1,21 +1,26 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { HeroBackground } from "@/components/ui/hero-background";
 import { ArrowLeftIcon } from "@/components/ui/icons";
+import {
+  useVerifyOtpMutation,
+  useResendOtpMutation,
+} from "@/store/api/authApi";
 
 const OTPVerificationPage = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const email = searchParams.get("email") || "";
+  const [verifyOtp, { isLoading }] = useVerifyOtpMutation();
+  const [resendOtp, { isLoading: isResending }] = useResendOtpMutation();
 
   const [otp, setOtp] = useState(["", "", "", ""]);
   const [errors, setErrors] = useState<string>("");
-  const [isLoading, setIsLoading] = useState(false);
   const [timeLeft, setTimeLeft] = useState(300); // 5 minutes in seconds
   const [canResend, setCanResend] = useState(false);
-  const [isResending, setIsResending] = useState(false);
 
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
@@ -65,7 +70,7 @@ const OTPVerificationPage = () => {
       inputRefs.current[index - 1]?.focus();
     }
 
-    if (e.key === "Enter" && isFormValid()) {
+    if (e.key === "Enter") {
       handleSubmit();
     }
   };
@@ -88,51 +93,97 @@ const OTPVerificationPage = () => {
     inputRefs.current[focusIndex]?.focus();
   };
 
-  const isFormValid = () => {
-    return otp.every((digit) => digit !== "") && !isLoading;
-  };
-
   const handleSubmit = async () => {
-    if (!isFormValid()) {
+    if (!otp.every((digit) => digit !== "")) {
       setErrors("Please enter the complete 4-digit code");
+
+      // Focus the first empty input for better UX
+      const firstEmptyIndex = otp.findIndex((digit) => digit === "");
+      if (firstEmptyIndex !== -1) {
+        inputRefs.current[firstEmptyIndex]?.focus();
+      }
+
+      // Show a general toast for immediate feedback
+      toast.error("Please complete the verification code");
       return;
     }
 
-    setIsLoading(true);
+    // Show loading toast
+    const loadingToastId = toast.loading("Verifying code...", {
+      description: "Please wait while we verify your code.",
+    });
 
     try {
       const otpCode = otp.join("");
-      console.log("OTP verification attempt:", { email, otp: otpCode });
 
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      // Call the API
+      const response = await verifyOtp({
+        email,
+        otp: otpCode,
+      }).unwrap();
 
-      // Navigate to password reset page
+      // Dismiss loading toast
+      toast.dismiss(loadingToastId);
+
+      // Show success toast
+      toast.success("Code verified successfully!", {
+        description: "Redirecting to password reset...",
+        duration: 3000,
+      });
+
+      // Navigate to password reset page with the reset token
       navigate(
-        `/forgot-password/reset?email=${encodeURIComponent(
-          email
-        )}&token=${otpCode}`
+        `/forgot-password/reset?token=${encodeURIComponent(
+          response.data?.resetToken || ""
+        )}`
       );
     } catch (error) {
       console.error("OTP verification error:", error);
-      setErrors("Invalid verification code. Please try again.");
+
+      // Dismiss loading toast
+      toast.dismiss(loadingToastId);
+
+      let errorMessage = "Invalid verification code. Please try again.";
+
+      if (error && typeof error === "object" && "data" in error) {
+        const errorData = error as { data?: { error?: string } };
+        if (errorData.data?.error) {
+          errorMessage = errorData.data.error;
+        }
+      }
+
+      setErrors(errorMessage);
+      toast.error("Verification failed", {
+        description: errorMessage,
+        duration: 5000,
+      });
+
       // Clear OTP on error
       setOtp(["", "", "", ""]);
       inputRefs.current[0]?.focus();
-    } finally {
-      setIsLoading(false);
     }
   };
 
   const handleResendOtp = async () => {
-    setIsResending(true);
     setErrors("");
 
-    try {
-      console.log("Resending OTP to:", email);
+    // Show loading toast
+    const loadingToastId = toast.loading("Resending code...", {
+      description: "Sending a new verification code to your email.",
+    });
 
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+    try {
+      // Call the API
+      await resendOtp({ email }).unwrap();
+
+      // Dismiss loading toast
+      toast.dismiss(loadingToastId);
+
+      // Show success toast
+      toast.success("Code sent successfully!", {
+        description: "A new verification code has been sent to your email.",
+        duration: 4000,
+      });
 
       // Reset timer
       setTimeLeft(300);
@@ -143,9 +194,24 @@ const OTPVerificationPage = () => {
       inputRefs.current[0]?.focus();
     } catch (error) {
       console.error("Resend OTP error:", error);
-      setErrors("Failed to resend code. Please try again.");
-    } finally {
-      setIsResending(false);
+
+      // Dismiss loading toast
+      toast.dismiss(loadingToastId);
+
+      let errorMessage = "Failed to resend code. Please try again.";
+
+      if (error && typeof error === "object" && "data" in error) {
+        const errorData = error as { data?: { error?: string } };
+        if (errorData.data?.error) {
+          errorMessage = errorData.data.error;
+        }
+      }
+
+      setErrors(errorMessage);
+      toast.error("Failed to resend code", {
+        description: errorMessage,
+        duration: 5000,
+      });
     }
   };
 
@@ -239,12 +305,12 @@ const OTPVerificationPage = () => {
             {/* Verify Button */}
             <Button
               onClick={handleSubmit}
-              disabled={!isFormValid()}
+              disabled={isLoading}
               className={`w-full py-3 font-semibold transition-all duration-300 ${
-                isFormValid()
-                  ? "bg-orange-500 hover:bg-orange-600 text-white cursor-pointer"
-                  : "bg-white/20 text-white/60 cursor-not-allowed"
-              }`}
+                isLoading
+                  ? "bg-orange-400 cursor-not-allowed"
+                  : "bg-orange-500 hover:bg-orange-600 cursor-pointer"
+              } text-white`}
             >
               {isLoading ? (
                 <div className="flex items-center justify-center">

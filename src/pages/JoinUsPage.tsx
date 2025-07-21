@@ -1,15 +1,20 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
+import { Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { HeroBackground } from "@/components/ui/hero-background";
 import { ArrowLeftIcon, CheckIcon } from "@/components/ui/icons";
 import { locationData } from "@/data/location";
+import { useRegisterFarmerMutation } from "@/store/api/authApi";
+import { setCredentials } from "@/store/slices/authSlice";
+import { useAppDispatch } from "@/store/hooks";
 
 interface FormData {
   // Personal Information
-  firstName: string;
-  lastName: string;
+  firstname: string;
+  lastname: string;
   email: string;
   password: string;
   confirmPassword: string;
@@ -24,10 +29,14 @@ interface FormData {
 
 const JoinUsPage = () => {
   const navigate = useNavigate();
+  const dispatch = useAppDispatch();
+  const [registerFarmer, { isLoading: isRegistering }] =
+    useRegisterFarmerMutation();
+
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState<FormData>({
-    firstName: "",
-    lastName: "",
+    firstname: "",
+    lastname: "",
     email: "",
     password: "",
     confirmPassword: "",
@@ -39,6 +48,8 @@ const JoinUsPage = () => {
   });
 
   const [errors, setErrors] = useState<Partial<FormData>>({});
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   // Helper functions for location data
   const getProvinces = () => Object.keys(locationData);
@@ -91,11 +102,10 @@ const JoinUsPage = () => {
   // Validation functions
   const validateStep1 = () => {
     const stepErrors: Partial<FormData> = {};
-
-    if (!formData.firstName.trim())
-      stepErrors.firstName = "First name is required";
-    if (!formData.lastName.trim())
-      stepErrors.lastName = "Last name is required";
+    if (!formData.firstname.trim())
+      stepErrors.firstname = "First name is required";
+    if (!formData.lastname.trim())
+      stepErrors.lastname = "Last name is required";
     if (!formData.email.trim()) {
       stepErrors.email = "Email is required";
     } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
@@ -123,23 +133,8 @@ const JoinUsPage = () => {
     if (!formData.province.trim()) stepErrors.province = "Province is required";
     if (!formData.district.trim()) stepErrors.district = "District is required";
     if (!formData.sector.trim()) stepErrors.sector = "Sector is required";
-    if (!formData.field.trim()) stepErrors.field = "Field is required";
 
     return stepErrors;
-  };
-
-  const isStep1Valid = () => {
-    const stepErrors = validateStep1();
-    return Object.keys(stepErrors).length === 0;
-  };
-
-  const isStep2Valid = () => {
-    const stepErrors = validateStep2();
-    return Object.keys(stepErrors).length === 0;
-  };
-
-  const isFormValid = () => {
-    return isStep1Valid() && isStep2Valid();
   };
 
   const handleInputChange = (field: keyof FormData, value: string) => {
@@ -161,33 +156,150 @@ const JoinUsPage = () => {
     const stepErrors = validateStep1();
     if (Object.keys(stepErrors).length > 0) {
       setErrors(stepErrors);
+
+      // Focus the first field with an error for better UX
+      const firstErrorField = Object.keys(stepErrors)[0] as keyof FormData;
+      const fieldElement = document.getElementById(firstErrorField);
+      if (fieldElement) {
+        fieldElement.focus();
+      }
+
+      // Show a general toast for immediate feedback
+      toast.error("Please fix the errors below to continue");
       return;
     }
     setCurrentStep(2);
+    toast.success("Step 1 completed!", {
+      description: "Now let's add your farm information.",
+      duration: 2000,
+    });
   };
 
   const handleBack = () => {
     setCurrentStep(1);
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     const step1Errors = validateStep1();
     const step2Errors = validateStep2();
     const allErrors = { ...step1Errors, ...step2Errors };
 
     if (Object.keys(allErrors).length > 0) {
       setErrors(allErrors);
+
+      // Focus first error field and navigate to appropriate step
+      const firstErrorField = Object.keys(allErrors)[0] as keyof FormData;
       if (Object.keys(step1Errors).length > 0) {
         setCurrentStep(1);
+        setTimeout(() => {
+          const fieldElement = document.getElementById(firstErrorField);
+          if (fieldElement) {
+            fieldElement.focus();
+          }
+        }, 100);
+        toast.error("Please fix the errors in Step 1");
+      } else {
+        setTimeout(() => {
+          const fieldElement = document.getElementById(firstErrorField);
+          if (fieldElement) {
+            fieldElement.focus();
+          }
+        }, 100);
+        toast.error("Please fix the errors in Step 2");
       }
       return;
     }
 
-    // Here you would typically submit the form data to your backend
-    console.log("Form submitted:", formData);
+    let loadingToastId: string | number | undefined;
 
-    // For now, let's navigate to home or show success message
-    navigate("/");
+    try {
+      // Show loading toast
+      loadingToastId = toast.loading("Creating your account...", {
+        description: "Please wait while we set up your farmer profile.",
+      });
+
+      // Prepare data for API
+      const registrationData = {
+        firstname: formData.firstname,
+        lastname: formData.lastname,
+        email: formData.email,
+        password: formData.password,
+        farmName: formData.farmName,
+        province: formData.province,
+        district: formData.district,
+        sector: formData.sector,
+        field: formData.field || undefined,
+      };
+
+      // Register farmer
+      const response = await registerFarmer(registrationData).unwrap();
+
+      // Dismiss loading toast
+      toast.dismiss(loadingToastId);
+
+      // Store credentials in Redux
+      dispatch(
+        setCredentials({
+          user: response.data.user,
+          token: response.data.token,
+        })
+      );
+
+      // Store token in localStorage for persistence
+      localStorage.setItem("token", response.data.token);
+
+      // Show success toast
+      toast.success("Welcome to FarmConnect!", {
+        description:
+          "Your account has been created successfully. Redirecting to dashboard...",
+        duration: 3000,
+      });
+
+      // On successful registration, navigate to dashboard
+      setTimeout(() => {
+        navigate("/dashboard");
+      }, 1500);
+    } catch (error) {
+      console.error("Registration failed:", error);
+
+      // Dismiss loading toast if it was created
+      if (loadingToastId) {
+        toast.dismiss(loadingToastId);
+      }
+
+      // Extract error message and details
+      let errorMessage = "Something went wrong. Please try again.";
+      let errorDescription = "";
+
+      if (error && typeof error === "object" && "data" in error) {
+        const errorData = error as {
+          data?: {
+            error?: string;
+            details?: Array<{ msg: string; path: string }>;
+          };
+        };
+
+        if (errorData.data?.error) {
+          errorMessage = errorData.data.error;
+        }
+
+        // If there are validation details, show the first few
+        if (errorData.data?.details && errorData.data.details.length > 0) {
+          const firstErrors = errorData.data.details.slice(0, 3);
+          errorDescription = firstErrors.map((detail) => detail.msg).join(", ");
+          if (errorData.data.details.length > 3) {
+            errorDescription += "...";
+          }
+        }
+      }
+
+      // Show error toast
+      toast.error(errorMessage, {
+        description:
+          errorDescription || "Please check your information and try again.",
+        duration: 6000,
+      });
+    }
   };
 
   return (
@@ -260,18 +372,19 @@ const JoinUsPage = () => {
                   </label>
                   <input
                     type="text"
-                    value={formData.firstName}
+                    id="firstname"
+                    value={formData.firstname}
                     onChange={(e) =>
-                      handleInputChange("firstName", e.target.value)
+                      handleInputChange("firstname", e.target.value)
                     }
                     className={`w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent placeholder-white/60 text-white ${
-                      errors.firstName ? "border-red-400 bg-red-500/10" : ""
+                      errors.firstname ? "border-red-400 bg-red-500/10" : ""
                     }`}
                     placeholder="John"
                   />
-                  {errors.firstName && (
+                  {errors.firstname && (
                     <p className="mt-1 text-sm text-red-300">
-                      {errors.firstName}
+                      {errors.firstname}
                     </p>
                   )}
                 </div>
@@ -282,18 +395,19 @@ const JoinUsPage = () => {
                   </label>
                   <input
                     type="text"
-                    value={formData.lastName}
+                    id="lastname"
+                    value={formData.lastname}
                     onChange={(e) =>
-                      handleInputChange("lastName", e.target.value)
+                      handleInputChange("lastname", e.target.value)
                     }
                     className={`w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent placeholder-white/60 text-white ${
-                      errors.lastName ? "border-red-400 bg-red-500/10" : ""
+                      errors.lastname ? "border-red-400 bg-red-500/10" : ""
                     }`}
                     placeholder="Doe"
                   />
-                  {errors.lastName && (
+                  {errors.lastname && (
                     <p className="mt-1 text-sm text-red-300">
-                      {errors.lastName}
+                      {errors.lastname}
                     </p>
                   )}
                 </div>
@@ -305,6 +419,7 @@ const JoinUsPage = () => {
                 </label>
                 <input
                   type="email"
+                  id="email"
                   value={formData.email}
                   onChange={(e) => handleInputChange("email", e.target.value)}
                   className={`w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent placeholder-white/60 text-white ${
@@ -321,17 +436,31 @@ const JoinUsPage = () => {
                 <label className="block text-sm font-medium text-white/90 mb-2">
                   Password
                 </label>
-                <input
-                  type="password"
-                  value={formData.password}
-                  onChange={(e) =>
-                    handleInputChange("password", e.target.value)
-                  }
-                  className={`w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent placeholder-white/60 text-white ${
-                    errors.password ? "border-red-400 bg-red-500/10" : ""
-                  }`}
-                  placeholder="Enter a secure password"
-                />
+                <div className="relative">
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    id="password"
+                    value={formData.password}
+                    onChange={(e) =>
+                      handleInputChange("password", e.target.value)
+                    }
+                    className={`w-full px-4 py-3 pr-12 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent placeholder-white/60 text-white ${
+                      errors.password ? "border-red-400 bg-red-500/10" : ""
+                    }`}
+                    placeholder="Enter a secure password"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-white/60 hover:text-white/80 transition-colors"
+                  >
+                    {showPassword ? (
+                      <EyeOff className="w-5 h-5" />
+                    ) : (
+                      <Eye className="w-5 h-5" />
+                    )}
+                  </button>
+                </div>
                 {errors.password && (
                   <p className="mt-1 text-sm text-red-300">{errors.password}</p>
                 )}
@@ -341,21 +470,37 @@ const JoinUsPage = () => {
                 <label className="block text-sm font-medium text-white/90 mb-2">
                   Confirm Password
                 </label>
-                <input
-                  type="password"
-                  value={formData.confirmPassword}
-                  onChange={(e) =>
-                    handleInputChange("confirmPassword", e.target.value)
-                  }
-                  onPaste={(e) => {
-                    e.preventDefault();
-                    return false;
-                  }}
-                  className={`w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent placeholder-white/60 text-white ${
-                    errors.confirmPassword ? "border-red-400 bg-red-500/10" : ""
-                  }`}
-                  placeholder="Re-enter your password"
-                />
+                <div className="relative">
+                  <input
+                    type={showConfirmPassword ? "text" : "password"}
+                    id="confirmPassword"
+                    value={formData.confirmPassword}
+                    onChange={(e) =>
+                      handleInputChange("confirmPassword", e.target.value)
+                    }
+                    onPaste={(e) => {
+                      e.preventDefault();
+                      return false;
+                    }}
+                    className={`w-full px-4 py-3 pr-12 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent placeholder-white/60 text-white ${
+                      errors.confirmPassword
+                        ? "border-red-400 bg-red-500/10"
+                        : ""
+                    }`}
+                    placeholder="Re-enter your password"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-white/60 hover:text-white/80 transition-colors"
+                  >
+                    {showConfirmPassword ? (
+                      <EyeOff className="w-5 h-5" />
+                    ) : (
+                      <Eye className="w-5 h-5" />
+                    )}
+                  </button>
+                </div>
                 {errors.confirmPassword && (
                   <p className="mt-1 text-sm text-red-300">
                     {errors.confirmPassword}
@@ -365,12 +510,7 @@ const JoinUsPage = () => {
 
               <Button
                 onClick={handleNext}
-                className={`w-full py-3 font-semibold transition-all duration-300 ${
-                  isStep1Valid()
-                    ? "bg-orange-500 hover:bg-orange-600 text-white cursor-pointer"
-                    : "bg-gray-300 text-gray-500 cursor-not-allowed"
-                }`}
-                disabled={!isStep1Valid()}
+                className={`w-full py-3 font-semibold transition-all duration-300 bg-orange-500 hover:bg-orange-600 text-white cursor-pointer`}
               >
                 Next Step
               </Button>
@@ -386,6 +526,7 @@ const JoinUsPage = () => {
                 </label>
                 <input
                   type="text"
+                  id="farmName"
                   value={formData.farmName}
                   onChange={(e) =>
                     handleInputChange("farmName", e.target.value)
@@ -405,6 +546,7 @@ const JoinUsPage = () => {
                   Province
                 </label>
                 <select
+                  id="province"
                   value={formData.province}
                   onChange={(e) =>
                     handleLocationChange("province", e.target.value)
@@ -436,6 +578,7 @@ const JoinUsPage = () => {
                   District
                 </label>
                 <select
+                  id="district"
                   value={formData.district}
                   onChange={(e) =>
                     handleLocationChange("district", e.target.value)
@@ -470,6 +613,7 @@ const JoinUsPage = () => {
                   Sector
                 </label>
                 <select
+                  id="sector"
                   value={formData.sector}
                   onChange={(e) =>
                     handleLocationChange("sector", e.target.value)
@@ -514,13 +658,13 @@ const JoinUsPage = () => {
                 <Button
                   onClick={handleSubmit}
                   className={`flex-1 py-3 font-semibold transition-all duration-300 ${
-                    isFormValid()
-                      ? "bg-orange-500 hover:bg-orange-600 text-white cursor-pointer"
-                      : "bg-white/20 text-white/60 cursor-not-allowed"
-                  }`}
-                  disabled={!isFormValid()}
+                    isRegistering
+                      ? "bg-orange-400 cursor-not-allowed"
+                      : "bg-orange-500 hover:bg-orange-600 cursor-pointer"
+                  } text-white`}
+                  disabled={isRegistering}
                 >
-                  Create Account
+                  {isRegistering ? "Creating Account..." : "Create Account"}
                 </Button>
               </div>
             </div>

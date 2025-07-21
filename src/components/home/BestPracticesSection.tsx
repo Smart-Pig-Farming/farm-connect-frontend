@@ -12,7 +12,7 @@ export function BestPracticesSection() {
       <div className="absolute top-0 left-0 w-96 h-96 bg-orange-500/10 rounded-full blur-3xl"></div>
       <div className="absolute bottom-0 right-0 w-80 h-80 bg-blue-500/10 rounded-full blur-3xl"></div>
 
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-6xl">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl">
         <div
           className={`text-center mb-16 md:mb-20 transition-all duration-1000 ${
             bestPracticesRef.isVisible ? "animate-fade-in-up" : "opacity-0"
@@ -28,10 +28,10 @@ export function BestPracticesSection() {
           </p>
         </div>
 
-        {/* Best Practices Cards - Expanded Layout */}
-        <div className="relative max-w-6xl mx-auto">
+        {/* Best Practices Cards - Responsive Layout */}
+        <div className="relative w-full">
           {/* Mobile: Vertical Stack */}
-          <div className="md:hidden flex flex-col gap-8">
+          <div className="md:hidden flex flex-col gap-6 px-4">
             {/* Card 1 - Feeding & Nutrition */}
             <div
               className={`transition-all duration-700 ${
@@ -120,9 +120,9 @@ export function BestPracticesSection() {
             </div>
           </div>
 
-          {/* Desktop: Expanded Side-by-Side Layout */}
-          <div className="hidden md:flex justify-center items-start gap-8 min-h-[400px]">
-            {/* Card 1 - Marketing & Finance (Left) */}
+          {/* Desktop/Tablet: Responsive Grid Layout */}
+          <div className="hidden md:grid md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 lg:gap-8 px-2 md:px-4">
+            {/* Card 1 - Marketing & Finance */}
             <div
               className={`transform transition-all duration-700 ease-out ${
                 bestPracticesRef.isVisible
@@ -130,7 +130,7 @@ export function BestPracticesSection() {
                   : "opacity-0 -translate-x-20"
               }`}
             >
-              <div className="w-80 h-96 bg-gradient-to-br from-slate-700 to-slate-600 rounded-2xl border border-slate-500/30 p-6 shadow-lg hover:shadow-blue-500/30 transition-shadow duration-300 cursor-pointer">
+              <div className="w-full h-96 bg-gradient-to-br from-slate-700 to-slate-600 rounded-2xl border border-slate-500/30 p-6 shadow-lg hover:shadow-blue-500/30 transition-shadow duration-300 cursor-pointer">
                 <div className="flex items-center gap-2 mb-4">
                   <span className="bg-blue-500 text-white px-3 py-1 rounded-full text-sm font-medium">
                     Marketing & Finance
@@ -153,7 +153,7 @@ export function BestPracticesSection() {
               </div>
             </div>
 
-            {/* Card 2 - Feeding & Nutrition (Center) */}
+            {/* Card 2 - Feeding & Nutrition */}
             <div
               className={`transform transition-all duration-700 ease-out delay-200 ${
                 bestPracticesRef.isVisible
@@ -161,7 +161,7 @@ export function BestPracticesSection() {
                   : "opacity-0 translate-y-20"
               }`}
             >
-              <div className="w-80 h-96 bg-gradient-to-br from-slate-800 to-slate-700 rounded-2xl border border-slate-600 p-6 shadow-2xl hover:shadow-green-500/30 transition-shadow duration-300 cursor-pointer">
+              <div className="w-full h-96 bg-gradient-to-br from-slate-800 to-slate-700 rounded-2xl border border-slate-600 p-6 shadow-2xl hover:shadow-green-500/30 transition-shadow duration-300 cursor-pointer">
                 <div className="flex items-center gap-2 mb-4">
                   <span className="bg-green-500 text-white px-3 py-1 rounded-full text-sm font-medium">
                     Feeding & Nutrition
@@ -185,15 +185,15 @@ export function BestPracticesSection() {
               </div>
             </div>
 
-            {/* Card 3 - Disease Control (Right) */}
+            {/* Card 3 - Disease Control */}
             <div
-              className={`transform transition-all duration-700 ease-out delay-400 ${
+              className={`transform transition-all duration-700 ease-out delay-400 md:col-span-2 lg:col-span-1 ${
                 bestPracticesRef.isVisible
                   ? "opacity-100 translate-x-0"
                   : "opacity-0 translate-x-20"
               }`}
             >
-              <div className="w-80 h-96 bg-gradient-to-br from-slate-700 to-slate-600 rounded-2xl border border-slate-600/50 p-6 shadow-xl hover:shadow-red-500/30 transition-shadow duration-300 cursor-pointer">
+              <div className="w-full h-96 bg-gradient-to-br from-slate-700 to-slate-600 rounded-2xl border border-slate-600/50 p-6 shadow-xl hover:shadow-red-500/30 transition-shadow duration-300 cursor-pointer md:max-w-sm lg:max-w-none md:mx-auto lg:mx-0">
                 <div className="flex items-center gap-2 mb-4">
                   <span className="bg-red-500 text-white px-3 py-1 rounded-full text-sm font-medium">
                     Disease Control

@@ -1,50 +1,15 @@
 import { baseApi } from "./baseApi";
-
-// Types for auth endpoints
-export interface LoginRequest {
-  email: string;
-  password: string;
-}
-
-export interface RegisterRequest {
-  firstName: string;
-  lastName: string;
-  email: string;
-  password: string;
-  farmName: string;
-  province: string;
-  district: string;
-  sector: string;
-  field: string;
-}
-
-export interface AuthResponse {
-  user: {
-    id: string;
-    email: string;
-    firstName: string;
-    lastName: string;
-    farmName?: string;
-    province?: string;
-    district?: string;
-    sector?: string;
-    role: "farmer" | "vet" | "government" | "admin";
-    isVerified: boolean;
-    isLocked: boolean;
-    points: number;
-    level: "Amateur" | "Knight" | "Expert";
-  };
-  token: string;
-}
-
-export interface ForgotPasswordRequest {
-  email: string;
-}
-
-export interface ResetPasswordRequest {
-  token: string;
-  newPassword: string;
-}
+import type {
+  LoginRequest,
+  RegisterFarmerRequest,
+  AuthResponse,
+  ForgotPasswordRequest,
+  ResetPasswordRequest,
+  ChangePasswordRequest,
+  UpdateProfileRequest,
+  UpdateProfileResponse,
+  User,
+} from "@/types";
 
 // Auth API slice - extending the base API
 export const authApi = baseApi.injectEndpoints({
@@ -59,10 +24,10 @@ export const authApi = baseApi.injectEndpoints({
       invalidatesTags: ["User"],
     }),
 
-    // Register endpoint
-    register: builder.mutation<AuthResponse, RegisterRequest>({
+    // Register farmer endpoint
+    registerFarmer: builder.mutation<AuthResponse, RegisterFarmerRequest>({
       query: (userData) => ({
-        url: "/auth/register",
+        url: "/auth/register/farmer",
         method: "POST",
         body: userData,
       }),
@@ -101,7 +66,7 @@ export const authApi = baseApi.injectEndpoints({
 
     // Verify OTP endpoint
     verifyOtp: builder.mutation<
-      { message: string },
+      { success: boolean; message: string; data?: { resetToken: string } },
       { email: string; otp: string }
     >({
       query: (data) => ({
@@ -111,10 +76,69 @@ export const authApi = baseApi.injectEndpoints({
       }),
     }),
 
+    // Resend OTP endpoint
+    resendOtp: builder.mutation<
+      { success: boolean; message: string },
+      { email: string }
+    >({
+      query: (data) => ({
+        url: "/auth/resend-otp",
+        method: "POST",
+        body: data,
+      }),
+    }),
+
     // Get current user
-    getCurrentUser: builder.query<AuthResponse["user"], void>({
+    getCurrentUser: builder.query<
+      {
+        success: boolean;
+        data: User;
+      },
+      void
+    >({
       query: () => "/auth/me",
       providesTags: ["User"],
+    }),
+
+    // Get current user permissions
+    getCurrentUserPermissions: builder.query<{ permissions: string[] }, void>({
+      query: () => "/auth/permissions",
+      providesTags: ["Permission"],
+    }),
+
+    // First-time account verification
+    verifyAccount: builder.mutation<
+      AuthResponse,
+      { email: string; newPassword: string }
+    >({
+      query: (data) => ({
+        url: "/auth/verify-account",
+        method: "POST",
+        body: data,
+      }),
+      invalidatesTags: ["User"],
+    }),
+
+    // Change password for authenticated user
+    changePassword: builder.mutation<
+      { success: boolean; message: string },
+      ChangePasswordRequest
+    >({
+      query: (data) => ({
+        url: "/auth/change-password",
+        method: "POST",
+        body: data,
+      }),
+    }),
+
+    // Update profile for authenticated user
+    updateProfile: builder.mutation<UpdateProfileResponse, UpdateProfileRequest>({
+      query: (data) => ({
+        url: "/auth/profile",
+        method: "PUT",
+        body: data,
+      }),
+      invalidatesTags: ["User"],
     }),
   }),
 });
@@ -122,10 +146,15 @@ export const authApi = baseApi.injectEndpoints({
 // Export hooks for usage in components
 export const {
   useLoginMutation,
-  useRegisterMutation,
+  useRegisterFarmerMutation,
   useLogoutMutation,
   useForgotPasswordMutation,
   useResetPasswordMutation,
   useVerifyOtpMutation,
   useGetCurrentUserQuery,
+  useGetCurrentUserPermissionsQuery,
+  useResendOtpMutation,
+  useVerifyAccountMutation,
+  useChangePasswordMutation,
+  useUpdateProfileMutation,
 } = authApi;
