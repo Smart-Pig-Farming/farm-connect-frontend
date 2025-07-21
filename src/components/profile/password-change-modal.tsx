@@ -129,7 +129,7 @@ export function PasswordChangeModal({
         </CardHeader>
 
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-4 mt-4">
             {/* Current Password */}
             <div className="space-y-2">
               <Label htmlFor="currentPassword">Current Password</Label>

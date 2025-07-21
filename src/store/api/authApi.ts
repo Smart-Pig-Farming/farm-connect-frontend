@@ -1,49 +1,15 @@
 import { baseApi } from "./baseApi";
-
-// Types for auth endpoints
-export interface LoginRequest {
-  email: string;
-  password: string;
-}
-
-export interface RegisterFarmerRequest {
-  firstname: string;
-  lastname: string;
-  email: string;
-  password: string;
-  farmName: string;
-  province: string;
-  district: string;
-  sector: string;
-  field?: string;
-}
-
-export interface AuthResponse {
-  success: boolean;
-  message: string;
-  data: {
-    user: {
-      id: number;
-      firstname: string;
-      lastname: string;
-      email: string;
-      username: string;
-      role: string;
-      permissions: string[];
-    };
-    token: string;
-  };
-}
-
-export interface ForgotPasswordRequest {
-  email: string;
-}
-
-export interface ResetPasswordRequest {
-  resetToken: string;
-  newPassword: string;
-  confirmPassword: string;
-}
+import type {
+  LoginRequest,
+  RegisterFarmerRequest,
+  AuthResponse,
+  ForgotPasswordRequest,
+  ResetPasswordRequest,
+  ChangePasswordRequest,
+  UpdateProfileRequest,
+  UpdateProfileResponse,
+  User,
+} from "@/types";
 
 // Auth API slice - extending the base API
 export const authApi = baseApi.injectEndpoints({
@@ -126,15 +92,7 @@ export const authApi = baseApi.injectEndpoints({
     getCurrentUser: builder.query<
       {
         success: boolean;
-        data: {
-          id: number;
-          firstname: string;
-          lastname: string;
-          email: string;
-          username: string;
-          role: string;
-          permissions: string[];
-        };
+        data: User;
       },
       void
     >({
@@ -160,6 +118,28 @@ export const authApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: ["User"],
     }),
+
+    // Change password for authenticated user
+    changePassword: builder.mutation<
+      { success: boolean; message: string },
+      ChangePasswordRequest
+    >({
+      query: (data) => ({
+        url: "/auth/change-password",
+        method: "POST",
+        body: data,
+      }),
+    }),
+
+    // Update profile for authenticated user
+    updateProfile: builder.mutation<UpdateProfileResponse, UpdateProfileRequest>({
+      query: (data) => ({
+        url: "/auth/profile",
+        method: "PUT",
+        body: data,
+      }),
+      invalidatesTags: ["User"],
+    }),
   }),
 });
 
@@ -175,4 +155,6 @@ export const {
   useGetCurrentUserPermissionsQuery,
   useResendOtpMutation,
   useVerifyAccountMutation,
+  useChangePasswordMutation,
+  useUpdateProfileMutation,
 } = authApi;
