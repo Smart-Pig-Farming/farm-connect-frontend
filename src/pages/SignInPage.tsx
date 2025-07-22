@@ -160,10 +160,22 @@ const SignInPage = () => {
               errorTitle = "Account Not Verified";
               errorMessage =
                 "Your account requires verification. Redirecting to verification...";
-              // TODO: Redirect to first-time login verification flow
+              // Redirect to verification page with user's email
               setTimeout(() => {
                 navigate("/verify", { state: { email: formData.email } });
               }, 2000);
+              break;
+
+            case "TOO_MANY_ATTEMPTS":
+              errorTitle = "Too Many Login Attempts";
+              errorMessage =
+                "Too many failed login attempts. Please try again later.";
+              break;
+
+            case "SERVER_ERROR":
+              errorTitle = "Server Error";
+              errorMessage =
+                "Server is temporarily unavailable. Please try again later.";
               break;
 
             default:
