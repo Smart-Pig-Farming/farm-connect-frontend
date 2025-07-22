@@ -34,7 +34,7 @@ const levelData = {
 };
 
 export function ProfilePage() {
-  const { user, token } = useAppSelector((state) => state.auth);
+  const { user } = useAppSelector((state) => state.auth);
   const dispatch = useAppDispatch();
   const [changePassword, { isLoading: isChangingPassword }] =
     useChangePasswordMutation();
@@ -75,11 +75,10 @@ export function ProfilePage() {
       const result = await updateProfile(data).unwrap();
 
       // Update user data in store with the response from backend
-      if (result.data?.user && token) {
+      if (result.data?.user) {
         dispatch(
           setCredentials({
             user: result.data.user,
-            token: token,
           })
         );
       }

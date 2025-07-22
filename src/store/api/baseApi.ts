@@ -1,19 +1,14 @@
 import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
-import type { RootState } from "../index";
 
 // Define the base API slice
 export const baseApi = createApi({
   reducerPath: "api",
   baseQuery: fetchBaseQuery({
     baseUrl: "/api",
-    prepareHeaders: (headers, { getState }) => {
-      // Get token from auth state
-      const token = (getState() as RootState).auth.token;
-
-      if (token) {
-        headers.set("authorization", `Bearer ${token}`);
-      }
-
+    credentials: "include", // Include HttpOnly cookies in requests
+    prepareHeaders: (headers) => {
+      // No need to set Authorization header - authentication is via HttpOnly cookies
+      headers.set("Content-Type", "application/json");
       return headers;
     },
   }),
@@ -28,7 +23,6 @@ export const baseApi = createApi({
     "Action",
     "Resource",
     "Permission",
-    "Role",
     "Role",
     "RolePermission",
   ],

@@ -42,6 +42,12 @@ export function Header({ sidebarCollapsed, isMobile = false }: HeaderProps) {
 
   // Function to get display role name
   const getRoleDisplayName = (role: string): string => {
+    // Defensive check to ensure role is a string
+    if (!role || typeof role !== "string") {
+      console.warn("Invalid role provided to getRoleDisplayName:", role);
+      return "User";
+    }
+
     const roleMap: Record<string, string> = {
       admin: "Administrator",
       farmer: "Farm Manager",
@@ -94,9 +100,6 @@ export function Header({ sidebarCollapsed, isMobile = false }: HeaderProps) {
       // Clear local state
       dispatch(logout());
 
-      // Clear token from localStorage
-      localStorage.removeItem("token");
-
       // Show success toast
       toast.success("Signed out successfully!", {
         description: "You have been logged out of your account.",
@@ -113,7 +116,6 @@ export function Header({ sidebarCollapsed, isMobile = false }: HeaderProps) {
 
       // Even if API fails, clear local state for security
       dispatch(logout());
-      localStorage.removeItem("token");
 
       // Show error toast
       toast.error("Logout completed with warnings", {

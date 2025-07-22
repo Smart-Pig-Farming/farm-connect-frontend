@@ -178,12 +178,8 @@ const VerificationPage = () => {
       dispatch(
         setCredentials({
           user: response.data.user,
-          token: response.data.token,
         })
       );
-
-      // Store token in localStorage for persistence
-      localStorage.setItem("token", response.data.token);
 
       // Show success state
       setShowSuccess(true);
@@ -191,9 +187,9 @@ const VerificationPage = () => {
         description: `Welcome ${response.data.user.firstname}! Redirecting to your dashboard...`,
       });
 
-      // After a delay, navigate to dashboard
+      // After a delay, navigate to dashboard overview
       setTimeout(() => {
-        navigate("/dashboard");
+        navigate("/dashboard/overview");
       }, 3000);
     } catch (error) {
       console.error("Verification error:", error);

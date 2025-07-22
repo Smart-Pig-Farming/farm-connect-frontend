@@ -98,16 +98,12 @@ const SignInPage = () => {
       // Dismiss loading toast
       toast.dismiss(loadingToastId);
 
-      // Store credentials in Redux
+      // Store user data in Redux (authentication is handled by HttpOnly cookies)
       dispatch(
         setCredentials({
           user: response.data.user,
-          token: response.data.token,
         })
       );
-
-      // Store token in localStorage for persistence
-      localStorage.setItem("token", response.data.token);
 
       // Show success toast
       toast.success("Welcome back!", {
@@ -118,26 +114,16 @@ const SignInPage = () => {
       // Determine redirect path based on user role
       let redirectPath = from;
       if (from === "/dashboard") {
-        // If no specific redirect, go to role-appropriate dashboard
-        switch (response.data.user.role) {
-          case "admin":
-            redirectPath = "/dashboard/users";
-            break;
-          case "vet":
-          case "govt":
-            redirectPath = "/dashboard/overview";
-            break;
-          case "farmer":
-          default:
-            redirectPath = "/dashboard";
-            break;
-        }
+        // All users should land on the Overview page by default
+        redirectPath = "/dashboard/overview";
       }
 
-      // Navigate to intended destination
+      console.log("Navigating to:", redirectPath);
+
+      // Navigate to intended destination after a small delay to ensure Redux state is updated
       setTimeout(() => {
         navigate(redirectPath, { replace: true });
-      }, 1500);
+      }, 100);
     } catch (error) {
       console.error("Login failed:", error);
 
@@ -174,10 +160,22 @@ const SignInPage = () => {
               errorTitle = "Account Not Verified";
               errorMessage =
                 "Your account requires verification. Redirecting to verification...";
-              // TODO: Redirect to first-time login verification flow
+              // Redirect to verification page with user's email
               setTimeout(() => {
                 navigate("/verify", { state: { email: formData.email } });
               }, 2000);
+              break;
+
+            case "TOO_MANY_ATTEMPTS":
+              errorTitle = "Too Many Login Attempts";
+              errorMessage =
+                "Too many failed login attempts. Please try again later.";
+              break;
+
+            case "SERVER_ERROR":
+              errorTitle = "Server Error";
+              errorMessage =
+                "Server is temporarily unavailable. Please try again later.";
               break;
 
             default:

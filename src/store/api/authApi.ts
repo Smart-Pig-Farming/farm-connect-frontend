@@ -132,7 +132,10 @@ export const authApi = baseApi.injectEndpoints({
     }),
 
     // Update profile for authenticated user
-    updateProfile: builder.mutation<UpdateProfileResponse, UpdateProfileRequest>({
+    updateProfile: builder.mutation<
+      UpdateProfileResponse,
+      UpdateProfileRequest
+    >({
       query: (data) => ({
         url: "/auth/profile",
         method: "PUT",

@@ -241,12 +241,8 @@ const JoinUsPage = () => {
       dispatch(
         setCredentials({
           user: response.data.user,
-          token: response.data.token,
         })
       );
-
-      // Store token in localStorage for persistence
-      localStorage.setItem("token", response.data.token);
 
       // Show success toast
       toast.success("Welcome to FarmConnect!", {
@@ -255,9 +251,9 @@ const JoinUsPage = () => {
         duration: 3000,
       });
 
-      // On successful registration, navigate to dashboard
+      // On successful registration, navigate to dashboard overview
       setTimeout(() => {
-        navigate("/dashboard");
+        navigate("/dashboard/overview");
       }, 1500);
     } catch (error) {
       console.error("Registration failed:", error);
@@ -267,7 +263,8 @@ const JoinUsPage = () => {
         toast.dismiss(loadingToastId);
       }
 
-      // Extract error message and details
+      // Extract error message and determine error type
+      let errorTitle = "Registration Failed";
       let errorMessage = "Something went wrong. Please try again.";
       let errorDescription = "";
 
@@ -275,28 +272,49 @@ const JoinUsPage = () => {
         const errorData = error as {
           data?: {
             error?: string;
+            code?: string;
             details?: Array<{ msg: string; path: string }>;
           };
         };
 
         if (errorData.data?.error) {
           errorMessage = errorData.data.error;
+
+          // Handle specific error cases
+          switch (errorData.data.code) {
+            case "EMAIL_ALREADY_EXISTS":
+              errorTitle = "Email Already Registered";
+              errorMessage = "An account with this email already exists.";
+              errorDescription = "Please use a different email or try signing in instead.";
+              setErrors({ email: "This email is already registered" });
+              break;
+
+            case "INVALID_DATA":
+              errorTitle = "Invalid Information";
+              errorMessage = "Please check your information and try again.";
+              break;
+
+            default:
+              break;
+          }
         }
 
         // If there are validation details, show the first few
         if (errorData.data?.details && errorData.data.details.length > 0) {
           const firstErrors = errorData.data.details.slice(0, 3);
-          errorDescription = firstErrors.map((detail) => detail.msg).join(", ");
-          if (errorData.data.details.length > 3) {
-            errorDescription += "...";
+          if (!errorDescription) {
+            errorDescription = firstErrors.map((detail) => detail.msg).join(", ");
+            if (errorData.data.details.length > 3) {
+              errorDescription += "...";
+            }
           }
         }
       }
 
       // Show error toast
-      toast.error(errorMessage, {
+      toast.error(errorTitle, {
         description:
-          errorDescription || "Please check your information and try again.",
+          errorDescription || errorMessage,
         duration: 6000,
       });
     }
