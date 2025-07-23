@@ -395,22 +395,24 @@ export function ProfilePage() {
                   </h3>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 text-xs">
                     <div className="text-center p-2 bg-white/60 rounded-lg">
-                      <div className="text-green-600 font-bold text-sm">+5</div>
+                      <div className="text-green-600 font-bold text-sm">+2</div>
                       <div className="text-gray-700 text-xs">New Post</div>
                     </div>
                     <div className="text-center p-2 bg-white/60 rounded-lg">
-                      <div className="text-blue-600 font-bold text-sm">+3</div>
+                      <div className="text-blue-600 font-bold text-sm">+1</div>
                       <div className="text-gray-700 text-xs">Reply</div>
                     </div>
                     <div className="text-center p-2 bg-white/60 rounded-lg">
                       <div className="text-yellow-600 font-bold text-sm">
                         +1
                       </div>
-                      <div className="text-gray-700 text-xs">Reaction</div>
+                      <div className="text-gray-700 text-xs">Per Upvote</div>
                     </div>
                     <div className="text-center p-2 bg-white/60 rounded-lg">
-                      <div className="text-red-600 font-bold text-sm">-5</div>
-                      <div className="text-gray-700 text-xs">Violation</div>
+                      <div className="text-purple-600 font-bold text-sm">
+                        +15
+                      </div>
+                      <div className="text-gray-700 text-xs">Mod Approved</div>
                     </div>
                   </div>
                 </div>

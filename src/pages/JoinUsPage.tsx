@@ -285,7 +285,8 @@ const JoinUsPage = () => {
             case "EMAIL_ALREADY_EXISTS":
               errorTitle = "Email Already Registered";
               errorMessage = "An account with this email already exists.";
-              errorDescription = "Please use a different email or try signing in instead.";
+              errorDescription =
+                "Please use a different email or try signing in instead.";
               setErrors({ email: "This email is already registered" });
               break;
 
@@ -303,7 +304,9 @@ const JoinUsPage = () => {
         if (errorData.data?.details && errorData.data.details.length > 0) {
           const firstErrors = errorData.data.details.slice(0, 3);
           if (!errorDescription) {
-            errorDescription = firstErrors.map((detail) => detail.msg).join(", ");
+            errorDescription = firstErrors
+              .map((detail) => detail.msg)
+              .join(", ");
             if (errorData.data.details.length > 3) {
               errorDescription += "...";
             }
@@ -313,8 +316,7 @@ const JoinUsPage = () => {
 
       // Show error toast
       toast.error(errorTitle, {
-        description:
-          errorDescription || errorMessage,
+        description: errorDescription || errorMessage,
         duration: 6000,
       });
     }
