@@ -38,8 +38,7 @@ const availableTags = [
   { name: "Feed", color: "yellow" },
   { name: "Equipment", color: "purple" },
   { name: "Breeding", color: "pink" },
-  { name: "Disease", color: "orange" },
-  { name: "Nutrition", color: "teal" },
+  { name: "Events", color: "orange" },
 ];
 
 type Step = "content" | "media";

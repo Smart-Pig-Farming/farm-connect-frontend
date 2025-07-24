@@ -444,7 +444,7 @@ export function DiscussionCard({
                       Market Listing
                     </span>
                     <p className="text-emerald-600 text-xs">
-                      Click to contact seller
+                      Click to contact
                     </p>
                   </div>
                 </div>

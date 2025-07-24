@@ -521,6 +521,5 @@ export const availableTags = [
   { name: "Feed", count: 3, color: "yellow" },
   { name: "Equipment", count: 2, color: "purple" },
   { name: "Breeding", count: 0, color: "pink" },
-  { name: "Disease", count: 0, color: "orange" },
-  { name: "Nutrition", count: 0, color: "teal" },
+  { name: "Events", count: 0, color: "orange" },
 ];
