@@ -54,7 +54,7 @@ export function ContactModal({
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-100">
           <div>
-            <h2 className="text-xl font-bold text-gray-900">Contact Seller</h2>
+            <h2 className="text-xl font-bold text-gray-900">Contact</h2>
             <p className="text-sm text-gray-600 mt-1">
               Market Listing: {postTitle}
             </p>
@@ -183,7 +183,7 @@ export function ContactModal({
           <div className="mt-6 p-4 bg-emerald-50 rounded-lg border border-emerald-200">
             <p className="text-sm text-emerald-800">
               <strong>Note:</strong> Please be respectful when contacting
-              sellers. All communications should be related to the market
+              people. All communications should be related to the market
               listing.
             </p>
           </div>

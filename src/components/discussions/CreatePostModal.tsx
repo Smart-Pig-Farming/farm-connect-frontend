@@ -4,11 +4,12 @@ import {
   Plus,
   ImageIcon,
   VideoIcon,
-  Link,
-  Paperclip,
-  Lightbulb,
+  ArrowRight,
+  ArrowLeft,
+  Check,
   DollarSign,
   Star,
+  Upload,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -41,11 +42,39 @@ const availableTags = [
   { name: "Nutrition", color: "teal" },
 ];
 
+type Step = "content" | "media";
+
+interface StepInfo {
+  id: Step;
+  title: string;
+  description: string;
+  icon: React.ComponentType<{ className?: string }>;
+}
+
+const steps: StepInfo[] = [
+  {
+    id: "content",
+    title: "Post Content",
+    description: "Add your title, content, and tags",
+    icon: ({ className }) => <Star className={className} />,
+  },
+  {
+    id: "media",
+    title: "Media (Optional)",
+    description: "Add images or video to your post",
+    icon: ({ className }) => <ImageIcon className={className} />,
+  },
+];
+
 export function CreatePostModal({
   isOpen,
   onClose,
   onSubmit,
 }: CreatePostModalProps) {
+  // Stepper state
+  const [currentStep, setCurrentStep] = useState<Step>("content");
+
+  // Form state
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
@@ -53,7 +82,25 @@ export function CreatePostModal({
   const [isAvailable, setIsAvailable] = useState(true);
   const [images, setImages] = useState<File[]>([]);
   const [video, setVideo] = useState<File | null>(null);
+  // Track selected media type for compact form
+  const [mediaType, setMediaType] = useState<"images" | "video">("images");
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Navigation functions
+  const nextStep = () => {
+    if (currentStep === "content") setCurrentStep("media");
+  };
+
+  const prevStep = () => {
+    if (currentStep === "media") setCurrentStep("content");
+  };
+
+  const canProceedToNextStep = () => {
+    if (currentStep === "content") {
+      return title.trim() && content.trim() && selectedTags.length > 0;
+    }
+    return true; // Media step is optional
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -71,12 +118,15 @@ export function CreatePostModal({
         video,
       });
       handleClose();
+    } catch (error) {
+      console.error("Error submitting post:", error);
     } finally {
       setIsSubmitting(false);
     }
   };
 
   const handleClose = () => {
+    setCurrentStep("content");
     setTitle("");
     setContent("");
     setSelectedTags([]);
@@ -85,17 +135,6 @@ export function CreatePostModal({
     setImages([]);
     setVideo(null);
     onClose();
-  };
-
-  const handleTagToggle = (tag: string) => {
-    setSelectedTags((prev) => {
-      if (prev.includes(tag)) {
-        return prev.filter((t) => t !== tag);
-      } else if (prev.length < 3) {
-        return [...prev, tag];
-      }
-      return prev;
-    });
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -162,370 +201,453 @@ export function CreatePostModal({
 
       {/* Modal */}
       <div className="flex min-h-full items-center justify-center p-4">
-        <div className="relative w-full max-w-2xl transform overflow-hidden rounded-xl bg-white shadow-2xl transition-all duration-300 scale-100">
-          {/* Header */}
-          <div className="flex items-center justify-between p-6 border-b border-gray-100">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-orange-100 rounded-lg">
-                <Plus className="h-5 w-5 text-orange-600" />
-              </div>
-              <div>
-                <h3 className="text-xl font-semibold text-gray-900">
-                  Share Your Knowledge
-                </h3>
-                <p className="text-sm text-gray-600">
-                  Empower the farming community
-                </p>
-              </div>
-            </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-8 w-8 p-0 hover:bg-gray-100 cursor-pointer transition-colors duration-200"
-              onClick={handleClose}
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
-
-          {/* Content */}
-          <form onSubmit={handleSubmit} className="p-6 space-y-6">
-            {/* Title */}
-            <div>
-              <Label
-                htmlFor="title"
-                className="text-sm font-medium text-gray-700 mb-2 block"
-              >
-                Title *
-              </Label>
-              <Input
-                id="title"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="What's your question or topic?"
-                className="border-gray-200 focus:border-orange-500 focus:ring-orange-500/20 transition-all duration-200"
-                maxLength={150}
-              />
-              <div className="flex justify-between items-center mt-1">
-                <p className="text-xs text-gray-500">
-                  Make it clear and descriptive
-                </p>
-                <span className="text-xs text-gray-400">
-                  {title.length}/150
-                </span>
-              </div>
-            </div>
-
-            {/* Content */}
-            <div>
-              <Label
-                htmlFor="content"
-                className="text-sm font-medium text-gray-700 mb-2 block"
-              >
-                Content *
-              </Label>
-              <div className="relative">
-                <textarea
-                  id="content"
-                  rows={6}
-                  value={content}
-                  onChange={(e) => setContent(e.target.value)}
-                  placeholder="Share your experience, ask questions, or provide helpful advice..."
-                  className="w-full px-3 py-2 border border-gray-200 rounded-md focus:border-orange-500 focus:ring-orange-500/20 transition-all duration-200 resize-none"
-                  maxLength={2000}
-                />
-
-                {/* Formatting Tools */}
-                <div className="absolute bottom-2 left-2 flex items-center gap-1">
-                  <button
-                    type="button"
-                    className="p-1 hover:bg-gray-100 rounded cursor-pointer transition-colors duration-200"
-                    title="Bold"
-                  >
-                    <strong className="text-xs text-gray-500">B</strong>
-                  </button>
-                  <button
-                    type="button"
-                    className="p-1 hover:bg-gray-100 rounded cursor-pointer transition-colors duration-200"
-                    title="Italic"
-                  >
-                    <em className="text-xs text-gray-500">I</em>
-                  </button>
-                  <button
-                    type="button"
-                    className="p-1 hover:bg-gray-100 rounded cursor-pointer transition-colors duration-200"
-                    title="Add Link"
-                  >
-                    <Link className="h-3 w-3 text-gray-500" />
-                  </button>
+        <div className="relative w-full max-w-3xl transform overflow-hidden rounded-xl bg-white shadow-2xl transition-all duration-300 scale-100">
+          {/* Header with Stepper */}
+          <div className="p-6 border-b border-gray-100">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-orange-100 rounded-lg">
+                  <Plus className="h-5 w-5 text-orange-600" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-semibold text-gray-900">
+                    Create New Post
+                  </h3>
+                  <p className="text-sm text-gray-600">
+                    Share your knowledge with the community
+                  </p>
                 </div>
               </div>
-              <div className="flex justify-between items-center mt-1">
-                <p className="text-xs text-gray-500">Be detailed and helpful</p>
-                <span className="text-xs text-gray-400">
-                  {content.length}/2000
-                </span>
-              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 w-8 p-0 hover:bg-gray-100 cursor-pointer transition-colors duration-200"
+                onClick={handleClose}
+              >
+                <X className="h-4 w-4" />
+              </Button>
             </div>
 
-            {/* Tags */}
-            <div>
-              <Label className="text-sm font-medium text-gray-700 mb-3 block">
-                Tags * (Select 1-3)
-              </Label>
-              <div className="flex flex-wrap gap-2">
-                {availableTags.map((tag) => {
-                  const isSelected = selectedTags.includes(tag.name);
-                  const isDisabled = !isSelected && selectedTags.length >= 3;
+            {/* Stepper */}
+            <div className="flex items-center justify-center">
+              {steps.map((step, index) => {
+                const isActive = step.id === currentStep;
+                const isCompleted =
+                  steps.findIndex((s) => s.id === currentStep) > index;
+                const IconComponent = step.icon;
 
-                  return (
-                    <button
-                      key={tag.name}
-                      type="button"
-                      onClick={() => handleTagToggle(tag.name)}
-                      disabled={isDisabled}
-                      className={`px-3 py-1.5 rounded-full border text-sm font-medium transition-all duration-200 cursor-pointer ${
-                        isSelected
-                          ? "bg-orange-500 text-white border-orange-500 shadow-md scale-105"
-                          : isDisabled
-                          ? "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed"
-                          : `${getTagColor(tag.name)} hover:scale-102`
+                return (
+                  <div key={step.id} className="flex items-center">
+                    {/* Step Circle */}
+                    <div
+                      className={`flex items-center justify-center w-10 h-10 rounded-full border-2 transition-all duration-300 ${
+                        isCompleted
+                          ? "bg-green-500 border-green-500 text-white"
+                          : isActive
+                          ? "bg-orange-500 border-orange-500 text-white"
+                          : "bg-gray-100 border-gray-300 text-gray-400"
                       }`}
                     >
-                      {tag.name}
-                    </button>
-                  );
-                })}
-              </div>
-              <p className="text-xs text-gray-500 mt-2">
-                Selected: {selectedTags.length}/3 - Tags help others find your
-                post
-              </p>
-            </div>
+                      {isCompleted ? (
+                        <Check className="h-5 w-5" />
+                      ) : (
+                        <IconComponent className="h-5 w-5" />
+                      )}
+                    </div>
 
-            {/* Media Attachments */}
-            <div>
-              <Label className="text-sm font-medium text-gray-700 mb-3 block">
-                Media (Optional)
-              </Label>
-              <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 hover:border-orange-400 transition-colors duration-200">
-                <input
-                  type="file"
-                  id="file-upload"
-                  className="sr-only"
-                  multiple
-                  accept="image/*,video/*"
-                  onChange={handleFileUpload}
-                  disabled={images.length >= 4 && !!video}
-                />
-                <label
-                  htmlFor="file-upload"
-                  className={`flex flex-col items-center justify-center cursor-pointer ${
-                    images.length >= 4 && !!video
-                      ? "opacity-50 cursor-not-allowed"
-                      : ""
-                  }`}
-                >
-                  <div className="flex items-center gap-2 mb-2">
-                    <ImageIcon className="h-5 w-5 text-gray-400" />
-                    <VideoIcon className="h-5 w-5 text-gray-400" />
-                    <Paperclip className="h-5 w-5 text-gray-400" />
-                  </div>
-                  <p className="text-sm text-gray-600">
-                    <span className="font-medium text-orange-600">
-                      Click to upload
-                    </span>{" "}
-                    or drag and drop
-                  </p>
-                  <p className="text-xs text-gray-500">
-                    Up to 4 images + 1 video (Images: max 10MB, Videos: max
-                    50MB)
-                  </p>
-                  {images.length >= 4 && (
-                    <p className="text-xs text-amber-600 mt-1">
-                      Maximum 4 images reached
-                    </p>
-                  )}
-                  {video && (
-                    <p className="text-xs text-blue-600 mt-1">
-                      Video slot filled
-                    </p>
-                  )}
-                </label>
-              </div>
-
-              {/* Media Previews */}
-              {(images.length > 0 || video) && (
-                <div className="mt-3 space-y-3">
-                  {/* Images Preview */}
-                  {images.length > 0 && (
-                    <div>
-                      <p className="text-sm font-medium text-gray-700 mb-2">
-                        Images ({images.length}/4)
+                    {/* Step Info */}
+                    <div className="ml-4 min-w-0">
+                      <p
+                        className={`text-sm font-medium ${
+                          isActive
+                            ? "text-orange-600"
+                            : isCompleted
+                            ? "text-green-600"
+                            : "text-gray-500"
+                        }`}
+                      >
+                        {step.title}
                       </p>
-                      <div className="grid grid-cols-2 gap-2">
-                        {images.map((file, index) => (
-                          <div
-                            key={index}
-                            className="relative group aspect-square bg-gray-100 rounded-lg overflow-hidden border"
-                          >
-                            <img
-                              src={URL.createObjectURL(file)}
-                              alt={`Preview ${index + 1}`}
+                      <p className="text-xs text-gray-500">
+                        {step.description}
+                      </p>
+                    </div>
+
+                    {/* Connector Line */}
+                    {index < steps.length - 1 && (
+                      <div
+                        className={`w-12 h-0.5 mx-4 ${
+                          isCompleted ? "bg-green-500" : "bg-gray-300"
+                        }`}
+                      />
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Step Content */}
+          <form onSubmit={handleSubmit} className="p-6">
+            {currentStep === "content" && (
+              <div className="space-y-6">
+                <h4 className="text-lg font-semibold text-gray-900 mb-4">
+                  Post Content
+                </h4>
+
+                {/* Title */}
+                <div>
+                  <Label
+                    htmlFor="title"
+                    className="text-sm font-medium text-gray-700 mb-2 block"
+                  >
+                    Title *
+                  </Label>
+                  <Input
+                    id="title"
+                    type="text"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    placeholder="What's your post about?"
+                    className="w-full transition-colors duration-200 focus:border-orange-500 focus:ring-orange-500/20"
+                    required
+                  />
+                </div>
+
+                {/* Content */}
+                <div>
+                  <Label
+                    htmlFor="content"
+                    className="text-sm font-medium text-gray-700 mb-2 block"
+                  >
+                    Content *
+                  </Label>
+                  <textarea
+                    id="content"
+                    value={content}
+                    onChange={(e) => setContent(e.target.value)}
+                    placeholder="Share your knowledge, experience, or question..."
+                    className="w-full min-h-[120px] p-3 border border-gray-300 rounded-lg resize-none transition-colors duration-200 focus:border-orange-500 focus:ring-orange-500/20 focus:outline-none focus:ring-2"
+                    required
+                  />
+                </div>
+
+                {/* Tags */}
+                <div>
+                  <Label className="text-sm font-medium text-gray-700 mb-3 block">
+                    Tags * (Select at least one)
+                  </Label>
+                  <div className="flex flex-wrap gap-2">
+                    {availableTags.map((tag) => {
+                      const isSelected = selectedTags.includes(tag.name);
+                      return (
+                        <button
+                          key={tag.name}
+                          type="button"
+                          onClick={() => {
+                            if (isSelected) {
+                              setSelectedTags((prev) =>
+                                prev.filter((t) => t !== tag.name)
+                              );
+                            } else {
+                              setSelectedTags((prev) => [...prev, tag.name]);
+                            }
+                          }}
+                          className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-all duration-200 ${
+                            isSelected
+                              ? getTagColor(tag.name)
+                              : "bg-gray-50 text-gray-600 border-gray-300 hover:bg-gray-100"
+                          }`}
+                        >
+                          {tag.name}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Market Post Options */}
+                <div className="space-y-4 p-4 bg-green-50 rounded-lg border border-green-200">
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="checkbox"
+                      id="marketPost"
+                      checked={isMarketPost}
+                      onChange={(e) => setIsMarketPost(e.target.checked)}
+                      className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
+                    />
+                    <Label
+                      htmlFor="marketPost"
+                      className="text-sm font-medium text-green-800 flex items-center gap-2"
+                    >
+                      <DollarSign className="h-4 w-4" />
+                      This is a buying/selling post
+                    </Label>
+                  </div>
+                  <p className="text-xs text-green-700 ml-7">
+                    Mark this if you're offering products or services for sale
+                  </p>
+
+                  {isMarketPost && (
+                    <div className="ml-7 space-y-2">
+                      <div className="flex items-center gap-3">
+                        <input
+                          type="checkbox"
+                          id="isAvailable"
+                          checked={isAvailable}
+                          onChange={(e) => setIsAvailable(e.target.checked)}
+                          className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
+                        />
+                        <Label
+                          htmlFor="isAvailable"
+                          className="text-sm text-green-800"
+                        >
+                          Item/Service is currently available
+                        </Label>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {currentStep === "media" && (
+              <div className="space-y-6">
+                <div>
+                  <h4 className="text-lg font-semibold text-gray-900 mb-2">
+                    Add Media (Optional)
+                  </h4>
+                  <p className="text-sm text-gray-600 mb-4">
+                    You can add images or video to enhance your post, or publish
+                    without any media.
+                  </p>
+                </div>
+
+                {/* Media Type Selection */}
+                <div className="space-y-4">
+                  <p className="text-sm text-blue-800 font-medium">
+                    Choose Media Type
+                  </p>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMediaType("images");
+                        setVideo(null);
+                      }}
+                      className={`flex-1 p-4 rounded-xl border-2 transition-all duration-200 ${
+                        mediaType === "images"
+                          ? "border-blue-500 bg-blue-50 text-blue-700 shadow-sm"
+                          : "border-gray-200 bg-white text-gray-600 hover:border-blue-300 hover:bg-blue-50/50"
+                      }`}
+                    >
+                      <div className="flex flex-col items-center gap-2">
+                        <ImageIcon
+                          className={`h-6 w-6 ${
+                            mediaType === "images"
+                              ? "text-blue-600"
+                              : "text-gray-400"
+                          }`}
+                        />
+                        <span className="font-medium text-sm">Images</span>
+                        <span className="text-xs opacity-75">
+                          Up to 4 images
+                        </span>
+                      </div>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMediaType("video");
+                        setImages([]);
+                      }}
+                      className={`flex-1 p-4 rounded-xl border-2 transition-all duration-200 ${
+                        mediaType === "video"
+                          ? "border-purple-500 bg-purple-50 text-purple-700 shadow-sm"
+                          : "border-gray-200 bg-white text-gray-600 hover:border-purple-300 hover:bg-purple-50/50"
+                      }`}
+                    >
+                      <div className="flex flex-col items-center gap-2">
+                        <VideoIcon
+                          className={`h-6 w-6 ${
+                            mediaType === "video"
+                              ? "text-purple-600"
+                              : "text-gray-400"
+                          }`}
+                        />
+                        <span className="font-medium text-sm">Video</span>
+                        <span className="text-xs opacity-75">
+                          One video only
+                        </span>
+                      </div>
+                    </button>
+                  </div>
+
+                  {/* Image Upload Section */}
+                  {mediaType === "images" && (
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium text-gray-700">
+                          Upload Images
+                        </span>
+                        <span className="text-xs text-gray-500">
+                          {images.length}/4 images
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        {[...Array(4)].map((_, i) => {
+                          const hasImage = images[i];
+                          return (
+                            <div
+                              key={i}
+                              className="group relative aspect-square"
+                            >
+                              {hasImage ? (
+                                <div className="relative w-full h-full rounded-lg overflow-hidden border-2 border-green-200 bg-green-50">
+                                  <img
+                                    src={URL.createObjectURL(hasImage)}
+                                    alt={`Upload ${i + 1}`}
+                                    className="w-full h-full object-cover"
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => removeImage(i)}
+                                    className="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                                  >
+                                    <X className="h-3 w-3" />
+                                  </button>
+                                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
+                                </div>
+                              ) : (
+                                <label className="relative w-full h-full flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-lg cursor-pointer transition-all hover:border-blue-400 hover:bg-blue-50/50 group-hover:scale-[1.02]">
+                                  <div className="flex flex-col items-center space-y-2">
+                                    <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center group-hover:bg-blue-100 transition-colors">
+                                      <Upload className="h-5 w-5 text-gray-400 group-hover:text-blue-500 transition-colors" />
+                                    </div>
+                                    <div className="text-center">
+                                      <p className="text-sm font-medium text-gray-700 group-hover:text-blue-600 transition-colors">
+                                        Add Image
+                                      </p>
+                                      <p className="text-xs text-gray-500">
+                                        PNG, JPG up to 10MB
+                                      </p>
+                                    </div>
+                                  </div>
+                                  <input
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={handleFileUpload}
+                                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                  />
+                                </label>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Video Upload Section */}
+                  {mediaType === "video" && (
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium text-gray-700">
+                          Upload Video
+                        </span>
+                        {video && (
+                          <span className="text-xs text-green-600 font-medium">
+                            Video selected
+                          </span>
+                        )}
+                      </div>
+                      <div className="group relative">
+                        {video ? (
+                          <div className="relative w-full aspect-video rounded-lg overflow-hidden border-2 border-green-200 bg-green-50">
+                            <video
+                              src={URL.createObjectURL(video)}
                               className="w-full h-full object-cover"
+                              controls
                             />
                             <button
                               type="button"
-                              className="absolute top-1 right-1 bg-red-500 hover:bg-red-600 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
-                              onClick={() => removeImage(index)}
+                              onClick={removeVideo}
+                              className="absolute top-3 right-3 bg-red-500 hover:bg-red-600 text-white rounded-full w-8 h-8 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
                             >
-                              <X className="h-3 w-3" />
+                              <X className="h-4 w-4" />
                             </button>
-                            <div className="absolute bottom-1 left-1 bg-black/70 text-white px-2 py-1 rounded text-xs">
-                              {file.name.length > 15
-                                ? `${file.name.substring(0, 15)}...`
-                                : file.name}
-                            </div>
+                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors pointer-events-none" />
                           </div>
-                        ))}
+                        ) : (
+                          <label className="relative w-full aspect-video flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-lg cursor-pointer transition-all hover:border-purple-400 hover:bg-purple-50/50 group-hover:scale-[1.01]">
+                            <div className="flex flex-col items-center space-y-4">
+                              <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center group-hover:bg-purple-100 transition-colors">
+                                <VideoIcon className="h-8 w-8 text-gray-400 group-hover:text-purple-500 transition-colors" />
+                              </div>
+                              <div className="text-center space-y-1">
+                                <p className="text-base font-medium text-gray-700 group-hover:text-purple-600 transition-colors">
+                                  Upload Video
+                                </p>
+                                <p className="text-sm text-gray-500">
+                                  MP4, MOV, AVI up to 100MB
+                                </p>
+                                <p className="text-xs text-gray-400">
+                                  Click or drag to upload
+                                </p>
+                              </div>
+                            </div>
+                            <input
+                              type="file"
+                              accept="video/*"
+                              onChange={handleFileUpload}
+                              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                            />
+                          </label>
+                        )}
                       </div>
                     </div>
                   )}
-
-                  {/* Video Preview */}
-                  {video && (
-                    <div>
-                      <p className="text-sm font-medium text-gray-700 mb-2">
-                        Video
-                      </p>
-                      <div className="relative aspect-video bg-gray-100 rounded-lg overflow-hidden border max-w-sm">
-                        <video
-                          src={URL.createObjectURL(video)}
-                          className="w-full h-full object-cover"
-                          controls
-                        />
-                        <button
-                          type="button"
-                          className="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white rounded-full p-1"
-                          onClick={removeVideo}
-                        >
-                          <X className="h-3 w-3" />
-                        </button>
-                        <div className="absolute bottom-2 left-2 bg-black/70 text-white px-2 py-1 rounded text-xs">
-                          {video.name.length > 20
-                            ? `${video.name.substring(0, 20)}...`
-                            : video.name}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-
-            {/* Market Post Options */}
-            <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
-              <div className="flex items-center gap-3 mb-3">
-                <DollarSign className="h-5 w-5 text-green-600" />
-                <Label className="text-sm font-medium text-gray-700">
-                  Market Post Options
-                </Label>
-              </div>
-
-              <label className="flex items-start gap-3 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={isMarketPost}
-                  onChange={(e) => setIsMarketPost(e.target.checked)}
-                  className="mt-0.5 w-4 h-4 text-orange-600 border-gray-300 rounded focus:ring-orange-500"
-                />
-                <div>
-                  <span className="text-sm font-medium text-gray-900">
-                    This is a buying/selling post
-                  </span>
-                  <p className="text-xs text-gray-600">
-                    Mark this if you're offering products or services
-                  </p>
-                </div>
-              </label>
-
-              {isMarketPost && (
-                <label className="flex items-start gap-3 mt-3 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={isAvailable}
-                    onChange={(e) => setIsAvailable(e.target.checked)}
-                    className="mt-0.5 w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
-                  />
-                  <div>
-                    <span className="text-sm font-medium text-gray-900">
-                      Mark as "Still Available"
-                    </span>
-                    <p className="text-xs text-gray-600">
-                      Let others know this item/service is currently available
-                    </p>
-                  </div>
-                </label>
-              )}
-            </div>
-
-            {/* Tips */}
-            <div className="bg-gradient-to-r from-orange-50 to-orange-100 border border-orange-200 rounded-lg p-4">
-              <div className="flex items-start gap-3">
-                <Lightbulb className="h-5 w-5 text-orange-600 mt-0.5 flex-shrink-0" />
-                <div>
-                  <h4 className="text-sm font-medium text-orange-800 mb-2">
-                    Posting Tips
-                  </h4>
-                  <ul className="text-xs text-orange-700 space-y-1">
-                    <li>• Add relevant tags to reach the right audience</li>
-                    <li>• Include clear images for better engagement</li>
-                    <li>• Be specific and provide helpful details</li>
-                    <li>
-                      • You'll earn{" "}
-                      <span className="font-semibold">+2 points</span> for
-                      quality posts!
-                    </li>
-                  </ul>
                 </div>
               </div>
-            </div>
+            )}
 
-            {/* Actions */}
-            <div className="flex gap-3 pt-4 border-t border-gray-100">
-              <Button
-                type="button"
-                variant="outline"
-                className="flex-1 hover:bg-gray-50 cursor-pointer transition-colors duration-200"
-                onClick={handleClose}
-              >
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                disabled={
-                  !title.trim() ||
-                  !content.trim() ||
-                  selectedTags.length === 0 ||
-                  isSubmitting
-                }
-                className="flex-1 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-all duration-200"
-              >
-                {isSubmitting ? (
-                  <div className="flex items-center gap-2">
-                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    Posting...
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-2">
-                    <span>Post</span>
-                    <div className="flex items-center gap-1 px-2 py-0.5 bg-white/20 rounded-full">
-                      <Star className="h-3 w-3" />
-                      <span className="text-xs">+2</span>
-                    </div>
-                  </div>
+            {/* Navigation Buttons */}
+            <div className="flex justify-between items-center pt-6 border-t border-gray-100 mt-8">
+              <div>
+                {currentStep !== "content" && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={prevStep}
+                    className="flex items-center gap-2"
+                  >
+                    <ArrowLeft className="h-4 w-4" />
+                    Previous
+                  </Button>
                 )}
-              </Button>
+              </div>
+
+              <div className="flex gap-3">
+                {currentStep === "content" ? (
+                  <Button
+                    type="button"
+                    onClick={nextStep}
+                    disabled={!canProceedToNextStep()}
+                    className="flex items-center gap-2 bg-orange-500 hover:bg-orange-600"
+                  >
+                    Next: Add Media
+                    <ArrowRight className="h-4 w-4" />
+                  </Button>
+                ) : (
+                  <Button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="bg-green-500 hover:bg-green-600"
+                  >
+                    {isSubmitting ? "Publishing..." : "Publish Post"}
+                  </Button>
+                )}
+              </div>
             </div>
           </form>
         </div>

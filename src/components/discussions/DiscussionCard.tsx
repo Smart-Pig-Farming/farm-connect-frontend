@@ -3,7 +3,6 @@ import {
   ThumbsUp,
   ThumbsDown,
   MessageSquare,
-  Share2,
   AlertTriangle,
   MapPin,
   Clock,
@@ -23,51 +22,31 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar } from "@/components/ui/avatar";
 import { ReportModal } from "@/components/discussions/ReportModal";
 import { ContactModal } from "@/components/discussions/ContactModal";
+import { RepliesSection } from "@/components/discussions/RepliesSection";
 import { SocialVideoPlayer } from "@/components/ui/social-video-player";
 import { ImageGrid } from "@/components/ui/image-grid";
-
-interface Author {
-  id: string;
-  firstname: string;
-  lastname: string;
-  avatar: string | null;
-  level_id: number;
-  points: number;
-  location: string;
-}
-
-interface Post {
-  id: string;
-  title: string;
-  content: string;
-  author: Author;
-  tags: string[];
-  upvotes: number;
-  downvotes: number;
-  replies: number;
-  shares: number;
-  isMarketPost: boolean;
-  isAvailable: boolean;
-  createdAt: string;
-  images: string[];
-  video: string | null;
-  isModeratorApproved?: boolean;
-}
+import type { Post } from "../../data/posts";
 
 interface DiscussionCardProps {
   post: Post;
   onVote?: (postId: string, voteType: "up" | "down") => void;
-  onReply?: (postId: string) => void;
-  onShare?: (postId: string) => void;
   onView?: (postId: string) => void;
+  onAddReply?: (
+    postId: string,
+    content: string,
+    parentReplyId?: string
+  ) => void;
+  onVoteReply?: (replyId: string, voteType: "up" | "down") => void;
+  onLoadMoreReplies?: (postId: string) => void;
 }
 
 export function DiscussionCard({
   post,
   onVote,
-  onReply,
-  onShare,
   onView,
+  onAddReply,
+  onVoteReply,
+  onLoadMoreReplies,
 }: DiscussionCardProps) {
   const [showReportModal, setShowReportModal] = useState(false);
   const [showContactModal, setShowContactModal] = useState(false);
@@ -75,6 +54,7 @@ export function DiscussionCard({
   const [userVote, setUserVote] = useState<"up" | "down" | null>(null);
   const [isHovered, setIsHovered] = useState(false);
   const [isContentExpanded, setIsContentExpanded] = useState(false);
+  const [showReplies, setShowReplies] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Content truncation logic - social media style
@@ -562,7 +542,7 @@ export function DiscussionCard({
                 className="flex items-center gap-1 px-2 sm:px-3 py-1.5 sm:py-2 text-gray-600 hover:text-blue-600 cursor-pointer transition-all duration-300 ease-in-out hover:scale-[1.02] max-[475px]:px-1.5 max-[475px]:py-1 max-[475px]:text-xs"
                 onClick={(e) => {
                   e.stopPropagation();
-                  onReply?.(post.id);
+                  setShowReplies(!showReplies);
                 }}
               >
                 <div className="p-1 rounded border border-transparent hover:border-blue-400 transition-all duration-300 ease-in-out">
@@ -570,24 +550,6 @@ export function DiscussionCard({
                 </div>
                 <span className="text-xs sm:text-sm font-medium max-[475px]:text-[10px]">
                   {post.replies}
-                </span>
-              </Button>
-
-              {/* Shares */}
-              <Button
-                variant="ghost"
-                size="sm"
-                className="flex items-center gap-1 px-2 sm:px-3 py-1.5 sm:py-2 text-gray-600 hover:text-purple-600 cursor-pointer transition-all duration-300 ease-in-out hover:scale-[1.02] max-[475px]:px-1.5 max-[475px]:py-1 max-[475px]:text-xs"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onShare?.(post.id);
-                }}
-              >
-                <div className="p-1 rounded border border-transparent hover:border-purple-400 transition-all duration-300 ease-in-out">
-                  <Share2 className="h-3 w-3 sm:h-3.5 sm:w-3.5 max-[475px]:h-2.5 max-[475px]:w-2.5" />
-                </div>
-                <span className="text-xs sm:text-sm font-medium max-[475px]:text-[10px]">
-                  {post.shares}
                 </span>
               </Button>
             </div>
@@ -609,6 +571,21 @@ export function DiscussionCard({
             </Button>
           </div>
         </CardContent>
+
+        {/* Replies Section - LinkedIn Style */}
+        {showReplies && (
+          <div className="px-4 pb-4">
+            <RepliesSection
+              postId={post.id}
+              replies={post.repliesData || []}
+              totalReplies={post.replies}
+              onAddReply={onAddReply}
+              onVoteReply={onVoteReply}
+              onLoadMore={() => onLoadMoreReplies?.(post.id)}
+              hasMore={false} // For now, disable pagination until proper server-side pagination is implemented
+            />
+          </div>
+        )}
       </Card>
 
       {/* Report Modal */}
