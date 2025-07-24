@@ -8,6 +8,7 @@ import {
   RotateCcw,
   SkipForward,
   SkipBack,
+  MoreHorizontal,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -67,6 +68,38 @@ export function SocialVideoPlayer({
   const [isHovered, setIsHovered] = useState(false);
   const [showPauseIndicator, setShowPauseIndicator] = useState(false);
   const [showTapFeedback, setShowTapFeedback] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
+
+  // Detect mobile screen size
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth <= 475);
+    };
+
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
+
+  // Close mobile menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        showMobileMenu &&
+        !containerRef.current?.contains(event.target as Node)
+      ) {
+        setShowMobileMenu(false);
+      }
+    };
+
+    if (showMobileMenu) {
+      document.addEventListener("mousedown", handleClickOutside);
+      return () =>
+        document.removeEventListener("mousedown", handleClickOutside);
+    }
+  }, [showMobileMenu]);
 
   // Auto-hide controls after 3 seconds of inactivity
   const resetControlsTimeout = useCallback(() => {
@@ -437,15 +470,27 @@ export function SocialVideoPlayer({
 
       {/* Loading Spinner */}
       {isLoading && (
-        <div className="absolute inset-0 flex items-center justify-center bg-black/30 pointer-events-none">
-          <div className="w-12 h-12 border-3 border-white/30 border-t-white rounded-full animate-spin" />
+        <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-sm pointer-events-none">
+          <div className="flex flex-col items-center gap-3">
+            <div
+              className={cn(
+                "border-3 border-white/30 border-t-white rounded-full animate-spin",
+                isMobile ? "w-12 h-12" : "w-16 h-16"
+              )}
+            />
+            {isMobile && (
+              <span className="text-white text-sm font-medium bg-black/50 px-3 py-1 rounded-full">
+                Loading...
+              </span>
+            )}
+          </div>
         </div>
       )}
 
       {/* Center Play Button Overlay - Social Media Style */}
       {showOverlay && !isLoading && (
         <div
-          className="absolute inset-0 z-30 flex items-center justify-center cursor-pointer bg-gradient-to-b from-transparent via-black/10 to-transparent"
+          className="absolute inset-0 z-30 cursor-pointer bg-gradient-to-b from-transparent via-black/5 to-transparent"
           style={{ pointerEvents: "auto" }}
           onClick={(e) => {
             e.preventDefault();
@@ -453,12 +498,29 @@ export function SocialVideoPlayer({
             togglePlayPause();
           }}
         >
-          <div className="bg-black/40 backdrop-blur-md rounded-full p-6 border border-white/20 transform transition-all duration-300 hover:scale-110 hover:bg-black/50 shadow-2xl">
-            <Play
-              className="h-16 w-16 text-white ml-2"
-              fill="white"
-              strokeWidth={0}
-            />
+          <div
+            className={cn(
+              "absolute transform transition-all duration-300 hover:scale-110 active:scale-95",
+              isMobile
+                ? "bottom-28 left-1/2 -translate-x-1/2" // Further above controls on mobile
+                : "top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" // Centered on desktop
+            )}
+          >
+            <div
+              className={cn(
+                "bg-black/50 backdrop-blur-lg rounded-full border border-white/20 hover:bg-black/60 shadow-2xl",
+                isMobile ? "p-3" : "p-6"
+              )}
+            >
+              <Play
+                className={cn(
+                  "text-white ml-1 drop-shadow-lg",
+                  isMobile ? "h-8 w-8" : "h-16 w-16"
+                )}
+                fill="white"
+                strokeWidth={0}
+              />
+            </div>
           </div>
         </div>
       )}
@@ -478,9 +540,9 @@ export function SocialVideoPlayer({
       {/* Brief Pause Indicator - Social Media Style */}
       {showPauseIndicator && !showOverlay && (
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-          <div className="bg-black/50 backdrop-blur-md rounded-full p-4 animate-pulse">
+          <div className="bg-black/50 backdrop-blur-md rounded-full p-3 animate-pulse">
             <Pause
-              className="h-12 w-12 text-white"
+              className={cn("text-white", isMobile ? "h-10 w-10" : "h-12 w-12")}
               fill="white"
               strokeWidth={0}
             />
@@ -491,7 +553,12 @@ export function SocialVideoPlayer({
       {/* Tap Feedback - Social Media Style */}
       {showTapFeedback && (
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-          <div className="w-20 h-20 rounded-full border-2 border-white/60 animate-ping" />
+          <div
+            className={cn(
+              "rounded-full border-2 border-white/60 animate-ping",
+              isMobile ? "w-16 h-16" : "w-20 h-20"
+            )}
+          />
         </div>
       )}
 
@@ -505,150 +572,369 @@ export function SocialVideoPlayer({
         onClick={(e) => e.stopPropagation()}
       >
         {/* Progress Bar */}
-        <div className="absolute bottom-0 left-0 right-0 p-4">
+        <div
+          className={cn(
+            "absolute bottom-0 left-0 right-0",
+            isMobile ? "p-2" : "p-4"
+          )}
+        >
           <div
             ref={progressRef}
-            className="w-full h-1 bg-white/30 rounded-full cursor-pointer mb-4 group"
+            className={cn(
+              "w-full bg-white/30 rounded-full cursor-pointer mb-3 group relative",
+              isMobile ? "h-2 py-2 -my-2" : "h-1"
+            )}
             onClick={handleSeek}
           >
             <div
-              className="h-full bg-orange-500 rounded-full relative group-hover:h-1.5 transition-all duration-200"
+              className={cn(
+                "h-full bg-gradient-to-r from-orange-500 to-orange-400 rounded-full relative transition-all duration-200 shadow-sm",
+                isMobile ? "group-active:h-3" : "group-hover:h-1.5"
+              )}
               style={{ width: `${progress}%` }}
             >
-              <div className="absolute right-0 top-1/2 -translate-y-1/2 w-3 h-3 bg-orange-500 rounded-full opacity-0 group-hover:opacity-100 transition-opacity" />
+              <div
+                className={cn(
+                  "absolute right-0 top-1/2 -translate-y-1/2 bg-white rounded-full border-2 border-orange-500 shadow-lg transition-all duration-200",
+                  isMobile
+                    ? "w-4 h-4 opacity-100 group-active:w-5 group-active:h-5"
+                    : "w-3 h-3 opacity-0 group-hover:opacity-100"
+                )}
+              />
             </div>
+            {/* Larger touch target for mobile */}
+            {isMobile && <div className="absolute inset-0 -inset-y-3" />}
           </div>
 
-          {/* Control Buttons */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              {/* Play/Pause */}
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-white hover:bg-white/20 p-2"
-                onClick={togglePlayPause}
-              >
-                {isPlaying ? (
-                  <Pause className="h-5 w-5" />
-                ) : (
-                  <Play className="h-5 w-5" />
-                )}
-              </Button>
+          {/* Mobile Controls Layout */}
+          {isMobile ? (
+            <div className="space-y-2">
+              {/* Primary Controls Row */}
+              <div className="flex items-center justify-between px-1">
+                <div className="flex items-center gap-1">
+                  {/* Play/Pause - Primary Action */}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-white hover:bg-white/20 active:bg-white/30 p-2.5 h-10 w-10 rounded-full transition-all duration-200"
+                    onClick={togglePlayPause}
+                  >
+                    {isPlaying ? (
+                      <Pause className="h-5 w-5" fill="currentColor" />
+                    ) : (
+                      <Play className="h-5 w-5 ml-0.5" fill="currentColor" />
+                    )}
+                  </Button>
 
-              {/* Skip Backward */}
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-white hover:bg-white/20 p-2"
-                onClick={skipBackward}
-              >
-                <SkipBack className="h-4 w-4" />
-              </Button>
+                  {/* Skip Controls */}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-white hover:bg-white/20 active:bg-white/30 p-2 h-9 w-9 rounded-full transition-all duration-200"
+                    onClick={skipBackward}
+                  >
+                    <SkipBack className="h-4 w-4" />
+                  </Button>
 
-              {/* Skip Forward */}
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-white hover:bg-white/20 p-2"
-                onClick={skipForward}
-              >
-                <SkipForward className="h-4 w-4" />
-              </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-white hover:bg-white/20 active:bg-white/30 p-2 h-9 w-9 rounded-full transition-all duration-200"
+                    onClick={skipForward}
+                  >
+                    <SkipForward className="h-4 w-4" />
+                  </Button>
+                </div>
 
-              {/* Time Display */}
-              <span className="text-white text-sm font-medium">
-                {formatTime(currentTime)} / {formatTime(duration)}
-              </span>
+                <div className="flex items-center gap-1">
+                  {/* Volume */}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-white hover:bg-white/20 active:bg-white/30 p-2 h-9 w-9 rounded-full transition-all duration-200"
+                    onClick={toggleMute}
+                  >
+                    {isMuted || volume === 0 ? (
+                      <VolumeX className="h-4 w-4" />
+                    ) : (
+                      <Volume2 className="h-4 w-4" />
+                    )}
+                  </Button>
+
+                  {/* More Options */}
+                  <div className="relative">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className={cn(
+                        "text-white hover:bg-white/20 active:bg-white/30 p-2 h-9 w-9 rounded-full transition-all duration-200",
+                        showMobileMenu && "bg-white/20"
+                      )}
+                      onClick={() => setShowMobileMenu(!showMobileMenu)}
+                    >
+                      <MoreHorizontal className="h-4 w-4" />
+                    </Button>
+
+                    {/* Mobile Menu Dropdown */}
+                    {showMobileMenu && (
+                      <div className="absolute bottom-full right-0 mb-3 bg-black/95 backdrop-blur-lg rounded-xl border border-white/10 py-3 z-10 min-w-48 shadow-2xl animate-in slide-in-from-bottom-2 duration-200">
+                        {/* Speed Control */}
+                        <div className="px-4 py-2">
+                          <div className="text-xs text-white/70 mb-2 font-medium">
+                            Playback Speed
+                          </div>
+                          <div className="flex flex-wrap gap-1.5">
+                            {PLAYBACK_SPEEDS.map((speed) => (
+                              <button
+                                key={speed}
+                                onClick={() => {
+                                  handleSpeedChange(speed);
+                                  setShowMobileMenu(false);
+                                }}
+                                className={cn(
+                                  "px-3 py-1.5 text-xs rounded-full transition-all duration-200 font-medium min-w-12",
+                                  speed === playbackRate
+                                    ? "text-orange-400 bg-orange-500/20 border border-orange-500/30"
+                                    : "text-white bg-white/10 hover:bg-white/20 active:bg-white/30"
+                                )}
+                              >
+                                {speed}x
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        <hr className="border-white/10 my-3" />
+
+                        {/* Volume Slider */}
+                        <div className="px-4 py-2">
+                          <div className="text-xs text-white/70 mb-3 font-medium">
+                            Volume
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <VolumeX className="h-4 w-4 text-white/50" />
+                            <div className="flex-1 relative">
+                              <input
+                                type="range"
+                                min="0"
+                                max="1"
+                                step="0.1"
+                                value={isMuted ? 0 : volume}
+                                onChange={(e) =>
+                                  handleVolumeChange(parseFloat(e.target.value))
+                                }
+                                className="w-full h-2 bg-white/20 rounded-full appearance-none cursor-pointer range-slider"
+                                style={{
+                                  background: `linear-gradient(to right, #f97316 0%, #f97316 ${
+                                    (isMuted ? 0 : volume) * 100
+                                  }%, rgba(255,255,255,0.2) ${
+                                    (isMuted ? 0 : volume) * 100
+                                  }%, rgba(255,255,255,0.2) 100%)`,
+                                }}
+                              />
+                            </div>
+                            <Volume2 className="h-4 w-4 text-white/50" />
+                          </div>
+                          <div className="text-xs text-white/50 mt-1 text-center">
+                            {Math.round((isMuted ? 0 : volume) * 100)}%
+                          </div>
+                        </div>
+
+                        <hr className="border-white/10 my-3" />
+
+                        {/* Action Buttons */}
+                        <div className="px-2">
+                          <button
+                            onClick={() => {
+                              handleRestart();
+                              setShowMobileMenu(false);
+                            }}
+                            className="w-full flex items-center gap-3 px-3 py-2.5 text-left text-sm text-white hover:bg-white/10 active:bg-white/20 rounded-lg transition-all duration-200"
+                          >
+                            <div className="p-1 bg-white/10 rounded-md">
+                              <RotateCcw className="h-4 w-4" />
+                            </div>
+                            <span className="font-medium">Restart Video</span>
+                          </button>
+                          <button
+                            onClick={() => {
+                              toggleFullscreen();
+                              setShowMobileMenu(false);
+                            }}
+                            className="w-full flex items-center gap-3 px-3 py-2.5 text-left text-sm text-white hover:bg-white/10 active:bg-white/20 rounded-lg transition-all duration-200"
+                          >
+                            <div className="p-1 bg-white/10 rounded-md">
+                              <Maximize className="h-4 w-4" />
+                            </div>
+                            <span className="font-medium">
+                              Enter Fullscreen
+                            </span>
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Fullscreen (always visible) */}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-white hover:bg-white/20 active:bg-white/30 p-2 h-9 w-9 rounded-full transition-all duration-200"
+                    onClick={toggleFullscreen}
+                  >
+                    <Maximize className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+
+              {/* Time Display Row */}
+              <div className="flex items-center justify-center pt-1">
+                <div className="bg-black/60 backdrop-blur-sm px-3 py-1.5 rounded-full border border-white/10">
+                  <span className="text-white text-xs font-medium tracking-wider">
+                    {formatTime(currentTime)} / {formatTime(duration)}
+                  </span>
+                </div>
+              </div>
             </div>
-
-            <div className="flex items-center gap-2">
-              {/* Restart */}
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-white hover:bg-white/20 p-2"
-                onClick={handleRestart}
-              >
-                <RotateCcw className="h-4 w-4" />
-              </Button>
-
-              {/* Volume Control */}
+          ) : (
+            /* Desktop Controls Layout */
+            <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
+                {/* Play/Pause */}
                 <Button
                   variant="ghost"
                   size="sm"
                   className="text-white hover:bg-white/20 p-2"
-                  onClick={toggleMute}
+                  onClick={togglePlayPause}
                 >
-                  {isMuted || volume === 0 ? (
-                    <VolumeX className="h-4 w-4" />
+                  {isPlaying ? (
+                    <Pause className="h-5 w-5" />
                   ) : (
-                    <Volume2 className="h-4 w-4" />
+                    <Play className="h-5 w-5" />
                   )}
                 </Button>
-                <input
-                  type="range"
-                  min="0"
-                  max="1"
-                  step="0.1"
-                  value={isMuted ? 0 : volume}
-                  onChange={(e) =>
-                    handleVolumeChange(parseFloat(e.target.value))
-                  }
-                  className="w-16 h-1 bg-white/30 rounded-lg appearance-none cursor-pointer slider"
-                />
-              </div>
 
-              {/* Speed Control */}
-              <div className="relative">
+                {/* Skip Backward */}
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="text-white hover:bg-white/20 p-2 min-w-12"
-                  onClick={() => setShowSpeedMenu(!showSpeedMenu)}
+                  className="text-white hover:bg-white/20 p-2"
+                  onClick={skipBackward}
                 >
-                  <span className="text-xs font-medium">{playbackRate}x</span>
+                  <SkipBack className="h-4 w-4" />
                 </Button>
 
-                {showSpeedMenu && (
-                  <div className="absolute bottom-full right-0 mb-2 bg-black/90 backdrop-blur-sm rounded-lg border border-white/20 py-1 z-10">
-                    {PLAYBACK_SPEEDS.map((speed) => (
-                      <button
-                        key={speed}
-                        onClick={() => handleSpeedChange(speed)}
-                        className={cn(
-                          "block w-full px-3 py-1.5 text-left text-sm transition-colors",
-                          speed === playbackRate
-                            ? "text-orange-400 bg-white/10"
-                            : "text-white hover:bg-white/10"
-                        )}
-                      >
-                        {speed}x
-                      </button>
-                    ))}
-                  </div>
-                )}
+                {/* Skip Forward */}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-white hover:bg-white/20 p-2"
+                  onClick={skipForward}
+                >
+                  <SkipForward className="h-4 w-4" />
+                </Button>
+
+                {/* Time Display */}
+                <span className="text-white text-sm font-medium">
+                  {formatTime(currentTime)} / {formatTime(duration)}
+                </span>
               </div>
 
-              {/* Fullscreen */}
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-white hover:bg-white/20 p-2"
-                onClick={toggleFullscreen}
-              >
-                <Maximize className="h-4 w-4" />
-              </Button>
+              <div className="flex items-center gap-2">
+                {/* Restart */}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-white hover:bg-white/20 p-2"
+                  onClick={handleRestart}
+                >
+                  <RotateCcw className="h-4 w-4" />
+                </Button>
+
+                {/* Volume Control */}
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-white hover:bg-white/20 p-2"
+                    onClick={toggleMute}
+                  >
+                    {isMuted || volume === 0 ? (
+                      <VolumeX className="h-4 w-4" />
+                    ) : (
+                      <Volume2 className="h-4 w-4" />
+                    )}
+                  </Button>
+                  <input
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.1"
+                    value={isMuted ? 0 : volume}
+                    onChange={(e) =>
+                      handleVolumeChange(parseFloat(e.target.value))
+                    }
+                    className="w-16 h-1 bg-white/30 rounded-lg appearance-none cursor-pointer slider"
+                  />
+                </div>
+
+                {/* Speed Control */}
+                <div className="relative">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-white hover:bg-white/20 p-2 min-w-12"
+                    onClick={() => setShowSpeedMenu(!showSpeedMenu)}
+                  >
+                    <span className="text-xs font-medium">{playbackRate}x</span>
+                  </Button>
+
+                  {showSpeedMenu && (
+                    <div className="absolute bottom-full right-0 mb-2 bg-black/90 backdrop-blur-sm rounded-lg border border-white/20 py-1 z-10">
+                      {PLAYBACK_SPEEDS.map((speed) => (
+                        <button
+                          key={speed}
+                          onClick={() => handleSpeedChange(speed)}
+                          className={cn(
+                            "block w-full px-3 py-1.5 text-left text-sm transition-colors",
+                            speed === playbackRate
+                              ? "text-orange-400 bg-white/10"
+                              : "text-white hover:bg-white/10"
+                          )}
+                        >
+                          {speed}x
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Fullscreen */}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-white hover:bg-white/20 p-2"
+                  onClick={toggleFullscreen}
+                >
+                  <Maximize className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
 
       {/* Keyboard Shortcuts Hint */}
-      {isFullscreen && (
+      {isFullscreen && !isMobile && (
         <div className="absolute top-4 right-4 bg-black/70 text-white text-xs p-2 rounded opacity-70">
           Space: Play/Pause • F: Fullscreen • M: Mute • ←→: Skip • ↑↓: Volume
+        </div>
+      )}
+
+      {/* Mobile Fullscreen Hint */}
+      {isFullscreen && isMobile && (
+        <div className="absolute top-4 left-4 right-4 bg-black/70 text-white text-xs p-2 rounded opacity-70 text-center">
+          Tap to pause/play • Use controls below
         </div>
       )}
     </div>
