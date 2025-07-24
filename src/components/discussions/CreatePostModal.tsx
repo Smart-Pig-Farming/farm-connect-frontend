@@ -88,23 +88,52 @@ export function CreatePostModal({
 
   // Navigation functions
   const nextStep = () => {
-    if (currentStep === "content") setCurrentStep("media");
+    console.log("Moving to next step, current:", currentStep);
+    if (currentStep === "content" && canProceedToNextStep()) {
+      setCurrentStep("media");
+    }
   };
 
   const prevStep = () => {
-    if (currentStep === "media") setCurrentStep("content");
+    console.log("Moving to previous step, current:", currentStep);
+    if (currentStep === "media") {
+      setCurrentStep("content");
+    }
   };
 
   const canProceedToNextStep = () => {
     if (currentStep === "content") {
-      return title.trim() && content.trim() && selectedTags.length > 0;
+      const isValid = title.trim() && content.trim() && selectedTags.length > 0;
+      console.log("Can proceed to next step:", isValid, {
+        title: title.trim(),
+        content: content.trim(),
+        tags: selectedTags.length,
+      });
+      return isValid;
     }
     return true; // Media step is optional
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title.trim() || !content.trim() || selectedTags.length === 0) return;
+    e.stopPropagation();
+
+    console.log("Form submitted, current step:", currentStep);
+
+    // Only allow submission from media step
+    if (currentStep !== "media") {
+      console.log("Preventing submission - not on media step");
+      return;
+    }
+
+    if (!title.trim() || !content.trim() || selectedTags.length === 0) {
+      console.log("Validation failed", {
+        title: title.trim(),
+        content: content.trim(),
+        tags: selectedTags.length,
+      });
+      return;
+    }
 
     setIsSubmitting(true);
     try {
@@ -126,6 +155,7 @@ export function CreatePostModal({
   };
 
   const handleClose = () => {
+    console.log("Closing modal");
     setCurrentStep("content");
     setTitle("");
     setContent("");
@@ -134,6 +164,7 @@ export function CreatePostModal({
     setIsAvailable(true);
     setImages([]);
     setVideo(null);
+    setIsSubmitting(false);
     onClose();
   };
 
@@ -288,7 +319,7 @@ export function CreatePostModal({
           </div>
 
           {/* Step Content */}
-          <form onSubmit={handleSubmit} className="p-6">
+          <div className="p-6">
             {currentStep === "content" && (
               <div className="space-y-6">
                 <h4 className="text-lg font-semibold text-gray-900 mb-4">
@@ -629,27 +660,41 @@ export function CreatePostModal({
 
               <div className="flex gap-3">
                 {currentStep === "content" ? (
-                  <Button
-                    type="button"
-                    onClick={nextStep}
-                    disabled={!canProceedToNextStep()}
-                    className="flex items-center gap-2 bg-orange-500 hover:bg-orange-600"
-                  >
-                    Next: Add Media
-                    <ArrowRight className="h-4 w-4" />
-                  </Button>
+                  <div className="flex flex-col items-end gap-2">
+                    {!canProceedToNextStep() && (
+                      <p className="text-xs text-red-600">
+                        Please fill in all required fields (title, content, and
+                        at least one tag)
+                      </p>
+                    )}
+                    <Button
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        nextStep();
+                      }}
+                      disabled={!canProceedToNextStep()}
+                      className="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Next: Add Media
+                      <ArrowRight className="h-4 w-4" />
+                    </Button>
+                  </div>
                 ) : (
-                  <Button
-                    type="submit"
-                    disabled={isSubmitting}
-                    className="bg-green-500 hover:bg-green-600"
-                  >
-                    {isSubmitting ? "Publishing..." : "Publish Post"}
-                  </Button>
+                  <form onSubmit={handleSubmit} className="contents">
+                    <Button
+                      type="submit"
+                      disabled={isSubmitting}
+                      className="bg-green-500 hover:bg-green-600"
+                    >
+                      {isSubmitting ? "Publishing..." : "Publish Post"}
+                    </Button>
+                  </form>
                 )}
               </div>
             </div>
-          </form>
+          </div>
         </div>
       </div>
     </div>

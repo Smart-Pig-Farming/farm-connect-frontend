@@ -51,7 +51,6 @@ export function DiscussionCard({
   const [showReportModal, setShowReportModal] = useState(false);
   const [showContactModal, setShowContactModal] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
-  const [userVote, setUserVote] = useState<"up" | "down" | null>(null);
   const [isHovered, setIsHovered] = useState(false);
   const [isContentExpanded, setIsContentExpanded] = useState(false);
   const [showReplies, setShowReplies] = useState(false);
@@ -86,12 +85,7 @@ export function DiscussionCard({
   }, [showDropdown]);
 
   const handleVote = (voteType: "up" | "down") => {
-    if (userVote === voteType) {
-      setUserVote(null);
-    } else {
-      setUserVote(voteType);
-      onVote?.(post.id, voteType);
-    }
+    onVote?.(post.id, voteType);
   };
 
   const handleReport = (reason: string, details?: string) => {
@@ -476,7 +470,7 @@ export function DiscussionCard({
                 variant="ghost"
                 size="sm"
                 className={`flex items-center gap-1 px-2 sm:px-3 py-1.5 sm:py-2 cursor-pointer transition-all duration-300 ease-in-out hover:scale-[1.02] max-[475px]:px-1.5 max-[475px]:py-1 max-[475px]:text-xs ${
-                  userVote === "up"
+                  post.userVote === "up"
                     ? "bg-green-50 text-green-600"
                     : "text-gray-600 hover:text-green-600"
                 }`}
@@ -487,14 +481,14 @@ export function DiscussionCard({
               >
                 <div
                   className={`p-1 rounded border border-transparent transition-all duration-300 ease-in-out ${
-                    userVote === "up"
+                    post.userVote === "up"
                       ? "border-green-400 bg-green-100"
                       : "hover:border-green-400"
                   }`}
                 >
                   <ThumbsUp
                     className={`h-3 w-3 sm:h-3.5 sm:w-3.5 max-[475px]:h-2.5 max-[475px]:w-2.5 transition-transform duration-200 ${
-                      userVote === "up" ? "scale-110" : ""
+                      post.userVote === "up" ? "scale-110" : ""
                     }`}
                   />
                 </div>
@@ -508,7 +502,7 @@ export function DiscussionCard({
                 variant="ghost"
                 size="sm"
                 className={`flex items-center gap-1 px-2 sm:px-3 py-1.5 sm:py-2 cursor-pointer transition-all duration-300 ease-in-out hover:scale-[1.02] max-[475px]:px-1.5 max-[475px]:py-1 max-[475px]:text-xs ${
-                  userVote === "down"
+                  post.userVote === "down"
                     ? "bg-red-50 text-red-600"
                     : "text-gray-600 hover:text-red-600"
                 }`}
@@ -519,14 +513,14 @@ export function DiscussionCard({
               >
                 <div
                   className={`p-1 rounded border border-transparent transition-all duration-300 ease-in-out ${
-                    userVote === "down"
+                    post.userVote === "down"
                       ? "border-red-400 bg-red-100"
                       : "hover:border-red-400"
                   }`}
                 >
                   <ThumbsDown
                     className={`h-3 w-3 sm:h-3.5 sm:w-3.5 max-[475px]:h-2.5 max-[475px]:w-2.5 transition-transform duration-200 ${
-                      userVote === "down" ? "scale-110" : ""
+                      post.userVote === "down" ? "scale-110" : ""
                     }`}
                   />
                 </div>

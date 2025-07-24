@@ -28,6 +28,7 @@ export interface Post {
   tags: string[];
   upvotes: number;
   downvotes: number;
+  userVote?: "up" | "down" | null;
   replies: number;
   shares: number;
   isMarketPost: boolean;
@@ -58,6 +59,7 @@ export const allMockPosts: Post[] = [
     tags: ["Market", "Feed"],
     upvotes: 24,
     downvotes: 2,
+    userVote: "down",
     replies: 7,
     shares: 3,
     isMarketPost: true,

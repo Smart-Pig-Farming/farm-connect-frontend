@@ -261,12 +261,19 @@ export function DiscussionsPage() {
 
   // Handle adding a new reply to a post (for inline replies)
   const handleAddReply = useCallback(
-    async (postId: string, content: string) => {
+    async (postId: string, content: string, parentReplyId?: string) => {
       try {
         // In a real app, this would make an API call
-        console.log("Adding reply to post:", postId, "Content:", content);
+        console.log(
+          "Adding reply to post:",
+          postId,
+          "Content:",
+          content,
+          "Parent:",
+          parentReplyId
+        );
 
-        // For now, just update local state
+        // Create new reply object
         const newReply: Reply = {
           id: `reply-${Date.now()}`,
           content,
@@ -286,14 +293,56 @@ export function DiscussionsPage() {
           replies: [],
         };
 
+        // Helper function to recursively add nested reply
+        const addNestedReply = (
+          replies: Reply[],
+          targetParentId: string,
+          newReply: Reply
+        ): Reply[] => {
+          return replies.map((reply) => {
+            if (reply.id === targetParentId) {
+              // Found the parent, add the new reply to its replies array
+              return {
+                ...reply,
+                replies: [...(reply.replies || []), newReply],
+              };
+            } else if (reply.replies && reply.replies.length > 0) {
+              // Recursively search in nested replies
+              return {
+                ...reply,
+                replies: addNestedReply(
+                  reply.replies,
+                  targetParentId,
+                  newReply
+                ),
+              };
+            }
+            return reply;
+          });
+        };
+
         // Update displayed posts
         setDisplayedPosts((prev) =>
           prev.map((post) => {
             if (post.id === postId) {
+              let updatedRepliesData;
+
+              if (parentReplyId) {
+                // Adding a nested reply
+                updatedRepliesData = addNestedReply(
+                  post.repliesData || [],
+                  parentReplyId,
+                  newReply
+                );
+              } else {
+                // Adding a top-level reply
+                updatedRepliesData = [...(post.repliesData || []), newReply];
+              }
+
               return {
                 ...post,
                 replies: post.replies + 1,
-                repliesData: [...(post.repliesData || []), newReply],
+                repliesData: updatedRepliesData,
               };
             }
             return post;
@@ -301,6 +350,57 @@ export function DiscussionsPage() {
         );
       } catch (error) {
         console.error("Error adding reply:", error);
+      }
+    },
+    []
+  );
+
+  // Handle voting on a post
+  const handleVotePost = useCallback(
+    async (postId: string, voteType: "up" | "down") => {
+      try {
+        console.log(`${voteType}voting post:`, postId);
+
+        // Update local state with optimistic updates
+        setDisplayedPosts((prev) =>
+          prev.map((post) => {
+            if (post.id === postId) {
+              // Get current user vote from post data (you might want to store this separately)
+              const currentVote = post.userVote || null;
+              let newUpvotes = post.upvotes;
+              let newDownvotes = post.downvotes;
+              let newUserVote: "up" | "down" | null = voteType;
+
+              // Handle vote logic
+              if (currentVote === voteType) {
+                // Remove vote
+                newUserVote = null;
+                if (voteType === "up") newUpvotes--;
+                else newDownvotes--;
+              } else {
+                // Add or change vote
+                if (currentVote === "up") newUpvotes--;
+                else if (currentVote === "down") newDownvotes--;
+
+                if (voteType === "up") newUpvotes++;
+                else newDownvotes++;
+              }
+
+              return {
+                ...post,
+                upvotes: Math.max(0, newUpvotes),
+                downvotes: Math.max(0, newDownvotes),
+                userVote: newUserVote,
+              };
+            }
+            return post;
+          })
+        );
+
+        // In a real app, this would make an API call
+        // await api.votePost(postId, voteType);
+      } catch (error) {
+        console.error("Error voting on post:", error);
       }
     },
     []
@@ -394,12 +494,13 @@ export function DiscussionsPage() {
       <DiscussionCard
         key={post.id}
         post={post}
+        onVote={handleVotePost}
         onAddReply={handleAddReply}
         onVoteReply={handleVoteReply}
         onLoadMoreReplies={handleLoadMoreReplies}
       />
     );
-  }, [handleAddReply, handleVoteReply, handleLoadMoreReplies]);
+  }, [handleVotePost, handleAddReply, handleVoteReply, handleLoadMoreReplies]);
 
   // Enhanced loading states with progress information
   const LoadingSpinner = useMemo(

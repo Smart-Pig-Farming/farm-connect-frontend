@@ -35,11 +35,10 @@ export function RepliesSection({
   hasMore = false,
 }: RepliesSectionProps) {
   const [isExpanded, setIsExpanded] = useState(false);
-  const [newComment, setNewComment] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [localReplies, setLocalReplies] = useState<Reply[]>(replies);
   const [localTotalReplies, setLocalTotalReplies] = useState(totalReplies);
-  const [activeReplyId, setActiveReplyId] = useState<string | null>(null); // Track which reply is being responded to
+  const [activeReplyId, setActiveReplyId] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Update local state when props change
@@ -65,92 +64,38 @@ export function RepliesSection({
   // Calculate display logic
   const topLevelReplies = localReplies.length;
   const actualCountFromData = countAllReplies(localReplies);
-
-  // Use the actual count from the data rather than the potentially stale prop
   const displayTotalCount = Math.max(actualCountFromData, localTotalReplies);
-
-  // Calculate how many replies are hidden when collapsed
   const hiddenReplies = isExpanded ? 0 : countAllReplies(localReplies.slice(2));
-
-  // Only show load more if we have more replies from server AND all current replies are displayed
   const showLoadMoreButton = hasMore && isExpanded && onLoadMore;
-  // Show expand button if we have more than 2 top-level replies to show
   const showExpandButton = !isExpanded && topLevelReplies > 2;
-  // Always show some replies initially (at least 2 or all if less than 2)
   const initialReplies = localReplies.slice(0, 2);
 
+  // Main submit handler
   const handleSubmitComment = useCallback(
-    async (e: React.FormEvent, parentReplyId?: string) => {
+    async (e: React.FormEvent) => {
       e.preventDefault();
-      if (!newComment.trim() || isSubmitting) return;
+      const commentText = textareaRef.current?.value.trim() || "";
+      if (!commentText || isSubmitting) return;
 
       setIsSubmitting(true);
       try {
         if (onAddReply) {
-          await onAddReply(postId, newComment.trim(), parentReplyId);
-
-          // Optimistically update the local state
-          const newReply: Reply = {
-            id: `temp-${Date.now()}`,
-            content: newComment.trim(),
-            author: {
-              id: "current-user",
-              firstname: "You",
-              lastname: "",
-              avatar: null,
-              level_id: 1,
-              points: 0,
-              location: "Your Location",
-            },
-            createdAt: new Date().toISOString(),
-            upvotes: 0,
-            downvotes: 0,
-            userVote: null,
-            replies: [],
-          };
-
-          if (parentReplyId) {
-            // Add nested reply
-            const updateNestedReplies = (replies: Reply[]): Reply[] => {
-              return replies.map((reply) => {
-                if (reply.id === parentReplyId) {
-                  return {
-                    ...reply,
-                    replies: [...(reply.replies || []), newReply],
-                  };
-                } else if (reply.replies && reply.replies.length > 0) {
-                  return {
-                    ...reply,
-                    replies: updateNestedReplies(reply.replies),
-                  };
-                }
-                return reply;
-              });
-            };
-            setLocalReplies(updateNestedReplies(localReplies));
-          } else {
-            // Add top-level reply
-            setLocalReplies([...localReplies, newReply]);
-          }
-
-          setLocalTotalReplies((prev) => prev + 1);
+          await onAddReply(postId, commentText, activeReplyId || undefined);
+          if (textareaRef.current) textareaRef.current.value = "";
+          setActiveReplyId(null);
         }
-
-        setNewComment("");
-        setActiveReplyId(null);
       } catch (error) {
         console.error("Error submitting comment:", error);
       } finally {
         setIsSubmitting(false);
       }
     },
-    [newComment, isSubmitting, onAddReply, postId, localReplies]
+    [isSubmitting, onAddReply, postId, activeReplyId]
   );
 
   const handleVoteReply = (replyId: string, voteType: "up" | "down") => {
     onVoteReply?.(replyId, voteType);
 
-    // Optimistically update vote counts
     const updateVotes = (replies: Reply[]): Reply[] => {
       return replies.map((reply) => {
         if (reply.id === replyId) {
@@ -159,17 +104,13 @@ export function RepliesSection({
           let newDownvotes = reply.downvotes;
           let newUserVote: "up" | "down" | null = voteType;
 
-          // Handle vote logic
           if (currentVote === voteType) {
-            // Remove vote
             newUserVote = null;
             if (voteType === "up") newUpvotes--;
             else newDownvotes--;
           } else {
-            // Add or change vote
             if (currentVote === "up") newUpvotes--;
             else if (currentVote === "down") newDownvotes--;
-
             if (voteType === "up") newUpvotes++;
             else newDownvotes++;
           }
@@ -193,8 +134,28 @@ export function RepliesSection({
     setLocalReplies(updateVotes(localReplies));
   };
 
+  // Helper function to find a reply by ID
+  const findReplyById = useCallback(
+    (replies: Reply[], replyId: string): Reply | null => {
+      for (const reply of replies) {
+        if (reply.id === replyId) {
+          return reply;
+        }
+        if (reply.replies && reply.replies.length > 0) {
+          const found = findReplyById(reply.replies, replyId);
+          if (found) return found;
+        }
+      }
+      return null;
+    },
+    []
+  );
+
+  const replyContext = activeReplyId
+    ? findReplyById(localReplies, activeReplyId)
+    : null;
+
   const formatTimeAgo = (dateString: string) => {
-    // If it's already formatted (like "3m ago"), return as is
     if (
       dateString.includes("ago") ||
       dateString.includes("s") ||
@@ -206,14 +167,12 @@ export function RepliesSection({
       return dateString;
     }
 
-    // Otherwise, format from ISO date
     try {
       const date = new Date(dateString);
       const now = new Date();
 
-      // Check if date is valid
       if (isNaN(date.getTime())) {
-        return dateString; // Return original if parsing fails
+        return dateString;
       }
 
       const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
@@ -226,7 +185,7 @@ export function RepliesSection({
         return `${Math.floor(diffInSeconds / 86400)}d ago`;
       return `${Math.floor(diffInSeconds / 604800)}w ago`;
     } catch {
-      return dateString; // Return original if any error occurs
+      return dateString;
     }
   };
 
@@ -238,13 +197,12 @@ export function RepliesSection({
     reply: Reply;
     depth?: number;
   }) => {
-    const marginLeft = depth * 24; // 24px per nesting level
-    const maxDepth = 6; // Limit nesting depth
+    const marginLeft = depth * 24;
+    const maxDepth = 6;
 
     return (
       <div className="space-y-3" style={{ marginLeft: `${marginLeft}px` }}>
         <div className="flex gap-3">
-          {/* Reply Author Avatar */}
           <Avatar className="w-8 h-8 flex-shrink-0">
             {reply.author.avatar ? (
               <img
@@ -260,9 +218,7 @@ export function RepliesSection({
             )}
           </Avatar>
 
-          {/* Reply Content */}
           <div className="flex-1 min-w-0">
-            {/* Reply Bubble */}
             <div className="bg-gray-50 rounded-2xl px-4 py-3">
               <div className="flex items-center justify-between mb-1">
                 <span className="font-medium text-gray-900 text-sm">
@@ -277,9 +233,7 @@ export function RepliesSection({
               </p>
             </div>
 
-            {/* Reply Actions */}
             <div className="flex items-center gap-4 mt-2 ml-2">
-              {/* Upvote */}
               <Button
                 variant="ghost"
                 size="sm"
@@ -294,7 +248,6 @@ export function RepliesSection({
                 <span>{reply.upvotes}</span>
               </Button>
 
-              {/* Downvote */}
               <Button
                 variant="ghost"
                 size="sm"
@@ -309,14 +262,12 @@ export function RepliesSection({
                 <span>{reply.downvotes}</span>
               </Button>
 
-              {/* Reply Button */}
               {depth < maxDepth && (
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={() => {
                     setActiveReplyId(reply.id);
-                    // Small delay to ensure state update before focusing
                     setTimeout(() => {
                       const replyForm =
                         document.querySelector("#main-reply-form");
@@ -326,7 +277,6 @@ export function RepliesSection({
                           block: "center",
                         });
                       }
-                      // Focus the textarea after scroll
                       if (textareaRef.current) {
                         textareaRef.current.focus();
                       }
@@ -338,7 +288,6 @@ export function RepliesSection({
                 </Button>
               )}
 
-              {/* More Options */}
               <Button
                 variant="ghost"
                 size="sm"
@@ -350,7 +299,6 @@ export function RepliesSection({
           </div>
         </div>
 
-        {/* Nested Replies */}
         {reply.replies && reply.replies.length > 0 && (
           <div className="space-y-3">
             {reply.replies.map((nestedReply) => (
@@ -366,40 +314,39 @@ export function RepliesSection({
     );
   };
 
-  // Main Reply Form Component - Always visible
+  // Main Reply Form Component
   const MainReplyForm = useCallback(
     () => (
       <div id="main-reply-form" className="flex gap-3 mt-4">
-        {/* Current User Avatar */}
         <Avatar className="w-8 h-8 flex-shrink-0">
           <div className="w-full h-full bg-gray-400 flex items-center justify-center text-white font-medium text-xs">
             YU
           </div>
         </Avatar>
 
-        {/* Comment Input */}
         <div className="flex-1">
           <form onSubmit={handleSubmitComment} className="space-y-3">
             <div className="border border-gray-200 rounded-2xl overflow-hidden focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500">
               <textarea
-                key="main-reply-textarea" // Prevent React from recreating this element
                 ref={textareaRef}
-                value={newComment}
-                onChange={(e) => setNewComment(e.target.value)}
                 placeholder={
                   activeReplyId
-                    ? `Replying to a comment...`
+                    ? `Replying to ${
+                        replyContext?.author.firstname || "a comment"
+                      }...`
                     : "Add a comment..."
                 }
                 className="w-full px-4 py-3 text-sm resize-none border-0 focus:ring-0 focus:outline-none min-h-[80px]"
                 rows={3}
               />
 
-              {/* Show context when replying to a specific comment */}
-              {activeReplyId && (
+              {activeReplyId && replyContext && (
                 <div className="px-4 py-2 bg-blue-50 border-t border-blue-100 text-xs text-blue-700">
-                  Replying to a comment •{" "}
+                  Replying to {replyContext.author.firstname}: "
+                  {replyContext.content.slice(0, 50)}
+                  {replyContext.content.length > 50 ? "..." : ""}" •{" "}
                   <button
+                    type="button"
                     onClick={() => setActiveReplyId(null)}
                     className="text-blue-600 hover:text-blue-800 underline"
                   >
@@ -408,11 +355,8 @@ export function RepliesSection({
                 </div>
               )}
 
-              {/* Comment Actions */}
               <div className="flex items-center justify-between px-4 py-2 bg-gray-50 border-t border-gray-100">
-                <div className="flex items-center gap-2">
-                  {/* You can add emoji picker or other formatting options here */}
-                </div>
+                <div className="flex items-center gap-2"></div>
 
                 <div className="flex items-center gap-2">
                   {activeReplyId && (
@@ -420,10 +364,7 @@ export function RepliesSection({
                       type="button"
                       variant="ghost"
                       size="sm"
-                      onClick={() => {
-                        setActiveReplyId(null);
-                        setNewComment("");
-                      }}
+                      onClick={() => setActiveReplyId(null)}
                       className="text-sm text-gray-600 hover:text-gray-800"
                     >
                       Cancel
@@ -432,7 +373,7 @@ export function RepliesSection({
                   <Button
                     type="submit"
                     size="sm"
-                    disabled={!newComment.trim() || isSubmitting}
+                    disabled={isSubmitting}
                     className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-1 text-sm"
                   >
                     {isSubmitting ? "Posting..." : "Post"}
@@ -444,14 +385,12 @@ export function RepliesSection({
         </div>
       </div>
     ),
-    [newComment, activeReplyId, isSubmitting, handleSubmitComment]
+    [activeReplyId, isSubmitting, handleSubmitComment, replyContext]
   );
 
-  // Show replies header if there are any replies
   if (displayTotalCount === 0) {
     return (
       <div className="mt-4 border-t border-gray-100 pt-4">
-        {/* Always show reply form */}
         <MainReplyForm />
       </div>
     );
@@ -459,7 +398,6 @@ export function RepliesSection({
 
   return (
     <div className="mt-4 border-t border-gray-100 pt-4">
-      {/* Replies Header - Only show if there are replies */}
       {displayTotalCount > 0 && (
         <div className="flex items-center justify-between mb-3">
           <Button
@@ -483,14 +421,11 @@ export function RepliesSection({
         </div>
       )}
 
-      {/* Replies List - Always show initial replies */}
       <div className="space-y-4 mb-4">
-        {/* Show initial replies (up to 2) */}
         {initialReplies.map((reply) => (
           <ReplyItem key={reply.id} reply={reply} depth={0} />
         ))}
 
-        {/* Show additional replies when expanded */}
         {isExpanded &&
           localReplies
             .slice(2)
@@ -498,7 +433,6 @@ export function RepliesSection({
               <ReplyItem key={reply.id} reply={reply} depth={0} />
             ))}
 
-        {/* Load More Replies - only show when expanded and there are more from server */}
         {showLoadMoreButton && (
           <Button
             variant="ghost"
@@ -511,7 +445,6 @@ export function RepliesSection({
         )}
       </div>
 
-      {/* Show More/Less Toggle for many replies */}
       {showExpandButton && (
         <Button
           variant="ghost"
@@ -523,7 +456,6 @@ export function RepliesSection({
         </Button>
       )}
 
-      {/* Always Show Reply Form - LinkedIn Style */}
       <MainReplyForm />
     </div>
   );
