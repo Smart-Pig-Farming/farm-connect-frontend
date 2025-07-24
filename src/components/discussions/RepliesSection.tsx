@@ -65,87 +65,87 @@ export function RepliesSection({
   // Calculate display logic
   const topLevelReplies = localReplies.length;
   const actualCountFromData = countAllReplies(localReplies);
-  
+
   // Use the actual count from the data rather than the potentially stale prop
   const displayTotalCount = Math.max(actualCountFromData, localTotalReplies);
-  
+
   // Calculate how many replies are hidden when collapsed
   const hiddenReplies = isExpanded ? 0 : countAllReplies(localReplies.slice(2));
-  
+
   // Only show load more if we have more replies from server AND all current replies are displayed
   const showLoadMoreButton = hasMore && isExpanded && onLoadMore;
   // Show expand button if we have more than 2 top-level replies to show
   const showExpandButton = !isExpanded && topLevelReplies > 2;
   // Always show some replies initially (at least 2 or all if less than 2)
   const initialReplies = localReplies.slice(0, 2);
-  
-  const handleSubmitComment = useCallback(async (
-    e: React.FormEvent,
-    parentReplyId?: string
-  ) => {
-    e.preventDefault();
-    if (!newComment.trim() || isSubmitting) return;
 
-    setIsSubmitting(true);
-    try {
-      if (onAddReply) {
-        await onAddReply(postId, newComment.trim(), parentReplyId);
+  const handleSubmitComment = useCallback(
+    async (e: React.FormEvent, parentReplyId?: string) => {
+      e.preventDefault();
+      if (!newComment.trim() || isSubmitting) return;
 
-        // Optimistically update the local state
-        const newReply: Reply = {
-          id: `temp-${Date.now()}`,
-          content: newComment.trim(),
-          author: {
-            id: "current-user",
-            firstname: "You",
-            lastname: "",
-            avatar: null,
-            level_id: 1,
-            points: 0,
-            location: "Your Location",
-          },
-          createdAt: new Date().toISOString(),
-          upvotes: 0,
-          downvotes: 0,
-          userVote: null,
-          replies: [],
-        };
+      setIsSubmitting(true);
+      try {
+        if (onAddReply) {
+          await onAddReply(postId, newComment.trim(), parentReplyId);
 
-        if (parentReplyId) {
-          // Add nested reply
-          const updateNestedReplies = (replies: Reply[]): Reply[] => {
-            return replies.map((reply) => {
-              if (reply.id === parentReplyId) {
-                return {
-                  ...reply,
-                  replies: [...(reply.replies || []), newReply],
-                };
-              } else if (reply.replies && reply.replies.length > 0) {
-                return {
-                  ...reply,
-                  replies: updateNestedReplies(reply.replies),
-                };
-              }
-              return reply;
-            });
+          // Optimistically update the local state
+          const newReply: Reply = {
+            id: `temp-${Date.now()}`,
+            content: newComment.trim(),
+            author: {
+              id: "current-user",
+              firstname: "You",
+              lastname: "",
+              avatar: null,
+              level_id: 1,
+              points: 0,
+              location: "Your Location",
+            },
+            createdAt: new Date().toISOString(),
+            upvotes: 0,
+            downvotes: 0,
+            userVote: null,
+            replies: [],
           };
-          setLocalReplies(updateNestedReplies(localReplies));
-        } else {
-          // Add top-level reply
-          setLocalReplies([...localReplies, newReply]);
+
+          if (parentReplyId) {
+            // Add nested reply
+            const updateNestedReplies = (replies: Reply[]): Reply[] => {
+              return replies.map((reply) => {
+                if (reply.id === parentReplyId) {
+                  return {
+                    ...reply,
+                    replies: [...(reply.replies || []), newReply],
+                  };
+                } else if (reply.replies && reply.replies.length > 0) {
+                  return {
+                    ...reply,
+                    replies: updateNestedReplies(reply.replies),
+                  };
+                }
+                return reply;
+              });
+            };
+            setLocalReplies(updateNestedReplies(localReplies));
+          } else {
+            // Add top-level reply
+            setLocalReplies([...localReplies, newReply]);
+          }
+
+          setLocalTotalReplies((prev) => prev + 1);
         }
 
-        setLocalTotalReplies((prev) => prev + 1);
+        setNewComment("");
+        setActiveReplyId(null);
+      } catch (error) {
+        console.error("Error submitting comment:", error);
+      } finally {
+        setIsSubmitting(false);
       }
-
-      setNewComment("");
-      setActiveReplyId(null);
-    } catch (error) {
-      console.error("Error submitting comment:", error);
-    } finally {
-      setIsSubmitting(false);
-    }
-  }, [newComment, isSubmitting, onAddReply, postId, localReplies]);
+    },
+    [newComment, isSubmitting, onAddReply, postId, localReplies]
+  );
 
   const handleVoteReply = (replyId: string, voteType: "up" | "down") => {
     onVoteReply?.(replyId, voteType);
@@ -194,15 +194,40 @@ export function RepliesSection({
   };
 
   const formatTimeAgo = (dateString: string) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+    // If it's already formatted (like "3m ago"), return as is
+    if (
+      dateString.includes("ago") ||
+      dateString.includes("s") ||
+      dateString.includes("m") ||
+      dateString.includes("h") ||
+      dateString.includes("d") ||
+      dateString.includes("w")
+    ) {
+      return dateString;
+    }
 
-    if (diffInSeconds < 60) return `${diffInSeconds}s`;
-    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m`;
-    if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h`;
-    if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)}d`;
-    return `${Math.floor(diffInSeconds / 604800)}w`;
+    // Otherwise, format from ISO date
+    try {
+      const date = new Date(dateString);
+      const now = new Date();
+
+      // Check if date is valid
+      if (isNaN(date.getTime())) {
+        return dateString; // Return original if parsing fails
+      }
+
+      const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+
+      if (diffInSeconds < 60) return `${diffInSeconds}s ago`;
+      if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
+      if (diffInSeconds < 86400)
+        return `${Math.floor(diffInSeconds / 3600)}h ago`;
+      if (diffInSeconds < 604800)
+        return `${Math.floor(diffInSeconds / 86400)}d ago`;
+      return `${Math.floor(diffInSeconds / 604800)}w ago`;
+    } catch {
+      return dateString; // Return original if any error occurs
+    }
   };
 
   // Recursive component for rendering nested replies
@@ -213,7 +238,6 @@ export function RepliesSection({
     reply: Reply;
     depth?: number;
   }) => {
-
     const marginLeft = depth * 24; // 24px per nesting level
     const maxDepth = 6; // Limit nesting depth
 
@@ -294,9 +318,13 @@ export function RepliesSection({
                     setActiveReplyId(reply.id);
                     // Small delay to ensure state update before focusing
                     setTimeout(() => {
-                      const replyForm = document.querySelector('#main-reply-form');
+                      const replyForm =
+                        document.querySelector("#main-reply-form");
                       if (replyForm) {
-                        replyForm.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        replyForm.scrollIntoView({
+                          behavior: "smooth",
+                          block: "center",
+                        });
                       }
                       // Focus the textarea after scroll
                       if (textareaRef.current) {
@@ -339,81 +367,85 @@ export function RepliesSection({
   };
 
   // Main Reply Form Component - Always visible
-  const MainReplyForm = useCallback(() => (
-    <div id="main-reply-form" className="flex gap-3 mt-4">
-      {/* Current User Avatar */}
-      <Avatar className="w-8 h-8 flex-shrink-0">
-        <div className="w-full h-full bg-gray-400 flex items-center justify-center text-white font-medium text-xs">
-          YU
-        </div>
-      </Avatar>
+  const MainReplyForm = useCallback(
+    () => (
+      <div id="main-reply-form" className="flex gap-3 mt-4">
+        {/* Current User Avatar */}
+        <Avatar className="w-8 h-8 flex-shrink-0">
+          <div className="w-full h-full bg-gray-400 flex items-center justify-center text-white font-medium text-xs">
+            YU
+          </div>
+        </Avatar>
 
-      {/* Comment Input */}
-      <div className="flex-1">
-        <form onSubmit={handleSubmitComment} className="space-y-3">
-          <div className="border border-gray-200 rounded-2xl overflow-hidden focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500">
-            <textarea
-              key="main-reply-textarea" // Prevent React from recreating this element
-              ref={textareaRef}
-              value={newComment}
-              onChange={(e) => setNewComment(e.target.value)}
-              placeholder={
-                activeReplyId 
-                  ? `Replying to a comment...` 
-                  : "Add a comment..."
-              }
-              className="w-full px-4 py-3 text-sm resize-none border-0 focus:ring-0 focus:outline-none min-h-[80px]"
-              rows={3}
-            />
+        {/* Comment Input */}
+        <div className="flex-1">
+          <form onSubmit={handleSubmitComment} className="space-y-3">
+            <div className="border border-gray-200 rounded-2xl overflow-hidden focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500">
+              <textarea
+                key="main-reply-textarea" // Prevent React from recreating this element
+                ref={textareaRef}
+                value={newComment}
+                onChange={(e) => setNewComment(e.target.value)}
+                placeholder={
+                  activeReplyId
+                    ? `Replying to a comment...`
+                    : "Add a comment..."
+                }
+                className="w-full px-4 py-3 text-sm resize-none border-0 focus:ring-0 focus:outline-none min-h-[80px]"
+                rows={3}
+              />
 
-            {/* Show context when replying to a specific comment */}
-            {activeReplyId && (
-              <div className="px-4 py-2 bg-blue-50 border-t border-blue-100 text-xs text-blue-700">
-                Replying to a comment • <button 
-                  onClick={() => setActiveReplyId(null)}
-                  className="text-blue-600 hover:text-blue-800 underline"
-                >
-                  Cancel reply
-                </button>
-              </div>
-            )}
-
-            {/* Comment Actions */}
-            <div className="flex items-center justify-between px-4 py-2 bg-gray-50 border-t border-gray-100">
-              <div className="flex items-center gap-2">
-                {/* You can add emoji picker or other formatting options here */}
-              </div>
-
-              <div className="flex items-center gap-2">
-                {activeReplyId && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      setActiveReplyId(null);
-                      setNewComment("");
-                    }}
-                    className="text-sm text-gray-600 hover:text-gray-800"
+              {/* Show context when replying to a specific comment */}
+              {activeReplyId && (
+                <div className="px-4 py-2 bg-blue-50 border-t border-blue-100 text-xs text-blue-700">
+                  Replying to a comment •{" "}
+                  <button
+                    onClick={() => setActiveReplyId(null)}
+                    className="text-blue-600 hover:text-blue-800 underline"
                   >
-                    Cancel
+                    Cancel reply
+                  </button>
+                </div>
+              )}
+
+              {/* Comment Actions */}
+              <div className="flex items-center justify-between px-4 py-2 bg-gray-50 border-t border-gray-100">
+                <div className="flex items-center gap-2">
+                  {/* You can add emoji picker or other formatting options here */}
+                </div>
+
+                <div className="flex items-center gap-2">
+                  {activeReplyId && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setActiveReplyId(null);
+                        setNewComment("");
+                      }}
+                      className="text-sm text-gray-600 hover:text-gray-800"
+                    >
+                      Cancel
+                    </Button>
+                  )}
+                  <Button
+                    type="submit"
+                    size="sm"
+                    disabled={!newComment.trim() || isSubmitting}
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-1 text-sm"
+                  >
+                    {isSubmitting ? "Posting..." : "Post"}
                   </Button>
-                )}
-                <Button
-                  type="submit"
-                  size="sm"
-                  disabled={!newComment.trim() || isSubmitting}
-                  className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-1 text-sm"
-                >
-                  {isSubmitting ? "Posting..." : "Post"}
-                </Button>
+                </div>
               </div>
             </div>
-          </div>
-        </form>
+          </form>
+        </div>
       </div>
-    </div>
-  ), [newComment, activeReplyId, isSubmitting, handleSubmitComment]);
+    ),
+    [newComment, activeReplyId, isSubmitting, handleSubmitComment]
+  );
 
   // Show replies header if there are any replies
   if (displayTotalCount === 0) {
@@ -459,9 +491,12 @@ export function RepliesSection({
         ))}
 
         {/* Show additional replies when expanded */}
-        {isExpanded && localReplies.slice(2).map((reply) => (
-          <ReplyItem key={reply.id} reply={reply} depth={0} />
-        ))}
+        {isExpanded &&
+          localReplies
+            .slice(2)
+            .map((reply) => (
+              <ReplyItem key={reply.id} reply={reply} depth={0} />
+            ))}
 
         {/* Load More Replies - only show when expanded and there are more from server */}
         {showLoadMoreButton && (
