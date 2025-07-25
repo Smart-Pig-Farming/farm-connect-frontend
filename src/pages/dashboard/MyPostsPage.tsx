@@ -878,7 +878,7 @@ export function MyPostsPage() {
             setEditingPost(null);
           }}
           onSubmit={handleEditSubmit}
-          post={editingPost}
+          post={convertPostToPostToEdit(editingPost)}
         />
       </div>
     </div>

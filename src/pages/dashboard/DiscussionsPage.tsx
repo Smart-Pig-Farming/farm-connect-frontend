@@ -23,6 +23,7 @@ import {
   EditPostModal,
   type EditPostData,
 } from "../../components/discussions";
+import { type PostToEdit } from "../../components/discussions/EditPostModal";
 import { ModerationDashboard } from "../../components/discussions/ModerationDashboard";
 import { TagFilter } from "../../components/discussions/TagFilter";
 import {
@@ -124,6 +125,25 @@ export function DiscussionsPage() {
     }
     return mockStats;
   }, [showMyPostsView]);
+
+  // Helper function to convert Post to PostToEdit
+  const convertPostToPostToEdit = useCallback(
+    (post: Post | null): PostToEdit | undefined => {
+      if (!post) return undefined;
+
+      return {
+        id: post.id,
+        title: post.title,
+        content: post.content,
+        tags: post.tags,
+        isMarketPost: post.isMarketPost,
+        isAvailable: post.isAvailable,
+        images: post.images,
+        video: post.video || undefined,
+      };
+    },
+    []
+  );
 
   // Memoized filtered posts to prevent unnecessary recalculations
   const filteredAllPosts = useMemo(() => {
@@ -527,38 +547,35 @@ export function DiscussionsPage() {
   );
 
   // Handle submitting edited post
-  const handleEditSubmit = useCallback(
-    (postId: string, editData: EditPostData) => {
-      console.log("Updating post:", postId, editData);
+  const handleEditSubmit = useCallback((editData: EditPostData) => {
+    console.log("Updating post:", editData.id, editData);
 
-      // Update the displayed posts with the new data
-      setDisplayedPosts((prev) =>
-        prev.map((post) => {
-          if (post.id === postId) {
-            return {
-              ...post,
-              title: editData.title,
-              content: editData.content,
-              tags: editData.tags,
-              isMarketPost: editData.isMarketPost,
-              isAvailable: editData.isAvailable,
-              // Note: In a real app, you'd handle the media files properly
-              // For now, we'll keep the existing media
-            };
-          }
-          return post;
-        })
-      );
+    // Update the displayed posts with the new data
+    setDisplayedPosts((prev) =>
+      prev.map((post) => {
+        if (post.id === editData.id) {
+          return {
+            ...post,
+            title: editData.title,
+            content: editData.content,
+            tags: editData.tags,
+            isMarketPost: editData.isMarketPost,
+            isAvailable: editData.isAvailable,
+            // Note: In a real app, you'd handle the media files properly
+            // For now, we'll keep the existing media
+          };
+        }
+        return post;
+      })
+    );
 
-      // Close the modal
-      setShowEditPost(false);
-      setEditingPost(null);
+    // Close the modal
+    setShowEditPost(false);
+    setEditingPost(null);
 
-      // Show success message
-      alert("Post updated successfully!");
-    },
-    []
-  );
+    // Show success message
+    alert("Post updated successfully!");
+  }, []);
 
   // Handle deleting a post
   const handleDeleteUserPost = useCallback((postId: string) => {
@@ -962,7 +979,7 @@ export function DiscussionsPage() {
                 setEditingPost(null);
               }}
               onSubmit={handleEditSubmit}
-              post={editingPost}
+              post={convertPostToPostToEdit(editingPost)}
             />
           </div>
         </div>
