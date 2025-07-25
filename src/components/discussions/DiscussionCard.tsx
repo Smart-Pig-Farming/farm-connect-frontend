@@ -115,7 +115,7 @@ export function DiscussionCard({
   const handleDeletePost = (e: React.MouseEvent) => {
     e.stopPropagation();
     setShowDropdown(false);
-    
+
     // Check if this is user's own post and callback is available
     if (currentUserId && post.author.id === currentUserId && onDeletePost) {
       onDeletePost(post.id);
@@ -128,7 +128,7 @@ export function DiscussionCard({
   const handleEditPost = (e: React.MouseEvent) => {
     e.stopPropagation();
     setShowDropdown(false);
-    
+
     if (onEditPost) {
       onEditPost(post.id);
     }
@@ -489,9 +489,7 @@ export function DiscussionCard({
                     <span className="text-emerald-800 font-semibold text-sm">
                       Market Listing
                     </span>
-                    <p className="text-emerald-600 text-xs">
-                      Click to contact
-                    </p>
+                    <p className="text-emerald-600 text-xs">Click to contact</p>
                   </div>
                 </div>
 

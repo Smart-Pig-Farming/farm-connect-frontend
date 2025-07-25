@@ -107,6 +107,60 @@ export const mockPosts: Record<string, MockPost> = {
     video: "/images/post_video.mp4",
     timestamp: new Date(Date.now() - 7 * 60 * 60 * 1000), // 7 hours ago
   },
+  "post-7": {
+    title: "Organic Pig Feed Production Methods",
+    author: { name: "Organic Farmer Grace", location: "Nyanza, Rwanda" },
+    content:
+      "Learn how to produce organic pig feed using local ingredients. This sustainable approach reduces costs while maintaining nutritional quality.",
+    images: ["/images/post_image.jpg", "/images/post_image2.jpg"],
+    video: null,
+    timestamp: new Date(Date.now() - 8 * 60 * 60 * 1000), // 8 hours ago
+  },
+  "post-8": {
+    title: "💸💸💸 INSTANT MONEY FROM PIGS!!! GET RICH QUICK!!!",
+    author: { name: "Get Rich Quick", location: "Unknown" },
+    content:
+      "MAKE MILLIONS FROM PIG FARMING!!! NO EXPERIENCE NEEDED!!! GUARANTEED PROFITS!!! CALL NOW FOR SECRET METHOD!!!",
+    images: ["/images/hero.png"],
+    video: null,
+    timestamp: new Date(Date.now() - 9 * 60 * 60 * 1000), // 9 hours ago
+  },
+  "post-9": {
+    title: "Disease Prevention in Pig Farming",
+    author: { name: "Dr. Veterinarian Mary", location: "Kigali, Rwanda" },
+    content:
+      "Comprehensive guide on preventing common diseases in pigs through proper hygiene, vaccination schedules, and early detection techniques.",
+    images: ["/images/post_image3.jpg"],
+    video: null,
+    timestamp: new Date(Date.now() - 10 * 60 * 60 * 1000), // 10 hours ago
+  },
+  "post-10": {
+    title: "Pig Breeding Techniques Training Video",
+    author: { name: "Expert Breeder James", location: "Ruhango, Rwanda" },
+    content:
+      "Professional training video covering selective breeding, genetic improvement, and reproductive management for optimal pig production.",
+    images: [],
+    video: "/images/post_video.mp4",
+    timestamp: new Date(Date.now() - 11 * 60 * 60 * 1000), // 11 hours ago
+  },
+  "post-11": {
+    title: "Market Analysis: Pig Prices Q4 2024",
+    author: { name: "Market Analyst Peter", location: "Musanze, Rwanda" },
+    content:
+      "Detailed analysis of pig market trends, price fluctuations, and demand patterns across different regions in Rwanda for Q4 2024.",
+    images: ["/images/post_image4.jpg", "/images/thumbnail.png"],
+    video: null,
+    timestamp: new Date(Date.now() - 12 * 60 * 60 * 1000), // 12 hours ago
+  },
+  "post-12": {
+    title: "🚨🚨 FAKE VACCINES ALERT!!! DANGEROUS SCAM!!!",
+    author: { name: "Scammer Alert", location: "Unknown" },
+    content:
+      "WARNING!!! PEOPLE ARE SELLING FAKE PIG VACCINES!!! VERY DANGEROUS!!! CHECK YOUR SUPPLIERS!!! SHARE THIS MESSAGE!!!",
+    images: ["/images/post_image2.jpg", "/images/post_image3.jpg"],
+    video: null,
+    timestamp: new Date(Date.now() - 13 * 60 * 60 * 1000), // 13 hours ago
+  },
 };
 
 // Helper function to get post data by ID
@@ -171,6 +225,179 @@ export const mockReports: ModerationReport[] = [
     details: "Selling fake veterinary products with false claims",
     timestamp: new Date(Date.now() - 90 * 60 * 1000), // 1.5 hours ago
   },
+  {
+    id: "report-6",
+    postId: "post-7",
+    reporterId: "user-987",
+    reporterName: "Robert Johnson",
+    reason: "misinformation",
+    details: "Contains false information about organic feed production methods",
+    timestamp: new Date(Date.now() - 120 * 60 * 1000), // 2 hours ago
+  },
+  {
+    id: "report-7",
+    postId: "post-8",
+    reporterId: "user-234",
+    reporterName: "Alice Cooper",
+    reason: "fraudulent",
+    details: "Get-rich-quick scheme targeting farmers with false promises",
+    timestamp: new Date(Date.now() - 150 * 60 * 1000), // 2.5 hours ago
+  },
+  {
+    id: "report-8",
+    postId: "post-8",
+    reporterId: "user-567",
+    reporterName: "Tom Wilson",
+    reason: "spam",
+    details: "Excessive use of capital letters and spam-like content",
+    timestamp: new Date(Date.now() - 180 * 60 * 1000), // 3 hours ago
+  },
+  {
+    id: "report-9",
+    postId: "post-9",
+    reporterId: "user-890",
+    reporterName: "Jennifer Davis",
+    reason: "technical",
+    details: "Broken image links and formatting issues",
+    timestamp: new Date(Date.now() - 210 * 60 * 1000), // 3.5 hours ago
+  },
+  {
+    id: "report-10",
+    postId: "post-12",
+    reporterId: "user-111",
+    reporterName: "Mark Thompson",
+    reason: "inappropriate",
+    details: "Sensationalized content causing unnecessary panic in community",
+    timestamp: new Date(Date.now() - 240 * 60 * 1000), // 4 hours ago
+  },
+  {
+    id: "report-11",
+    postId: "post-10",
+    reporterId: "user-222",
+    reporterName: "Emma Rodriguez",
+    reason: "spam",
+    details: "Repetitive promotional content without value to community",
+    timestamp: new Date(Date.now() - 15 * 60 * 1000), // 15 minutes ago
+  },
+  {
+    id: "report-12",
+    postId: "post-11",
+    reporterId: "user-333",
+    reporterName: "David Kim",
+    reason: "misinformation",
+    details:
+      "False claims about pig breeding techniques without scientific backing",
+    timestamp: new Date(Date.now() - 25 * 60 * 1000), // 25 minutes ago
+  },
+  {
+    id: "report-13",
+    postId: "post-9",
+    reporterId: "user-444",
+    reporterName: "Rachel Green",
+    reason: "inappropriate",
+    details:
+      "Contains inflammatory language targeting specific farming practices",
+    timestamp: new Date(Date.now() - 35 * 60 * 1000), // 35 minutes ago
+  },
+  {
+    id: "report-14",
+    postId: "post-10",
+    reporterId: "user-555",
+    reporterName: "Michael Chang",
+    reason: "fraudulent",
+    details: "Selling unverified supplements with health claims",
+    timestamp: new Date(Date.now() - 45 * 60 * 1000), // 45 minutes ago
+  },
+  {
+    id: "report-15",
+    postId: "post-1",
+    reporterId: "user-666",
+    reporterName: "Linda Foster",
+    reason: "technical",
+    details: "Post formatting is broken, making content unreadable",
+    timestamp: new Date(Date.now() - 55 * 60 * 1000), // 55 minutes ago
+  },
+  {
+    id: "report-16",
+    postId: "post-2",
+    reporterId: "user-777",
+    reporterName: "James Wilson",
+    reason: "spam",
+    details: "Excessive self-promotion and affiliate marketing links",
+    timestamp: new Date(Date.now() - 65 * 60 * 1000), // 1 hour 5 minutes ago
+  },
+  {
+    id: "report-17",
+    postId: "post-11",
+    reporterId: "user-888",
+    reporterName: "Sandra Martinez",
+    reason: "misinformation",
+    details: "Spreading false information about disease prevention methods",
+    timestamp: new Date(Date.now() - 75 * 60 * 1000), // 1 hour 15 minutes ago
+  },
+  {
+    id: "report-18",
+    postId: "post-1",
+    reporterId: "user-999",
+    reporterName: "Kevin O'Brien",
+    reason: "inappropriate",
+    details: "Uses derogatory language towards organic farming practices",
+    timestamp: new Date(Date.now() - 85 * 60 * 1000), // 1 hour 25 minutes ago
+  },
+  {
+    id: "report-19",
+    postId: "post-2",
+    reporterId: "user-1010",
+    reporterName: "Nancy Phillips",
+    reason: "fraudulent",
+    details: "Promoting fake veterinary certifications and credentials",
+    timestamp: new Date(Date.now() - 95 * 60 * 1000), // 1 hour 35 minutes ago
+  },
+  {
+    id: "report-20",
+    postId: "post-9",
+    reporterId: "user-1111",
+    reporterName: "Carlos Gutierrez",
+    reason: "technical",
+    details: "Video content not loading properly, suspected corrupted file",
+    timestamp: new Date(Date.now() - 105 * 60 * 1000), // 1 hour 45 minutes ago
+  },
+  {
+    id: "report-21",
+    postId: "post-10",
+    reporterId: "user-1212",
+    reporterName: "Ashley Turner",
+    reason: "spam",
+    details: "Multiple identical posts across different categories",
+    timestamp: new Date(Date.now() - 115 * 60 * 1000), // 1 hour 55 minutes ago
+  },
+  {
+    id: "report-22",
+    postId: "post-11",
+    reporterId: "user-1313",
+    reporterName: "Robert Lee",
+    reason: "inappropriate",
+    details: "Contains personal attacks on other community members",
+    timestamp: new Date(Date.now() - 125 * 60 * 1000), // 2 hours 5 minutes ago
+  },
+  {
+    id: "report-23",
+    postId: "post-1",
+    reporterId: "user-1414",
+    reporterName: "Michelle Baker",
+    reason: "misinformation",
+    details: "Spreading debunked theories about feed additives and pig health",
+    timestamp: new Date(Date.now() - 135 * 60 * 1000), // 2 hours 15 minutes ago
+  },
+  {
+    id: "report-24",
+    postId: "post-2",
+    reporterId: "user-1515",
+    reporterName: "Gregory Adams",
+    reason: "fraudulent",
+    details: "Selling counterfeit equipment with false warranty claims",
+    timestamp: new Date(Date.now() - 145 * 60 * 1000), // 2 hours 25 minutes ago
+  },
 ];
 
 export const mockActions: ModerationAction[] = [
@@ -203,6 +430,36 @@ export const mockActions: ModerationAction[] = [
     justification:
       "Minor violation - author warned about proper citation of sources.",
     timestamp: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000), // 3 days ago
+  },
+  {
+    id: "action-4",
+    postId: "post-7",
+    moderatorId: "mod-3",
+    moderatorName: "Admin Jessica",
+    decision: "retained",
+    justification:
+      "Organic farming content verified with agricultural extension office.",
+    timestamp: new Date(Date.now() - 4 * 60 * 60 * 1000), // 4 hours ago
+  },
+  {
+    id: "action-5",
+    postId: "post-8",
+    moderatorId: "mod-2",
+    moderatorName: "Admin Sarah",
+    decision: "deleted",
+    justification:
+      "Confirmed fraudulent get-rich-quick scheme targeting farmers. Permanent ban issued to author.",
+    timestamp: new Date(Date.now() - 6 * 60 * 60 * 1000), // 6 hours ago
+  },
+  {
+    id: "action-6",
+    postId: "post-12",
+    moderatorId: "mod-1",
+    moderatorName: "Admin Mike",
+    decision: "warned",
+    justification:
+      "Spreading unverified vaccine misinformation. Author educated on community guidelines.",
+    timestamp: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000), // 2 days ago
   },
 ];
 

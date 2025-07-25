@@ -215,7 +215,7 @@ export function ModerationCard({
           <div className="flex flex-col h-full">
             <h4 className="font-medium text-gray-900 mb-4">Recent Reports</h4>
 
-            <div className="flex-1 space-y-3 overflow-y-auto">
+            <div className="space-y-3 overflow-y-auto max-h-[420px] scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
               {reports.map((report, index) => (
                 <div
                   key={report.id}

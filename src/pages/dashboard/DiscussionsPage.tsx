@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
@@ -21,6 +20,8 @@ import { DiscussionCard } from "../../components/discussions/DiscussionCard";
 import {
   CreatePostModal,
   type CreatePostData,
+  EditPostModal,
+  type EditPostData,
 } from "../../components/discussions";
 import { ModerationDashboard } from "../../components/discussions/ModerationDashboard";
 import { TagFilter } from "../../components/discussions/TagFilter";
@@ -28,12 +29,17 @@ import {
   allMockPosts,
   mockStats,
   availableTags,
+  getCurrentUserPosts,
+  getUserPostStats,
   POSTS_PER_PAGE,
   POSTS_PER_LOAD_MORE,
   LOADING_DEBOUNCE_DELAY,
   type Post,
   type Reply,
 } from "../../data/posts";
+
+// Mock current user ID - in real app this would come from auth context
+const CURRENT_USER_ID = "user1"; // This matches the first author in mock data
 
 // Time formatting function for social media style timestamps
 const formatTimeAgo = (timeString: string): string => {
@@ -94,8 +100,10 @@ const useDebounce = (value: string, delay: number) => {
 };
 
 export function DiscussionsPage() {
-  const navigate = useNavigate();
   const [showCreatePost, setShowCreatePost] = useState(false);
+  const [showMyPostsView, setShowMyPostsView] = useState(false);
+  const [showEditPost, setShowEditPost] = useState(false);
+  const [editingPost, setEditingPost] = useState<Post | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedTag, setSelectedTag] = useState("All");
   const [displayedPosts, setDisplayedPosts] = useState<Post[]>([]);
@@ -109,9 +117,22 @@ export function DiscussionsPage() {
   // Debounce search query to prevent excessive filtering
   const debouncedSearchQuery = useDebounce(searchQuery, LOADING_DEBOUNCE_DELAY);
 
+  // Get stats based on current view mode
+  const currentStats = useMemo(() => {
+    if (showMyPostsView) {
+      return getUserPostStats(CURRENT_USER_ID);
+    }
+    return mockStats;
+  }, [showMyPostsView]);
+
   // Memoized filtered posts to prevent unnecessary recalculations
   const filteredAllPosts = useMemo(() => {
-    return allMockPosts
+    // Choose data source based on view mode
+    const sourceData = showMyPostsView
+      ? getCurrentUserPosts(CURRENT_USER_ID)
+      : allMockPosts;
+
+    return sourceData
       .filter((post: Post) => {
         const matchesSearch =
           post.title
@@ -128,7 +149,7 @@ export function DiscussionsPage() {
         ...post,
         createdAt: formatTimeAgo(post.createdAt),
       }));
-  }, [debouncedSearchQuery, selectedTag]);
+  }, [debouncedSearchQuery, selectedTag, showMyPostsView]);
 
   // Optimized load more posts function with abort controller for cancellation
   const loadMorePosts = useCallback(() => {
@@ -492,6 +513,67 @@ export function DiscussionsPage() {
     }
   }, []);
 
+  // Handle editing a post
+  const handleEditPost = useCallback(
+    (postId: string) => {
+      console.log("Editing post:", postId);
+      const postToEdit = displayedPosts.find((post) => post.id === postId);
+      if (postToEdit) {
+        setEditingPost(postToEdit);
+        setShowEditPost(true);
+      }
+    },
+    [displayedPosts]
+  );
+
+  // Handle submitting edited post
+  const handleEditSubmit = useCallback(
+    (postId: string, editData: EditPostData) => {
+      console.log("Updating post:", postId, editData);
+
+      // Update the displayed posts with the new data
+      setDisplayedPosts((prev) =>
+        prev.map((post) => {
+          if (post.id === postId) {
+            return {
+              ...post,
+              title: editData.title,
+              content: editData.content,
+              tags: editData.tags,
+              isMarketPost: editData.isMarketPost,
+              isAvailable: editData.isAvailable,
+              // Note: In a real app, you'd handle the media files properly
+              // For now, we'll keep the existing media
+            };
+          }
+          return post;
+        })
+      );
+
+      // Close the modal
+      setShowEditPost(false);
+      setEditingPost(null);
+
+      // Show success message
+      alert("Post updated successfully!");
+    },
+    []
+  );
+
+  // Handle deleting a post
+  const handleDeleteUserPost = useCallback((postId: string) => {
+    console.log("Deleting user's post:", postId);
+    const confirmed = window.confirm(
+      "Are you sure you want to delete this post? This action cannot be undone."
+    );
+    if (confirmed) {
+      // In a real app, this would make an API call
+      console.log("Post deleted:", postId);
+      // Remove from displayed posts
+      setDisplayedPosts((prev) => prev.filter((post) => post.id !== postId));
+    }
+  }, []);
+
   // Memoized DiscussionCard component to prevent unnecessary re-renders
   const MemoizedDiscussionCard = useMemo(() => {
     return ({ post }: { post: Post }) => (
@@ -502,9 +584,20 @@ export function DiscussionsPage() {
         onAddReply={handleAddReply}
         onVoteReply={handleVoteReply}
         onLoadMoreReplies={handleLoadMoreReplies}
+        onEditPost={showMyPostsView ? handleEditPost : undefined}
+        onDeletePost={showMyPostsView ? handleDeleteUserPost : undefined}
+        currentUserId={showMyPostsView ? CURRENT_USER_ID : undefined}
       />
     );
-  }, [handleVotePost, handleAddReply, handleVoteReply, handleLoadMoreReplies]);
+  }, [
+    handleVotePost,
+    handleAddReply,
+    handleVoteReply,
+    handleLoadMoreReplies,
+    handleEditPost,
+    handleDeleteUserPost,
+    showMyPostsView,
+  ]);
 
   // Enhanced loading states with progress information
   const LoadingSpinner = useMemo(
@@ -574,24 +667,46 @@ export function DiscussionsPage() {
                           <MessageSquare className="h-6 w-6 text-white" />
                         </div>
                         <h1 className="text-2xl sm:text-3xl font-bold drop-shadow-sm">
-                          Community Discussions
+                          {showMyPostsView
+                            ? "My Posts"
+                            : "Community Discussions"}
                         </h1>
                       </div>
 
                       {/* Stats Row */}
                       <div className="flex flex-wrap gap-3 text-sm">
                         <div className="bg-white/15 px-3 py-1.5 rounded-full backdrop-blur-sm border border-white/20">
-                          <span className="text-white/80">Total: </span>
+                          <span className="text-white/80">
+                            {showMyPostsView ? "Total posts: " : "Total: "}
+                          </span>
                           <span className="text-white font-semibold">
-                            {mockStats.totalDiscussions} discussions
+                            {showMyPostsView
+                              ? `${
+                                  "totalPosts" in currentStats
+                                    ? currentStats.totalPosts
+                                    : 0
+                                } posts`
+                              : `${
+                                  "totalDiscussions" in currentStats
+                                    ? currentStats.totalDiscussions
+                                    : 0
+                                } discussions`}
                           </span>
                         </div>
                         <div className="bg-white/15 px-3 py-1.5 rounded-full backdrop-blur-sm border border-white/20">
                           <span className="text-white/80">
-                            Your posts today:{" "}
+                            {showMyPostsView
+                              ? "This week: "
+                              : "Your posts today: "}
                           </span>
                           <span className="text-white font-semibold">
-                            {mockStats.postsToday}
+                            {showMyPostsView
+                              ? "postsThisWeek" in currentStats
+                                ? currentStats.postsThisWeek
+                                : 0
+                              : "postsToday" in currentStats
+                              ? currentStats.postsToday
+                              : 0}
                           </span>
                         </div>
                       </div>
@@ -668,7 +783,7 @@ export function DiscussionsPage() {
                     </div>
                   </>
                 ) : (
-                  <Card className="p-8 text-center bg-white/80 backdrop-blur-sm">
+                  <Card className="p-8 text-center bg-white/80 backdrop-blur-sm border-0 shadow-lg">
                     <MessageSquare className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                     <h3 className="text-lg font-semibold text-gray-700 mb-2">
                       {debouncedSearchQuery || selectedTag !== "All"
@@ -774,8 +889,8 @@ export function DiscussionsPage() {
                           </p>
                         </div>
                       </button>
-                      <button 
-                        onClick={() => navigate('/dashboard/my-posts')}
+                      <button
+                        onClick={() => setShowMyPostsView(!showMyPostsView)}
                         className="w-full p-4 flex items-center gap-3 text-left hover:bg-gradient-to-r hover:from-blue-50 hover:to-blue-100/50 hover:cursor-pointer transition-all duration-300 group border-b border-gray-100/50 last:border-b-0"
                       >
                         <div className="p-2 bg-blue-500 rounded-lg group-hover:bg-blue-600 transition-colors duration-300">
@@ -783,10 +898,14 @@ export function DiscussionsPage() {
                         </div>
                         <div className="flex-1">
                           <span className="text-sm font-medium text-gray-700 group-hover:text-gray-900">
-                            Manage My Posts
+                            {showMyPostsView
+                              ? "View All Discussions"
+                              : "Manage My Posts"}
                           </span>
                           <p className="text-xs text-gray-500 group-hover:text-gray-600">
-                            View and edit your posts
+                            {showMyPostsView
+                              ? "See all community posts"
+                              : "View and edit your posts"}
                           </p>
                         </div>
                       </button>
@@ -833,6 +952,17 @@ export function DiscussionsPage() {
                 console.log("Creating post:", data);
                 setShowCreatePost(false);
               }}
+            />
+
+            {/* Edit Post Modal */}
+            <EditPostModal
+              isOpen={showEditPost}
+              onClose={() => {
+                setShowEditPost(false);
+                setEditingPost(null);
+              }}
+              onSubmit={handleEditSubmit}
+              post={editingPost}
             />
           </div>
         </div>

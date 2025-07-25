@@ -209,13 +209,7 @@ export function MyPostsPage() {
         abortControllerRef.current.abort();
       }
     };
-  }, [
-    isLoading,
-    hasMore,
-    displayedPosts.length,
-    filteredMyPosts,
-    currentPage,
-  ]);
+  }, [isLoading, hasMore, displayedPosts.length, filteredMyPosts, currentPage]);
 
   // Intersection Observer for infinite scroll
   useEffect(() => {
@@ -299,7 +293,10 @@ export function MyPostsPage() {
   const handleAddReply = useCallback(
     async (postId: string, content: string, parentReplyId?: string) => {
       try {
-        console.log("Adding reply to post:", postId, { content, parentReplyId });
+        console.log("Adding reply to post:", postId, {
+          content,
+          parentReplyId,
+        });
 
         // Generate a new reply ID
         const newReplyId = `reply_${Date.now()}_${Math.random()
@@ -479,55 +476,65 @@ export function MyPostsPage() {
   }, []);
 
   // Handle editing a post
-  const handleEditPost = useCallback((postId: string) => {
-    console.log("Editing post:", postId);
-    const postToEdit = displayedPosts.find(post => post.id === postId);
-    if (postToEdit) {
-      setEditingPost(postToEdit);
-      setShowEditPost(true);
-    }
-  }, [displayedPosts]);
+  const handleEditPost = useCallback(
+    (postId: string) => {
+      console.log("Editing post:", postId);
+      const postToEdit = displayedPosts.find((post) => post.id === postId);
+      if (postToEdit) {
+        setEditingPost(postToEdit);
+        setShowEditPost(true);
+      }
+    },
+    [displayedPosts]
+  );
 
   // Handle submitting edited post
-  const handleEditSubmit = useCallback((postId: string, editData: EditPostData) => {
-    console.log("Updating post:", postId, editData);
-    
-    // Update the displayed posts with the new data
-    setDisplayedPosts(prev => prev.map(post => {
-      if (post.id === postId) {
-        return {
-          ...post,
-          title: editData.title,
-          content: editData.content,
-          tags: editData.tags,
-          isMarketPost: editData.isMarketPost,
-          isAvailable: editData.isAvailable,
-          // Note: In a real app, you'd handle the media files properly
-          // For now, we'll keep the existing media
-        };
-      }
-      return post;
-    }));
-    
-    // Close the modal
-    setShowEditPost(false);
-    setEditingPost(null);
-    
-    // Show success message
-    alert("Post updated successfully!");
-  }, []);
+  const handleEditSubmit = useCallback(
+    (postId: string, editData: EditPostData) => {
+      console.log("Updating post:", postId, editData);
+
+      // Update the displayed posts with the new data
+      setDisplayedPosts((prev) =>
+        prev.map((post) => {
+          if (post.id === postId) {
+            return {
+              ...post,
+              title: editData.title,
+              content: editData.content,
+              tags: editData.tags,
+              isMarketPost: editData.isMarketPost,
+              isAvailable: editData.isAvailable,
+              // Note: In a real app, you'd handle the media files properly
+              // For now, we'll keep the existing media
+            };
+          }
+          return post;
+        })
+      );
+
+      // Close the modal
+      setShowEditPost(false);
+      setEditingPost(null);
+
+      // Show success message
+      alert("Post updated successfully!");
+    },
+    []
+  );
 
   // Handle deleting a post
   const handleDeleteUserPost = useCallback((postId: string) => {
     console.log("Deleting user's post:", postId);
     // TODO: Implement delete functionality
     // Show confirmation dialog, then delete post
-    const confirmed = window.confirm("Are you sure you want to delete this post? This action cannot be undone.");
+    const confirmed = window.confirm(
+      "Are you sure you want to delete this post? This action cannot be undone."
+    );
     if (confirmed) {
       // In a real app, this would make an API call
       console.log("Post deleted:", postId);
       // Remove from displayed posts
-      setDisplayedPosts(prev => prev.filter(post => post.id !== postId));
+      setDisplayedPosts((prev) => prev.filter((post) => post.id !== postId));
     }
   }, []);
 
@@ -553,7 +560,14 @@ export function MyPostsPage() {
         currentUserId={CURRENT_USER_ID}
       />
     );
-  }, [handleVotePost, handleAddReply, handleVoteReply, handleLoadMoreReplies, handleEditPost, handleDeleteUserPost]);
+  }, [
+    handleVotePost,
+    handleAddReply,
+    handleVoteReply,
+    handleLoadMoreReplies,
+    handleEditPost,
+    handleDeleteUserPost,
+  ]);
 
   // Enhanced loading states with progress information
   const LoadingSpinner = useMemo(
@@ -798,7 +812,7 @@ export function MyPostsPage() {
                       </p>
                     </div>
                   </button>
-                  <button 
+                  <button
                     onClick={handleViewAllDiscussions}
                     className="w-full p-4 flex items-center gap-3 text-left hover:bg-gradient-to-r hover:from-blue-50 hover:to-blue-100/50 hover:cursor-pointer transition-all duration-300 group border-b border-gray-100/50 last:border-b-0"
                   >

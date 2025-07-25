@@ -495,6 +495,400 @@ export const allMockPosts: Post[] = [
     video: null,
     isModeratorApproved: false, // Not approved yet
   },
+  {
+    id: "13",
+    title: "Setting Up Automatic Feeding Systems",
+    content:
+      "Has anyone installed automatic feeding systems for their pigs? I'm considering investing in one for my 100-pig operation and would love to hear about experiences, costs, and recommendations. The manual feeding is taking too much time and I want to ensure consistent feeding schedules.",
+    author: {
+      id: "user1",
+      firstname: "John",
+      lastname: "Farmer",
+      avatar: null,
+      level_id: 2,
+      points: 245,
+      location: "Kigali, Rwanda",
+    },
+    tags: ["Equipment", "General"],
+    upvotes: 15,
+    downvotes: 1,
+    replies: 0,
+    shares: 2,
+    isMarketPost: false,
+    isAvailable: false,
+    createdAt: "2d ago",
+    images: [],
+    video: null,
+    isModeratorApproved: true,
+  },
+  {
+    id: "14",
+    title: "Pig Weight Tracking App Recommendations",
+    content:
+      "Looking for a good app or software to track pig weights, growth rates, and feed conversion ratios. What are you using for record keeping? Preferably something that works offline and can export data.",
+    author: {
+      id: "user1",
+      firstname: "John",
+      lastname: "Farmer",
+      avatar: null,
+      level_id: 2,
+      points: 245,
+      location: "Kigali, Rwanda",
+    },
+    tags: ["General"],
+    upvotes: 8,
+    downvotes: 0,
+    replies: 0,
+    shares: 1,
+    isMarketPost: false,
+    isAvailable: false,
+    createdAt: "3d ago",
+    images: [],
+    video: null,
+    isModeratorApproved: true,
+  },
+  {
+    id: "15",
+    title: "Seasonal Feed Price Fluctuations",
+    content:
+      "I've noticed feed prices vary significantly throughout the year. When do you typically see the lowest prices? I'm thinking of buying feed in bulk when prices are low. Any storage tips to maintain quality over several months?",
+    author: {
+      id: "user1",
+      firstname: "John",
+      lastname: "Farmer",
+      avatar: null,
+      level_id: 2,
+      points: 245,
+      location: "Kigali, Rwanda",
+    },
+    tags: ["Feed", "Market"],
+    upvotes: 12,
+    downvotes: 0,
+    replies: 0,
+    shares: 3,
+    isMarketPost: false,
+    isAvailable: false,
+    createdAt: "4d ago",
+    images: ["/images/post_image.jpg"],
+    video: null,
+    isModeratorApproved: true,
+  },
+  {
+    id: "16",
+    title: "Breeding Program Results Update",
+    content:
+      "Wanted to share results from my selective breeding program after 2 years. Average litter size increased from 8 to 11 piglets, and weaning weights improved by 15%. Happy to share my breeding selection criteria.",
+    author: {
+      id: "user1",
+      firstname: "John",
+      lastname: "Farmer",
+      avatar: null,
+      level_id: 2,
+      points: 245,
+      location: "Kigali, Rwanda",
+    },
+    tags: ["General"],
+    upvotes: 28,
+    downvotes: 1,
+    replies: 0,
+    shares: 8,
+    isMarketPost: false,
+    isAvailable: false,
+    createdAt: "5d ago",
+    images: ["/images/post_image2.jpg", "/images/post_image3.jpg"],
+    video: null,
+    isModeratorApproved: true,
+  },
+  {
+    id: "17",
+    title: "Water System Maintenance Tips",
+    content:
+      "Essential maintenance tips for pig farm water systems. Clean water is crucial for pig health. I've learned the hard way about the importance of regular cleaning and maintenance of water lines and nipple drinkers.",
+    author: {
+      id: "user1",
+      firstname: "John",
+      lastname: "Farmer",
+      avatar: null,
+      level_id: 2,
+      points: 245,
+      location: "Kigali, Rwanda",
+    },
+    tags: ["Health", "General"],
+    upvotes: 18,
+    downvotes: 0,
+    replies: 0,
+    shares: 4,
+    isMarketPost: false,
+    isAvailable: false,
+    createdAt: "6d ago",
+    images: [],
+    video: "/images/post_video.mp4",
+    isModeratorApproved: true,
+  },
+  {
+    id: "18",
+    title: "Pig Pen Flooring Options Comparison",
+    content:
+      "Comparing different flooring options for pig pens. Concrete vs slatted floors vs dirt floors. Each has pros and cons in terms of cost, hygiene, and pig comfort. Here's my analysis after trying all three.",
+    author: {
+      id: "user1",
+      firstname: "John",
+      lastname: "Farmer",
+      avatar: null,
+      level_id: 2,
+      points: 245,
+      location: "Kigali, Rwanda",
+    },
+    tags: ["Equipment", "General"],
+    upvotes: 22,
+    downvotes: 2,
+    replies: 0,
+    shares: 6,
+    isMarketPost: false,
+    isAvailable: false,
+    createdAt: "1w ago",
+    images: [
+      "/images/post_image.jpg",
+      "/images/post_image2.jpg",
+      "/images/post_image3.jpg",
+    ],
+    video: null,
+    isModeratorApproved: true,
+  },
+  {
+    id: "19",
+    title: "Local Veterinarian Recommendations",
+    content:
+      "Can anyone recommend experienced pig veterinarians in the Kigali area? I need someone who can do routine check-ups and handle emergency situations. Experience with large commercial operations preferred.",
+    author: {
+      id: "user1",
+      firstname: "John",
+      lastname: "Farmer",
+      avatar: null,
+      level_id: 2,
+      points: 245,
+      location: "Kigali, Rwanda",
+    },
+    tags: ["Health"],
+    upvotes: 14,
+    downvotes: 0,
+    replies: 0,
+    shares: 2,
+    isMarketPost: false,
+    isAvailable: false,
+    createdAt: "1w ago",
+    images: [],
+    video: null,
+    isModeratorApproved: true,
+  },
+  {
+    id: "20",
+    title: "Feed Storage Solutions for Small Farms",
+    content:
+      "Looking for cost-effective feed storage solutions that protect against moisture and pests. My current setup isn't working well during the rainy season. What storage methods are you using?",
+    author: {
+      id: "user1",
+      firstname: "John",
+      lastname: "Farmer",
+      avatar: null,
+      level_id: 2,
+      points: 245,
+      location: "Kigali, Rwanda",
+    },
+    tags: ["Feed", "Equipment"],
+    upvotes: 16,
+    downvotes: 0,
+    replies: 0,
+    shares: 3,
+    isMarketPost: false,
+    isAvailable: false,
+    createdAt: "8d ago",
+    images: [],
+    video: null,
+    isModeratorApproved: true,
+  },
+  {
+    id: "21",
+    title: "Pig Farm Insurance Options",
+    content:
+      "Researching insurance options for pig farms. What type of coverage do you have? Looking for protection against disease outbreaks, natural disasters, and equipment damage. Any insurance company recommendations?",
+    author: {
+      id: "user1",
+      firstname: "John",
+      lastname: "Farmer",
+      avatar: null,
+      level_id: 2,
+      points: 245,
+      location: "Kigali, Rwanda",
+    },
+    tags: ["General"],
+    upvotes: 9,
+    downvotes: 0,
+    replies: 0,
+    shares: 1,
+    isMarketPost: false,
+    isAvailable: false,
+    createdAt: "9d ago",
+    images: [],
+    video: null,
+    isModeratorApproved: true,
+  },
+  {
+    id: "22",
+    title: "Organic Certification Process",
+    content:
+      "Considering transitioning to organic pig farming. Has anyone gone through the organic certification process? What are the main requirements and how long does it take? Is the premium price worth the extra effort?",
+    author: {
+      id: "user1",
+      firstname: "John",
+      lastname: "Farmer",
+      avatar: null,
+      level_id: 2,
+      points: 245,
+      location: "Kigali, Rwanda",
+    },
+    tags: ["General", "Market"],
+    upvotes: 19,
+    downvotes: 3,
+    replies: 0,
+    shares: 5,
+    isMarketPost: false,
+    isAvailable: false,
+    createdAt: "10d ago",
+    images: [],
+    video: null,
+    isModeratorApproved: true,
+  },
+  {
+    id: "23",
+    title: "Pig Market Price Trends",
+    content:
+      "Analyzing local pig market prices over the past year. Noticed significant fluctuations around holidays and seasonal patterns. Sharing my price tracking data to help fellow farmers plan their sales timing better.",
+    author: {
+      id: "user1",
+      firstname: "John",
+      lastname: "Farmer",
+      avatar: null,
+      level_id: 2,
+      points: 245,
+      location: "Kigali, Rwanda",
+    },
+    tags: ["Market"],
+    upvotes: 25,
+    downvotes: 1,
+    replies: 0,
+    shares: 7,
+    isMarketPost: false,
+    isAvailable: false,
+    createdAt: "11d ago",
+    images: ["/images/post_image4.jpg"],
+    video: null,
+    isModeratorApproved: true,
+  },
+  {
+    id: "24",
+    title: "Waste Management and Composting",
+    content:
+      "Effective waste management strategies for pig farms. I've implemented a composting system that turns pig manure into valuable fertilizer. Here's my step-by-step process and the equipment I use.",
+    author: {
+      id: "user1",
+      firstname: "John",
+      lastname: "Farmer",
+      avatar: null,
+      level_id: 2,
+      points: 245,
+      location: "Kigali, Rwanda",
+    },
+    tags: ["General"],
+    upvotes: 31,
+    downvotes: 0,
+    replies: 0,
+    shares: 9,
+    isMarketPost: false,
+    isAvailable: false,
+    createdAt: "12d ago",
+    images: ["/images/post_image2.jpg"],
+    video: null,
+    isModeratorApproved: true,
+  },
+  {
+    id: "25",
+    title: "Energy Efficient Heating Solutions",
+    content:
+      "Looking for energy-efficient heating solutions for pig housing during cold months. My current heating costs are too high. What heating systems are you using and what are your energy costs?",
+    author: {
+      id: "user1",
+      firstname: "John",
+      lastname: "Farmer",
+      avatar: null,
+      level_id: 2,
+      points: 245,
+      location: "Kigali, Rwanda",
+    },
+    tags: ["Equipment"],
+    upvotes: 13,
+    downvotes: 0,
+    replies: 0,
+    shares: 2,
+    isMarketPost: false,
+    isAvailable: false,
+    createdAt: "13d ago",
+    images: [],
+    video: null,
+    isModeratorApproved: true,
+  },
+  {
+    id: "26",
+    title: "Piglet Weaning Best Practices",
+    content:
+      "Sharing my piglet weaning protocol that has reduced weaning stress and improved growth rates. Timing, feed transition, and environment management are key factors. Happy to answer questions about the process.",
+    author: {
+      id: "user1",
+      firstname: "John",
+      lastname: "Farmer",
+      avatar: null,
+      level_id: 2,
+      points: 245,
+      location: "Kigali, Rwanda",
+    },
+    tags: ["Health", "General"],
+    upvotes: 27,
+    downvotes: 1,
+    replies: 0,
+    shares: 8,
+    isMarketPost: false,
+    isAvailable: false,
+    createdAt: "14d ago",
+    images: [],
+    video: "/images/post_video.mp4",
+    isModeratorApproved: true,
+  },
+  {
+    id: "27",
+    title: "Farm Expansion Planning Advice",
+    content:
+      "Planning to expand from 50 to 200 pigs. Looking for advice on phased expansion, financing options, and infrastructure planning. What challenges should I expect and how can I minimize risks during expansion?",
+    author: {
+      id: "user1",
+      firstname: "John",
+      lastname: "Farmer",
+      avatar: null,
+      level_id: 2,
+      points: 245,
+      location: "Kigali, Rwanda",
+    },
+    tags: ["General"],
+    upvotes: 21,
+    downvotes: 2,
+    replies: 0,
+    shares: 6,
+    isMarketPost: false,
+    isAvailable: false,
+    createdAt: "15d ago",
+    images: ["/images/post_image.jpg", "/images/post_image3.jpg"],
+    video: null,
+    isModeratorApproved: true,
+  },
 ];
 
 // Constants
@@ -504,7 +898,7 @@ export const LOADING_DEBOUNCE_DELAY = 300; // 300ms debounce for search
 
 // Mock statistics
 export const mockStats = {
-  totalDiscussions: 12,
+  totalDiscussions: 27, // Updated to reflect new total
   postsToday: 2,
   marketOpportunitiesToday: 3,
   pointsToday: 12,
@@ -514,53 +908,55 @@ export const mockStats = {
 
 // Available tags for filtering
 export const availableTags = [
-  { name: "All", count: 12, color: "default" },
-  { name: "General", count: 8, color: "blue" },
-  { name: "Market", count: 4, color: "green" },
-  { name: "Health", count: 3, color: "red" },
-  { name: "Feed", count: 3, color: "yellow" },
-  { name: "Equipment", count: 2, color: "purple" },
+  { name: "All", count: 27, color: "default" },
+  { name: "General", count: 18, color: "blue" },
+  { name: "Market", count: 7, color: "green" },
+  { name: "Health", count: 6, color: "red" },
+  { name: "Feed", count: 5, color: "yellow" },
+  { name: "Equipment", count: 5, color: "purple" },
   { name: "Breeding", count: 0, color: "pink" },
   { name: "Events", count: 0, color: "orange" },
 ];
 
 // Mock data for user post management
 export const myPostsStats = {
-  totalPosts: 8,
-  published: 8,
-  totalViews: 342,
-  totalReplies: 23,
-  totalUpvotes: 87,
-  postsThisWeek: 2,
-  avgEngagement: 4.2,
-  topPerformingPost: "Best Pig Feed Suppliers in Kigali",
+  totalPosts: 15,
+  published: 15,
+  totalViews: 1250,
+  totalReplies: 85,
+  totalUpvotes: 290,
+  postsThisWeek: 3,
+  avgEngagement: 7.8,
+  topPerformingPost: "Waste Management and Composting",
 };
 
 // Helper function to get posts by current user
 export const getCurrentUserPosts = (currentUserId: string): Post[] => {
-  return allMockPosts.filter(post => post.author.id === currentUserId);
+  return allMockPosts.filter((post) => post.author.id === currentUserId);
 };
 
 // Helper function to get user post statistics
 export const getUserPostStats = (currentUserId: string) => {
   const userPosts = getCurrentUserPosts(currentUserId);
-  
+
   const totalViews = userPosts.reduce((sum, post) => {
     // In a real app, this would come from view tracking
     // For now, simulate based on upvotes and replies
-    return sum + (post.upvotes * 5) + (post.replies * 3) + Math.floor(Math.random() * 20);
+    return (
+      sum + post.upvotes * 5 + post.replies * 3 + Math.floor(Math.random() * 20)
+    );
   }, 0);
-  
+
   const totalReplies = userPosts.reduce((sum, post) => sum + post.replies, 0);
   const totalUpvotes = userPosts.reduce((sum, post) => sum + post.upvotes, 0);
-  
+
   // Get posts from this week (mock calculation)
-  const thisWeek = userPosts.filter(post => {
+  const thisWeek = userPosts.filter((post) => {
     // Simple mock - consider last 3 posts as "this week"
-    const postIndex = allMockPosts.findIndex(p => p.id === post.id);
+    const postIndex = allMockPosts.findIndex((p) => p.id === post.id);
     return postIndex < 3;
   }).length;
-  
+
   return {
     totalPosts: userPosts.length,
     published: userPosts.length, // All posts are published (no drafts)
@@ -568,7 +964,10 @@ export const getUserPostStats = (currentUserId: string) => {
     totalReplies,
     totalUpvotes,
     postsThisWeek: thisWeek,
-    avgEngagement: userPosts.length > 0 ? +(totalReplies + totalUpvotes) / userPosts.length : 0,
+    avgEngagement:
+      userPosts.length > 0
+        ? +(totalReplies + totalUpvotes) / userPosts.length
+        : 0,
     topPerformingPost: userPosts.length > 0 ? userPosts[0].title : null,
   };
 };
