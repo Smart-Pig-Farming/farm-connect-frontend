@@ -12,6 +12,7 @@ import {
   DashboardOverviewPage,
   BestPracticesPage,
   DiscussionsPage,
+  MyPostsPage,
   ProfilePage,
   UserManagementPage,
 } from "@/pages/dashboard";
@@ -70,6 +71,16 @@ function App() {
             <ProtectedRoute>
               <DashboardLayout>
                 <DiscussionsPage />
+              </DashboardLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/dashboard/my-posts"
+          element={
+            <ProtectedRoute>
+              <DashboardLayout>
+                <MyPostsPage />
               </DashboardLayout>
             </ProtectedRoute>
           }

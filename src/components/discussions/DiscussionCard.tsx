@@ -15,6 +15,7 @@ import {
   Trash2,
   Check,
   X,
+  Edit,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -38,6 +39,9 @@ interface DiscussionCardProps {
   ) => void;
   onVoteReply?: (replyId: string, voteType: "up" | "down") => void;
   onLoadMoreReplies?: (postId: string) => void;
+  onEditPost?: (postId: string) => void;
+  onDeletePost?: (postId: string) => void;
+  currentUserId?: string;
 }
 
 export function DiscussionCard({
@@ -47,6 +51,9 @@ export function DiscussionCard({
   onAddReply,
   onVoteReply,
   onLoadMoreReplies,
+  onEditPost,
+  onDeletePost,
+  currentUserId,
 }: DiscussionCardProps) {
   const [showReportModal, setShowReportModal] = useState(false);
   const [showContactModal, setShowContactModal] = useState(false);
@@ -108,8 +115,23 @@ export function DiscussionCard({
   const handleDeletePost = (e: React.MouseEvent) => {
     e.stopPropagation();
     setShowDropdown(false);
-    // TODO: Implement delete functionality
-    console.log("Deleting post:", post.id);
+    
+    // Check if this is user's own post and callback is available
+    if (currentUserId && post.author.id === currentUserId && onDeletePost) {
+      onDeletePost(post.id);
+    } else {
+      // TODO: Implement delete functionality for moderators
+      console.log("Deleting post:", post.id);
+    }
+  };
+
+  const handleEditPost = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setShowDropdown(false);
+    
+    if (onEditPost) {
+      onEditPost(post.id);
+    }
   };
 
   const handleApprovePost = (e: React.MouseEvent) => {
@@ -236,30 +258,54 @@ export function DiscussionCard({
 
               {showDropdown && (
                 <div className="absolute right-0 top-full mt-1 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-10">
-                  {!post.isModeratorApproved ? (
-                    <button
-                      onClick={handleApprovePost}
-                      className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2 transition-colors duration-200"
-                    >
-                      <Check className="h-4 w-4 text-green-600" />
-                      Approve Post
-                    </button>
+                  {/* Show different options based on whether it's user's own post */}
+                  {currentUserId && post.author.id === currentUserId ? (
+                    // User's own post - show edit and delete options
+                    <>
+                      <button
+                        onClick={handleEditPost}
+                        className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2 transition-colors duration-200"
+                      >
+                        <Edit className="h-4 w-4 text-blue-600" />
+                        Edit Post
+                      </button>
+                      <button
+                        onClick={handleDeletePost}
+                        className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2 transition-colors duration-200"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        Delete Post
+                      </button>
+                    </>
                   ) : (
-                    <button
-                      onClick={handleUndoApproval}
-                      className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2 transition-colors duration-200"
-                    >
-                      <X className="h-4 w-4 text-orange-600" />
-                      Undo Approval
-                    </button>
+                    // Other users' posts - show moderation options or default options
+                    <>
+                      {!post.isModeratorApproved ? (
+                        <button
+                          onClick={handleApprovePost}
+                          className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2 transition-colors duration-200"
+                        >
+                          <Check className="h-4 w-4 text-green-600" />
+                          Approve Post
+                        </button>
+                      ) : (
+                        <button
+                          onClick={handleUndoApproval}
+                          className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2 transition-colors duration-200"
+                        >
+                          <X className="h-4 w-4 text-orange-600" />
+                          Undo Approval
+                        </button>
+                      )}
+                      <button
+                        onClick={handleDeletePost}
+                        className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2 transition-colors duration-200"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        Delete Post
+                      </button>
+                    </>
                   )}
-                  <button
-                    onClick={handleDeletePost}
-                    className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2 transition-colors duration-200"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                    Delete Post
-                  </button>
                 </div>
               )}
             </div>

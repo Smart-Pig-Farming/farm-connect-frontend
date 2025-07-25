@@ -523,3 +523,52 @@ export const availableTags = [
   { name: "Breeding", count: 0, color: "pink" },
   { name: "Events", count: 0, color: "orange" },
 ];
+
+// Mock data for user post management
+export const myPostsStats = {
+  totalPosts: 8,
+  published: 8,
+  totalViews: 342,
+  totalReplies: 23,
+  totalUpvotes: 87,
+  postsThisWeek: 2,
+  avgEngagement: 4.2,
+  topPerformingPost: "Best Pig Feed Suppliers in Kigali",
+};
+
+// Helper function to get posts by current user
+export const getCurrentUserPosts = (currentUserId: string): Post[] => {
+  return allMockPosts.filter(post => post.author.id === currentUserId);
+};
+
+// Helper function to get user post statistics
+export const getUserPostStats = (currentUserId: string) => {
+  const userPosts = getCurrentUserPosts(currentUserId);
+  
+  const totalViews = userPosts.reduce((sum, post) => {
+    // In a real app, this would come from view tracking
+    // For now, simulate based on upvotes and replies
+    return sum + (post.upvotes * 5) + (post.replies * 3) + Math.floor(Math.random() * 20);
+  }, 0);
+  
+  const totalReplies = userPosts.reduce((sum, post) => sum + post.replies, 0);
+  const totalUpvotes = userPosts.reduce((sum, post) => sum + post.upvotes, 0);
+  
+  // Get posts from this week (mock calculation)
+  const thisWeek = userPosts.filter(post => {
+    // Simple mock - consider last 3 posts as "this week"
+    const postIndex = allMockPosts.findIndex(p => p.id === post.id);
+    return postIndex < 3;
+  }).length;
+  
+  return {
+    totalPosts: userPosts.length,
+    published: userPosts.length, // All posts are published (no drafts)
+    totalViews,
+    totalReplies,
+    totalUpvotes,
+    postsThisWeek: thisWeek,
+    avgEngagement: userPosts.length > 0 ? +(totalReplies + totalUpvotes) / userPosts.length : 0,
+    topPerformingPost: userPosts.length > 0 ? userPosts[0].title : null,
+  };
+};

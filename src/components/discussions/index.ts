@@ -1,4 +1,10 @@
 export { DiscussionCard } from "./DiscussionCard";
 export { CreatePostModal, type CreatePostData } from "./CreatePostModal";
+export { EditPostModal, type EditPostData } from "./EditPostModal";
 export { ReportModal } from "./ReportModal";
 export { TagFilter } from "./TagFilter";
+export { ModerationCard } from "./ModerationCard";
+export { ModerationHistoryCard } from "./ModerationHistoryCard";
+export { ModerationDashboard } from "./ModerationDashboard";
+export { ModerationActionModal } from "./ModerationActionModal";
+export { PostDetailModal } from "./PostDetailModal";
