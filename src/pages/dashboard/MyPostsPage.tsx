@@ -19,6 +19,7 @@ import {
   type CreatePostData,
   EditPostModal,
   type EditPostData,
+  type PostToEdit,
 } from "../../components/discussions";
 import { TagFilter } from "../../components/discussions/TagFilter";
 import {
@@ -488,15 +489,31 @@ export function MyPostsPage() {
     [displayedPosts]
   );
 
+  // Helper function to convert Post to PostToEdit
+  const convertPostToPostToEdit = useCallback((post: Post | null): PostToEdit | undefined => {
+    if (!post) return undefined;
+    
+    return {
+      id: post.id,
+      title: post.title,
+      content: post.content,
+      tags: post.tags,
+      isMarketPost: post.isMarketPost,
+      isAvailable: post.isAvailable,
+      images: post.images,
+      video: post.video || undefined,
+    };
+  }, []);
+
   // Handle submitting edited post
   const handleEditSubmit = useCallback(
-    (postId: string, editData: EditPostData) => {
-      console.log("Updating post:", postId, editData);
+    (editData: EditPostData) => {
+      console.log("Updating post:", editData.id, editData);
 
       // Update the displayed posts with the new data
       setDisplayedPosts((prev) =>
         prev.map((post) => {
-          if (post.id === postId) {
+          if (post.id === editData.id) {
             return {
               ...post,
               title: editData.title,

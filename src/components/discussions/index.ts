@@ -12,3 +12,4 @@ export { ModerationHistoryCard } from "./ModerationHistoryCard";
 export { ModerationDashboard } from "./ModerationDashboard";
 export { ModerationActionModal } from "./ModerationActionModal";
 export { PostDetailModal } from "./PostDetailModal";
+export { Leaderboard } from "./Leaderboard";

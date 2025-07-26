@@ -22,6 +22,7 @@ import {
   type CreatePostData,
   EditPostModal,
   type EditPostData,
+  Leaderboard,
 } from "../../components/discussions";
 import { type PostToEdit } from "../../components/discussions/EditPostModal";
 import { ModerationDashboard } from "../../components/discussions/ModerationDashboard";
@@ -112,6 +113,7 @@ export function DiscussionsPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [showModerationDashboard, setShowModerationDashboard] = useState(false);
+  const [showLeaderboard, setShowLeaderboard] = useState(false);
   const loadingRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
@@ -658,6 +660,9 @@ export function DiscussionsPage() {
             console.log("View post details:", postId);
           }}
         />
+      ) : showLeaderboard ? (
+        /* Show Leaderboard if active */
+        <Leaderboard onBackToDiscussions={() => setShowLeaderboard(false)} />
       ) : (
         /* Main Discussions View */
         <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-orange-50/30 p-2 sm:p-4 md:p-6 overflow-x-hidden">
@@ -942,7 +947,10 @@ export function DiscussionsPage() {
                           </p>
                         </div>
                       </button>
-                      <button className="w-full p-4 flex items-center gap-3 text-left hover:bg-gradient-to-r hover:from-green-50 hover:to-green-100/50 hover:cursor-pointer  transition-all duration-300 group border-b border-gray-100/50 last:border-b-0">
+                      <button
+                        onClick={() => setShowLeaderboard(true)}
+                        className="w-full p-4 flex items-center gap-3 text-left hover:bg-gradient-to-r hover:from-green-50 hover:to-green-100/50 hover:cursor-pointer  transition-all duration-300 group border-b border-gray-100/50 last:border-b-0"
+                      >
                         <div className="p-2 bg-green-500 rounded-lg group-hover:bg-green-600 transition-colors duration-300">
                           <Trophy className="h-4 w-4 text-white" />
                         </div>
