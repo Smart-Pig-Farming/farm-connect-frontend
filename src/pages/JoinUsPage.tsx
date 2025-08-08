@@ -13,8 +13,8 @@ import { useAppDispatch } from "@/store/hooks";
 
 interface FormData {
   // Personal Information
-  firstname: string;
-  lastname: string;
+  firstName: string;
+  lastName: string;
   email: string;
   password: string;
   confirmPassword: string;
@@ -35,8 +35,8 @@ const JoinUsPage = () => {
 
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState<FormData>({
-    firstname: "",
-    lastname: "",
+    firstName: "",
+    lastName: "",
     email: "",
     password: "",
     confirmPassword: "",
@@ -102,10 +102,10 @@ const JoinUsPage = () => {
   // Validation functions
   const validateStep1 = () => {
     const stepErrors: Partial<FormData> = {};
-    if (!formData.firstname.trim())
-      stepErrors.firstname = "First name is required";
-    if (!formData.lastname.trim())
-      stepErrors.lastname = "Last name is required";
+    if (!formData.firstName.trim())
+      stepErrors.firstName = "First name is required";
+    if (!formData.lastName.trim())
+      stepErrors.lastName = "Last name is required";
     if (!formData.email.trim()) {
       stepErrors.email = "Email is required";
     } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
@@ -220,8 +220,8 @@ const JoinUsPage = () => {
 
       // Prepare data for API
       const registrationData = {
-        firstname: formData.firstname,
-        lastname: formData.lastname,
+        firstName: formData.firstName,
+        lastName: formData.lastName,
         email: formData.email,
         password: formData.password,
         farmName: formData.farmName,
@@ -392,19 +392,19 @@ const JoinUsPage = () => {
                   </label>
                   <input
                     type="text"
-                    id="firstname"
-                    value={formData.firstname}
+                    id="firstName"
+                    value={formData.firstName}
                     onChange={(e) =>
-                      handleInputChange("firstname", e.target.value)
+                      handleInputChange("firstName", e.target.value)
                     }
                     className={`w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent placeholder-white/60 text-white ${
-                      errors.firstname ? "border-red-400 bg-red-500/10" : ""
+                      errors.firstName ? "border-red-400 bg-red-500/10" : ""
                     }`}
                     placeholder="John"
                   />
-                  {errors.firstname && (
+                  {errors.firstName && (
                     <p className="mt-1 text-sm text-red-300">
-                      {errors.firstname}
+                      {errors.firstName}
                     </p>
                   )}
                 </div>
@@ -415,19 +415,19 @@ const JoinUsPage = () => {
                   </label>
                   <input
                     type="text"
-                    id="lastname"
-                    value={formData.lastname}
+                    id="lastName"
+                    value={formData.lastName}
                     onChange={(e) =>
-                      handleInputChange("lastname", e.target.value)
+                      handleInputChange("lastName", e.target.value)
                     }
                     className={`w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent placeholder-white/60 text-white ${
-                      errors.lastname ? "border-red-400 bg-red-500/10" : ""
+                      errors.lastName ? "border-red-400 bg-red-500/10" : ""
                     }`}
                     placeholder="Doe"
                   />
-                  {errors.lastname && (
+                  {errors.lastName && (
                     <p className="mt-1 text-sm text-red-300">
-                      {errors.lastname}
+                      {errors.lastName}
                     </p>
                   )}
                 </div>
