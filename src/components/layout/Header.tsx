@@ -50,7 +50,7 @@ export function Header({ sidebarCollapsed, isMobile = false }: HeaderProps) {
 
     const roleMap: Record<string, string> = {
       admin: "Administrator",
-      farmer: "Farm Manager",
+      farmer: "Farmer",
       vet: "Veterinarian",
       govt: "Government Official",
     };
