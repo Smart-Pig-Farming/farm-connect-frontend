@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   X,
   Edit,
@@ -102,6 +102,16 @@ export function EditPostModal({
   // Track selected media type for compact form
   const [mediaType, setMediaType] = useState<"images" | "video">("images");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errors, setErrors] = useState<{
+    title?: string;
+    content?: string;
+    tags?: string;
+  }>({});
+
+  // Refs for focusing invalid inputs
+  const titleRef = useRef<HTMLInputElement | null>(null);
+  const contentRef = useRef<HTMLTextAreaElement | null>(null);
+  const tagsContainerRef = useRef<HTMLDivElement | null>(null);
 
   // Pre-populate form when post changes
   useEffect(() => {
@@ -117,14 +127,41 @@ export function EditPostModal({
       setVideo(null);
       setMediaType(post.images && post.images.length > 0 ? "images" : "video");
       setCurrentStep("content");
+      setErrors({});
     }
   }, [post, isOpen]);
 
   // Navigation functions
+  const validateContentStep = () => {
+    const nextErrors: { title?: string; content?: string; tags?: string } = {};
+    if (!title.trim()) nextErrors.title = "Title is required";
+    if (!content.trim()) nextErrors.content = "Content is required";
+    if (selectedTags.length === 0) nextErrors.tags = "Select at least one tag";
+    setErrors(nextErrors);
+
+    if (Object.keys(nextErrors).length > 0) {
+      if (nextErrors.title && titleRef.current) {
+        titleRef.current.focus();
+      } else if (nextErrors.content && contentRef.current) {
+        contentRef.current.focus();
+      } else if (nextErrors.tags && tagsContainerRef.current) {
+        tagsContainerRef.current.scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+        });
+      }
+      return false;
+    }
+    return true;
+  };
+
   const nextStep = () => {
     console.log("Moving to next step, current:", currentStep);
-    if (currentStep === "content" && canProceedToNextStep()) {
-      setCurrentStep("media");
+    if (currentStep === "content") {
+      if (validateContentStep()) {
+        setCurrentStep("media");
+      }
+      return;
     }
   };
 
@@ -135,18 +172,7 @@ export function EditPostModal({
     }
   };
 
-  const canProceedToNextStep = () => {
-    if (currentStep === "content") {
-      const isValid = title.trim() && content.trim() && selectedTags.length > 0;
-      console.log("Can proceed to next step:", isValid, {
-        title: title.trim(),
-        content: content.trim(),
-        tags: selectedTags.length,
-      });
-      return isValid;
-    }
-    return true; // Media step is optional
-  };
+  // Removed render-time validation; validation runs on click via validateContentStep
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -251,29 +277,7 @@ export function EditPostModal({
     setExistingVideo("");
   };
 
-  const getTagColor = (tag: string) => {
-    const tagInfo = availableTags.find((t) => t.name === tag);
-    switch (tagInfo?.color) {
-      case "blue":
-        return "bg-blue-100 text-blue-700 border-blue-200";
-      case "green":
-        return "bg-green-100 text-green-700 border-green-200";
-      case "red":
-        return "bg-red-100 text-red-700 border-red-200";
-      case "yellow":
-        return "bg-yellow-100 text-yellow-700 border-yellow-200";
-      case "purple":
-        return "bg-purple-100 text-purple-700 border-purple-200";
-      case "pink":
-        return "bg-pink-100 text-pink-700 border-pink-200";
-      case "orange":
-        return "bg-orange-100 text-orange-700 border-orange-200";
-      case "teal":
-        return "bg-teal-100 text-teal-700 border-teal-200";
-      default:
-        return "bg-gray-100 text-gray-700 border-gray-200";
-    }
-  };
+  // getTagColor removed; unified orange selection style used
 
   if (!isOpen) return null;
 
@@ -289,11 +293,11 @@ export function EditPostModal({
       <div className="flex min-h-full items-center justify-center p-4">
         <div className="relative w-full max-w-3xl transform overflow-hidden rounded-xl bg-white shadow-2xl transition-all duration-300 scale-100">
           {/* Header with Stepper */}
-          <div className="p-6 border-b border-gray-100">
+          <div className="relative p-6 bg-gradient-to-b from-orange-50 to-white">
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-blue-100 rounded-lg">
-                  <Edit className="h-5 w-5 text-blue-600" />
+                <div className="p-2 bg-orange-100 rounded-lg">
+                  <Edit className="h-5 w-5 text-orange-600" />
                 </div>
                 <div>
                   <h3 className="text-xl font-semibold text-gray-900">
@@ -330,7 +334,7 @@ export function EditPostModal({
                         isCompleted
                           ? "bg-green-500 border-green-500 text-white"
                           : isActive
-                          ? "bg-blue-500 border-blue-500 text-white"
+                          ? "bg-orange-500 border-orange-500 text-white"
                           : "bg-gray-100 border-gray-300 text-gray-400"
                       }`}
                     >
@@ -346,7 +350,7 @@ export function EditPostModal({
                       <p
                         className={`text-sm font-medium ${
                           isActive
-                            ? "text-blue-600"
+                            ? "text-orange-600"
                             : isCompleted
                             ? "text-green-600"
                             : "text-gray-500"
@@ -371,6 +375,9 @@ export function EditPostModal({
                 );
               })}
             </div>
+
+            {/* Subtle gradient separator instead of border */}
+            <div className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-orange-200 to-transparent" />
           </div>
 
           {/* Step Content */}
@@ -393,11 +400,23 @@ export function EditPostModal({
                     id="title"
                     type="text"
                     value={title}
-                    onChange={(e) => setTitle(e.target.value)}
+                    ref={titleRef}
+                    onChange={(e) => {
+                      setTitle(e.target.value);
+                      if (errors.title)
+                        setErrors((prev) => ({ ...prev, title: undefined }));
+                    }}
                     placeholder="What's your post about?"
-                    className="w-full transition-colors duration-200 focus:border-blue-500 focus:ring-blue-500/20"
+                    className={`w-full transition-colors duration-200 focus:border-orange-500 focus:ring-orange-500/20 ${
+                      errors.title
+                        ? "border-red-500 ring-red-500 focus:border-red-500 focus:ring-red-500/20"
+                        : ""
+                    }`}
                     required
                   />
+                  {errors.title && (
+                    <p className="mt-1 text-xs text-red-600">{errors.title}</p>
+                  )}
                 </div>
 
                 {/* Content */}
@@ -411,11 +430,25 @@ export function EditPostModal({
                   <textarea
                     id="content"
                     value={content}
-                    onChange={(e) => setContent(e.target.value)}
+                    ref={contentRef}
+                    onChange={(e) => {
+                      setContent(e.target.value);
+                      if (errors.content)
+                        setErrors((prev) => ({ ...prev, content: undefined }));
+                    }}
                     placeholder="Share your knowledge, experience, or question..."
-                    className="w-full min-h-[120px] p-3 border border-gray-300 rounded-lg resize-none transition-colors duration-200 focus:border-blue-500 focus:ring-blue-500/20 focus:outline-none focus:ring-2"
+                    className={`w-full min-h-[120px] p-3 border rounded-lg resize-none transition-colors duration-200 focus:border-orange-500 focus:ring-orange-500/20 focus:outline-none focus:ring-2 ${
+                      errors.content
+                        ? "border-red-500 ring-red-500 focus:border-red-500 focus:ring-red-500/20"
+                        : "border-gray-300"
+                    }`}
                     required
                   />
+                  {errors.content && (
+                    <p className="mt-1 text-xs text-red-600">
+                      {errors.content}
+                    </p>
+                  )}
                 </div>
 
                 {/* Tags */}
@@ -423,7 +456,12 @@ export function EditPostModal({
                   <Label className="text-sm font-medium text-gray-700 mb-3 block">
                     Tags * (Select at least one)
                   </Label>
-                  <div className="flex flex-wrap gap-2">
+                  <div
+                    ref={tagsContainerRef}
+                    className={`flex flex-wrap gap-2 ${
+                      errors.tags ? "p-2 rounded border border-red-300" : ""
+                    }`}
+                  >
                     {availableTags.map((tag) => {
                       const isSelected = selectedTags.includes(tag.name);
                       return (
@@ -438,10 +476,15 @@ export function EditPostModal({
                             } else {
                               setSelectedTags((prev) => [...prev, tag.name]);
                             }
+                            if (errors.tags)
+                              setErrors((prev) => ({
+                                ...prev,
+                                tags: undefined,
+                              }));
                           }}
                           className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-all duration-200 ${
                             isSelected
-                              ? getTagColor(tag.name)
+                              ? "bg-orange-100 text-orange-700 border-orange-200"
                               : "bg-gray-50 text-gray-600 border-gray-300 hover:bg-gray-100"
                           }`}
                         >
@@ -450,6 +493,9 @@ export function EditPostModal({
                       );
                     })}
                   </div>
+                  {errors.tags && (
+                    <p className="mt-1 text-xs text-red-600">{errors.tags}</p>
+                  )}
                 </div>
 
                 {/* Market Post Options */}
@@ -460,7 +506,7 @@ export function EditPostModal({
                       id="marketPost"
                       checked={isMarketPost}
                       onChange={(e) => setIsMarketPost(e.target.checked)}
-                      className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
+                      className="h-4 w-4 text-orange-600 focus:ring-orange-500 border-gray-300 rounded"
                     />
                     <Label
                       htmlFor="marketPost"
@@ -482,7 +528,7 @@ export function EditPostModal({
                           id="isAvailable"
                           checked={isAvailable}
                           onChange={(e) => setIsAvailable(e.target.checked)}
-                          className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
+                          className="h-4 w-4 text-orange-600 focus:ring-orange-500 border-gray-300 rounded"
                         />
                         <Label
                           htmlFor="isAvailable"
@@ -511,7 +557,7 @@ export function EditPostModal({
 
                 {/* Media Type Selection */}
                 <div className="space-y-4">
-                  <p className="text-sm text-blue-800 font-medium">
+                  <p className="text-sm text-orange-800 font-medium">
                     Choose Media Type
                   </p>
                   <div className="flex gap-2">
@@ -523,15 +569,15 @@ export function EditPostModal({
                       }}
                       className={`flex-1 p-4 rounded-xl border-2 transition-all duration-200 ${
                         mediaType === "images"
-                          ? "border-blue-500 bg-blue-50 text-blue-700 shadow-sm"
-                          : "border-gray-200 bg-white text-gray-600 hover:border-blue-300 hover:bg-blue-50/50"
+                          ? "border-orange-500 bg-orange-50 text-orange-700 shadow-sm"
+                          : "border-gray-200 bg-white text-gray-600 hover:border-orange-300 hover:bg-orange-50/50"
                       }`}
                     >
                       <div className="flex flex-col items-center gap-2">
                         <ImageIcon
                           className={`h-6 w-6 ${
                             mediaType === "images"
-                              ? "text-blue-600"
+                              ? "text-orange-600"
                               : "text-gray-400"
                           }`}
                         />
@@ -549,15 +595,15 @@ export function EditPostModal({
                       }}
                       className={`flex-1 p-4 rounded-xl border-2 transition-all duration-200 ${
                         mediaType === "video"
-                          ? "border-purple-500 bg-purple-50 text-purple-700 shadow-sm"
-                          : "border-gray-200 bg-white text-gray-600 hover:border-purple-300 hover:bg-purple-50/50"
+                          ? "border-orange-500 bg-orange-50 text-orange-700 shadow-sm"
+                          : "border-gray-200 bg-white text-gray-600 hover:border-orange-300 hover:bg-orange-50/50"
                       }`}
                     >
                       <div className="flex flex-col items-center gap-2">
                         <VideoIcon
                           className={`h-6 w-6 ${
                             mediaType === "video"
-                              ? "text-purple-600"
+                              ? "text-orange-600"
                               : "text-gray-400"
                           }`}
                         />
@@ -593,7 +639,7 @@ export function EditPostModal({
                                 key={`existing-${i}`}
                                 className="group relative aspect-square"
                               >
-                                <div className="relative w-full h-full rounded-lg overflow-hidden border-2 border-blue-200 bg-blue-50">
+                                <div className="relative w-full h-full rounded-lg overflow-hidden border-2 border-orange-200 bg-orange-50">
                                   <img
                                     src={imageSrc}
                                     alt={`Existing ${i + 1}`}
@@ -602,9 +648,9 @@ export function EditPostModal({
                                   <button
                                     type="button"
                                     onClick={() => removeExistingImage(i)}
-                                    className="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                                    className="absolute top-2 right-2 bg-white/90 hover:bg-white text-gray-700 border border-gray-300 rounded-full w-7 h-7 flex items-center justify-center shadow-sm transition-colors"
                                   >
-                                    <X className="h-3 w-3" />
+                                    <X className="h-3.5 w-3.5" />
                                   </button>
                                   <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
                                 </div>
@@ -635,9 +681,9 @@ export function EditPostModal({
                                   <button
                                     type="button"
                                     onClick={() => removeImage(i)}
-                                    className="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                                    className="absolute top-2 right-2 bg-white/90 hover:bg-white text-gray-700 border border-gray-300 rounded-full w-7 h-7 flex items-center justify-center shadow-sm transition-colors"
                                   >
-                                    <X className="h-3 w-3" />
+                                    <X className="h-3.5 w-3.5" />
                                   </button>
                                   <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
                                 </div>
@@ -653,13 +699,13 @@ export function EditPostModal({
                           <p className="text-xs text-gray-600 font-medium">
                             Add More Images:
                           </p>
-                          <label className="relative w-full h-32 flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-lg cursor-pointer transition-all hover:border-blue-400 hover:bg-blue-50/50">
+                          <label className="relative w-full h-32 flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-lg cursor-pointer transition-all hover:border-orange-400 hover:bg-orange-50/50">
                             <div className="flex flex-col items-center space-y-2">
-                              <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center hover:bg-blue-100 transition-colors">
-                                <Upload className="h-5 w-5 text-gray-400 hover:text-blue-500 transition-colors" />
+                              <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center hover:bg-orange-100 transition-colors">
+                                <Upload className="h-5 w-5 text-gray-400 hover:text-orange-500 transition-colors" />
                               </div>
                               <div className="text-center">
-                                <p className="text-sm font-medium text-gray-700 hover:text-blue-600 transition-colors">
+                                <p className="text-sm font-medium text-gray-700 hover:text-orange-600 transition-colors">
                                   Add Images
                                 </p>
                                 <p className="text-xs text-gray-500">
@@ -701,7 +747,7 @@ export function EditPostModal({
                             Current Video:
                           </p>
                           <div className="group relative">
-                            <div className="relative w-full aspect-video rounded-lg overflow-hidden border-2 border-blue-200 bg-blue-50">
+                            <div className="relative w-full aspect-video rounded-lg overflow-hidden border-2 border-orange-200 bg-orange-50">
                               <video
                                 src={existingVideo}
                                 className="w-full h-full object-cover"
@@ -710,7 +756,7 @@ export function EditPostModal({
                               <button
                                 type="button"
                                 onClick={removeExistingVideo}
-                                className="absolute top-3 right-3 bg-red-500 hover:bg-red-600 text-white rounded-full w-8 h-8 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                                className="absolute top-3 right-3 bg-white/90 hover:bg-white text-gray-700 border border-gray-300 rounded-full w-8 h-8 flex items-center justify-center shadow-sm transition-colors"
                               >
                                 <X className="h-4 w-4" />
                               </button>
@@ -736,7 +782,7 @@ export function EditPostModal({
                               <button
                                 type="button"
                                 onClick={removeVideo}
-                                className="absolute top-3 right-3 bg-red-500 hover:bg-red-600 text-white rounded-full w-8 h-8 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                                className="absolute top-3 right-3 bg-white/90 hover:bg-white text-gray-700 border border-gray-300 rounded-full w-8 h-8 flex items-center justify-center shadow-sm transition-colors"
                               >
                                 <X className="h-4 w-4" />
                               </button>
@@ -752,13 +798,13 @@ export function EditPostModal({
                           <p className="text-xs text-gray-600 font-medium">
                             {existingVideo ? "Replace Video:" : "Add Video:"}
                           </p>
-                          <label className="relative w-full aspect-video flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-lg cursor-pointer transition-all hover:border-purple-400 hover:bg-purple-50/50">
+                          <label className="relative w-full aspect-video flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-lg cursor-pointer transition-all hover:border-orange-400 hover:bg-orange-50/50">
                             <div className="flex flex-col items-center space-y-4">
-                              <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center hover:bg-purple-100 transition-colors">
-                                <VideoIcon className="h-8 w-8 text-gray-400 hover:text-purple-500 transition-colors" />
+                              <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center hover:bg-orange-100 transition-colors">
+                                <VideoIcon className="h-8 w-8 text-gray-400 hover:text-orange-500 transition-colors" />
                               </div>
                               <div className="text-center space-y-1">
-                                <p className="text-base font-medium text-gray-700 hover:text-purple-600 transition-colors">
+                                <p className="text-base font-medium text-gray-700 hover:text-orange-600 transition-colors">
                                   {existingVideo
                                     ? "Replace Video"
                                     : "Upload Video"}
@@ -787,7 +833,7 @@ export function EditPostModal({
             )}
 
             {/* Navigation Buttons */}
-            <div className="flex justify-between items-center pt-6 border-t border-gray-100 mt-8">
+            <div className="flex justify-between items-center pt-6 mt-6">
               <div>
                 {currentStep !== "content" && (
                   <Button
@@ -805,10 +851,9 @@ export function EditPostModal({
               <div className="flex gap-3">
                 {currentStep === "content" ? (
                   <div className="flex flex-col items-end gap-2">
-                    {!canProceedToNextStep() && (
+                    {Object.keys(errors).length > 0 && (
                       <p className="text-xs text-red-600">
-                        Please fill in all required fields (title, content, and
-                        at least one tag)
+                        Please fix the highlighted fields.
                       </p>
                     )}
                     <Button
@@ -818,8 +863,7 @@ export function EditPostModal({
                         e.stopPropagation();
                         nextStep();
                       }}
-                      disabled={!canProceedToNextStep()}
-                      className="flex items-center gap-2 bg-blue-500 hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="flex items-center gap-2 bg-orange-500 hover:bg-orange-600"
                     >
                       Next: Update Media
                       <ArrowRight className="h-4 w-4" />

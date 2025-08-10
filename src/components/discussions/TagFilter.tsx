@@ -25,6 +25,12 @@ export function TagFilter({ tags, selectedTag, onTagSelect }: TagFilterProps) {
         return "bg-red-50 text-red-700 border-red-200 hover:bg-red-100";
       case "yellow":
         return "bg-yellow-50 text-yellow-700 border-yellow-200 hover:bg-yellow-100";
+      case "purple":
+        return "bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100";
+      case "pink":
+        return "bg-pink-50 text-pink-700 border-pink-200 hover:bg-pink-100";
+      case "orange":
+        return "bg-orange-50 text-orange-700 border-orange-200 hover:bg-orange-100";
       default:
         return "bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100";
     }

@@ -182,13 +182,13 @@ export const useWebSocket = (
       setError(null);
     });
 
-    socket.on("disconnect", (reason) => {
+    socket.on("disconnect", (reason: string) => {
       console.log("❌ Disconnected from WebSocket server:", reason);
       setIsConnected(false);
       setConnectionStatus("disconnected");
     });
 
-    socket.on("connect_error", (err) => {
+    socket.on("connect_error", (err: Error) => {
       console.error("🚨 WebSocket connection error:", err.message);
       setConnectionStatus("error");
       setError(err.message);

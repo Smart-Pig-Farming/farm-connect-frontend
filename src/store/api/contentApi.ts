@@ -101,7 +101,7 @@ export interface CreateBestPracticeRequest {
 export const contentApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
     // Get posts with filters
-    getPosts: builder.query<
+    getContentPosts: builder.query<
       { posts: Post[]; total: number },
       {
         page?: number;
@@ -264,7 +264,7 @@ export const contentApi = baseApi.injectEndpoints({
 
 // Export hooks for usage in components
 export const {
-  useGetPostsQuery,
+  useGetContentPostsQuery,
   useGetPostQuery,
   useCreatePostMutation,
   useUpdatePostMutation,

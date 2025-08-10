@@ -16,22 +16,23 @@ import {
 import { DiscussionCard } from "../../components/discussions/DiscussionCard";
 import {
   CreatePostModal,
-  type CreatePostData,
   EditPostModal,
   type EditPostData,
   type PostToEdit,
 } from "../../components/discussions";
 import { TagFilter } from "../../components/discussions/TagFilter";
 import {
-  availableTags,
-  POSTS_PER_PAGE,
-  POSTS_PER_LOAD_MORE,
-  LOADING_DEBOUNCE_DELAY,
   getCurrentUserPosts,
   getUserPostStats,
   type Post,
   type Reply,
 } from "../../data/posts";
+import {
+  availableTags,
+  POSTS_PER_PAGE,
+  POSTS_PER_LOAD_MORE,
+  LOADING_DEBOUNCE_DELAY,
+} from "../../utils/posts";
 
 // Mock current user ID - in real app this would come from auth context
 const CURRENT_USER_ID = "1"; // This matches the first author in mock data
@@ -490,54 +491,54 @@ export function MyPostsPage() {
   );
 
   // Helper function to convert Post to PostToEdit
-  const convertPostToPostToEdit = useCallback((post: Post | null): PostToEdit | undefined => {
-    if (!post) return undefined;
-    
-    return {
-      id: post.id,
-      title: post.title,
-      content: post.content,
-      tags: post.tags,
-      isMarketPost: post.isMarketPost,
-      isAvailable: post.isAvailable,
-      images: post.images,
-      video: post.video || undefined,
-    };
-  }, []);
+  const convertPostToPostToEdit = useCallback(
+    (post: Post | null): PostToEdit | undefined => {
+      if (!post) return undefined;
 
-  // Handle submitting edited post
-  const handleEditSubmit = useCallback(
-    (editData: EditPostData) => {
-      console.log("Updating post:", editData.id, editData);
-
-      // Update the displayed posts with the new data
-      setDisplayedPosts((prev) =>
-        prev.map((post) => {
-          if (post.id === editData.id) {
-            return {
-              ...post,
-              title: editData.title,
-              content: editData.content,
-              tags: editData.tags,
-              isMarketPost: editData.isMarketPost,
-              isAvailable: editData.isAvailable,
-              // Note: In a real app, you'd handle the media files properly
-              // For now, we'll keep the existing media
-            };
-          }
-          return post;
-        })
-      );
-
-      // Close the modal
-      setShowEditPost(false);
-      setEditingPost(null);
-
-      // Show success message
-      alert("Post updated successfully!");
+      return {
+        id: post.id,
+        title: post.title,
+        content: post.content,
+        tags: post.tags,
+        isMarketPost: post.isMarketPost,
+        isAvailable: post.isAvailable,
+        images: post.images,
+        video: post.video || undefined,
+      };
     },
     []
   );
+
+  // Handle submitting edited post
+  const handleEditSubmit = useCallback((editData: EditPostData) => {
+    console.log("Updating post:", editData.id, editData);
+
+    // Update the displayed posts with the new data
+    setDisplayedPosts((prev) =>
+      prev.map((post) => {
+        if (post.id === editData.id) {
+          return {
+            ...post,
+            title: editData.title,
+            content: editData.content,
+            tags: editData.tags,
+            isMarketPost: editData.isMarketPost,
+            isAvailable: editData.isAvailable,
+            // Note: In a real app, you'd handle the media files properly
+            // For now, we'll keep the existing media
+          };
+        }
+        return post;
+      })
+    );
+
+    // Close the modal
+    setShowEditPost(false);
+    setEditingPost(null);
+
+    // Show success message
+    alert("Post updated successfully!");
+  }, []);
 
   // Handle deleting a post
   const handleDeleteUserPost = useCallback((postId: string) => {
@@ -881,9 +882,9 @@ export function MyPostsPage() {
         <CreatePostModal
           isOpen={showCreatePost}
           onClose={() => setShowCreatePost(false)}
-          onSubmit={(data: CreatePostData) => {
-            console.log("Creating post:", data);
-            setShowCreatePost(false);
+          onSuccess={() => {
+            // Refresh user's posts when a new post is created
+            console.log("Post created successfully, refreshing user posts");
           }}
         />
 

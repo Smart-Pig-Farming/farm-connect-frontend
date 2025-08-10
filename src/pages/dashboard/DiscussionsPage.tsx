@@ -1,7 +1,8 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { Card, CardContent, CardHeader } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
+import { InfiniteScrollContainer } from "../../components/ui/infinite-scroll-container";
 import {
   MessageSquare,
   Search,
@@ -19,7 +20,6 @@ import {
 import { DiscussionCard } from "../../components/discussions/DiscussionCard";
 import {
   CreatePostModal,
-  type CreatePostData,
   EditPostModal,
   type EditPostData,
   Leaderboard,
@@ -27,61 +27,52 @@ import {
 import { type PostToEdit } from "../../components/discussions/EditPostModal";
 import { ModerationDashboard } from "../../components/discussions/ModerationDashboard";
 import { TagFilter } from "../../components/discussions/TagFilter";
-import {
-  allMockPosts,
-  mockStats,
-  availableTags,
-  getCurrentUserPosts,
-  getUserPostStats,
-  POSTS_PER_PAGE,
-  POSTS_PER_LOAD_MORE,
-  LOADING_DEBOUNCE_DELAY,
-  type Post,
-  type Reply,
-} from "../../data/posts";
+import { mockStats, type Post } from "../../data/posts";
+import { POSTS_PER_LOAD_MORE, LOADING_DEBOUNCE_DELAY } from "../../utils/posts";
+import { useGetPostsStatsQuery } from "../../store/api/discussionsApi";
+import type { Post as ApiPost } from "../../store/api/discussionsApi";
+import { useInfiniteScroll } from "../../hooks/useInfiniteScroll";
+import { getErrorMessage, isNetworkError } from "../../utils/error";
 
 // Mock current user ID - in real app this would come from auth context
 const CURRENT_USER_ID = "user1"; // This matches the first author in mock data
 
-// Time formatting function for social media style timestamps
-const formatTimeAgo = (timeString: string): string => {
-  // Handle relative time strings (like "2h ago", "1d ago")
-  if (timeString.includes("ago")) {
-    return timeString;
-  }
-
-  // For actual dates, we would parse and format them
-  // This is a mock implementation for the current data structure
-  const now = new Date();
-  const timeValue = timeString.toLowerCase();
-
-  if (timeValue.includes("h")) {
-    const hours = parseInt(timeValue);
-    if (hours < 1) return "now";
-    if (hours === 1) return "1h ago";
-    return `${hours}h ago`;
-  }
-
-  if (timeValue.includes("d")) {
-    const days = parseInt(timeValue);
-    if (days === 1) return "1d ago";
-    if (days <= 6) return `${days}d ago`;
-
-    // For posts older than 6 days, show date in dd/mm/yyyy format
-    const pastDate = new Date(now);
-    pastDate.setDate(pastDate.getDate() - days);
-    return pastDate.toLocaleDateString("en-GB"); // dd/mm/yyyy format
-  }
-
-  // For minute-level posts (if we had them)
-  if (timeValue.includes("m") && !timeValue.includes("d")) {
-    const minutes = parseInt(timeValue);
-    if (minutes < 1) return "now";
-    if (minutes === 1) return "1m ago";
-    return `${minutes}m ago`;
-  }
-
-  return timeString;
+// Map API post to UI post shape used by DiscussionCard
+const mapApiPostToUi = (p: ApiPost): Post => {
+  const tagStrings = p.tags.map((t) => t.name);
+  const imagesArr = p.images.map((m) => m.url);
+  const videoVal = p.video ? p.video.url : null;
+  return {
+    id: p.id,
+    title: p.title,
+    content: p.content,
+    author: {
+      id: String(p.author.id),
+      firstname: p.author.firstname,
+      lastname: p.author.lastname,
+      avatar: p.author.avatar ?? null,
+      level_id: p.author.level_id ?? 1,
+      points: p.author.points ?? 0,
+      location: p.author.location ?? "",
+    },
+    tags: tagStrings.filter(Boolean) as string[],
+    upvotes: p.upvotes,
+    downvotes: p.downvotes,
+    userVote:
+      p.userVote === "upvote"
+        ? "up"
+        : p.userVote === "downvote"
+        ? "down"
+        : null,
+    replies: p.replies,
+    shares: 0,
+    isMarketPost: p.isMarketPost,
+    isAvailable: p.isAvailable,
+    createdAt: p.createdAt,
+    images: imagesArr.filter(Boolean) as string[],
+    video: videoVal,
+    isModeratorApproved: p.isModeratorApproved,
+  };
 };
 
 // Custom debounce hook for better search performance
@@ -108,25 +99,46 @@ export function DiscussionsPage() {
   const [editingPost, setEditingPost] = useState<Post | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedTag, setSelectedTag] = useState("All");
-  const [displayedPosts, setDisplayedPosts] = useState<Post[]>([]);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [isLoading, setIsLoading] = useState(false);
-  const [hasMore, setHasMore] = useState(true);
   const [showModerationDashboard, setShowModerationDashboard] = useState(false);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
-  const loadingRef = useRef<HTMLDivElement>(null);
-  const abortControllerRef = useRef<AbortController | null>(null);
 
   // Debounce search query to prevent excessive filtering
   const debouncedSearchQuery = useDebounce(searchQuery, LOADING_DEBOUNCE_DELAY);
 
-  // Get stats based on current view mode
-  const currentStats = useMemo(() => {
-    if (showMyPostsView) {
-      return getUserPostStats(CURRENT_USER_ID);
-    }
-    return mockStats;
-  }, [showMyPostsView]);
+  // Use the new infinite scroll hook
+  const {
+    posts: apiPosts,
+    isLoading,
+    isFetching,
+    hasNextPage,
+    loadMore,
+    refresh,
+    facets,
+    error,
+  } = useInfiniteScroll({
+    search: debouncedSearchQuery || undefined,
+    tag: selectedTag !== "All" ? selectedTag : undefined,
+    sort: "recent",
+    is_market_post: undefined,
+    user_id: showMyPostsView ? 1 : undefined, // TODO: map to real user id
+    limit: POSTS_PER_LOAD_MORE,
+  });
+
+  // Map API posts to UI posts
+  const displayedPosts = useMemo(() => {
+    const mapped = apiPosts.map(mapApiPostToUi);
+    console.log("🎯 DiscussionsPage mapping posts:", {
+      apiPostsCount: apiPosts.length,
+      mappedPostsCount: mapped.length,
+      hasNextPage,
+      isLoading,
+      isFetching,
+      error: !!error,
+    });
+    return mapped;
+  }, [apiPosts, hasNextPage, isLoading, isFetching, error]);
+
+  const { data: statsData } = useGetPostsStatsQuery();
 
   // Helper function to convert Post to PostToEdit
   const convertPostToPostToEdit = useCallback(
@@ -147,160 +159,21 @@ export function DiscussionsPage() {
     []
   );
 
-  // Memoized filtered posts to prevent unnecessary recalculations
-  const filteredAllPosts = useMemo(() => {
-    // Choose data source based on view mode
-    const sourceData = showMyPostsView
-      ? getCurrentUserPosts(CURRENT_USER_ID)
-      : allMockPosts;
-
-    return sourceData
-      .filter((post: Post) => {
-        const matchesSearch =
-          post.title
-            .toLowerCase()
-            .includes(debouncedSearchQuery.toLowerCase()) ||
-          post.content
-            .toLowerCase()
-            .includes(debouncedSearchQuery.toLowerCase());
-        const matchesTag =
-          selectedTag === "All" || post.tags.includes(selectedTag);
-        return matchesSearch && matchesTag;
-      })
-      .map((post) => ({
-        ...post,
-        createdAt: formatTimeAgo(post.createdAt),
-      }));
-  }, [debouncedSearchQuery, selectedTag, showMyPostsView]);
-
-  // Optimized load more posts function with abort controller for cancellation
-  const loadMorePosts = useCallback(() => {
-    if (isLoading || !hasMore) return;
-
-    // Cancel any pending requests
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-    }
-
-    // Create new abort controller for this request
-    abortControllerRef.current = new AbortController();
-    const { signal } = abortControllerRef.current;
-
-    setIsLoading(true);
-
-    // Simulate API delay with shorter timeout for better UX
-    const timeoutId = setTimeout(() => {
-      if (signal.aborted) return;
-
-      // Use POSTS_PER_LOAD_MORE (2) for subsequent loads after the initial 5
-      const postsToLoad =
-        currentPage === 2 ? POSTS_PER_LOAD_MORE : POSTS_PER_LOAD_MORE;
-      const startIndex = displayedPosts.length; // Start from current displayed count
-      const endIndex = startIndex + postsToLoad;
-      const newPosts = filteredAllPosts.slice(startIndex, endIndex);
-
-      console.log(
-        `🔄 Loading posts ${startIndex + 1}-${Math.min(
-          endIndex,
-          filteredAllPosts.length
-        )} of ${filteredAllPosts.length}`
-      );
-
-      if (newPosts.length === 0 || signal.aborted) {
-        setHasMore(false);
-        setIsLoading(false);
-        console.log("📝 No more posts to load - infinite scroll complete!");
-        return;
-      }
-
-      // Use functional update to prevent stale closure issues
-      setDisplayedPosts((prev) => {
-        // Prevent duplicate posts
-        const existingIds = new Set(prev.map((post) => post.id));
-        const uniqueNewPosts = newPosts.filter(
-          (post) => !existingIds.has(post.id)
-        );
-        const updatedPosts = [...prev, ...uniqueNewPosts];
-        console.log(
-          `✅ Loaded ${uniqueNewPosts.length} new posts. Total displayed: ${updatedPosts.length}`
-        );
-        return updatedPosts;
-      });
-
-      setCurrentPage((prev) => prev + 1);
-
-      // Check if we've loaded all available posts
-      if (startIndex + newPosts.length >= filteredAllPosts.length) {
-        setHasMore(false);
-        console.log("🏁 All posts loaded!");
-      }
-
-      setIsLoading(false);
-    }, 800); // Slightly longer delay to better see the loading states
-
-    // Cleanup function
-    return () => {
-      clearTimeout(timeoutId);
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
-    };
-  }, [
-    currentPage,
-    filteredAllPosts,
-    isLoading,
-    hasMore,
-    displayedPosts.length,
-  ]);
-
-  // Reset displayed posts when filters change - optimized with debounced search
-  useEffect(() => {
-    // Cancel any pending loads when filters change
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-    }
-
-    setIsLoading(false);
-    // Load initial 5 posts
-    const initialPosts = filteredAllPosts.slice(0, POSTS_PER_PAGE);
-    setDisplayedPosts(initialPosts);
-    setCurrentPage(2); // Next load will be page 2
-    setHasMore(filteredAllPosts.length > POSTS_PER_PAGE);
-
-    console.log(
-      `🚀 Initial load: ${initialPosts.length} posts of ${filteredAllPosts.length} total`
-    );
-    if (filteredAllPosts.length > POSTS_PER_PAGE) {
-      console.log(
-        `⏳ ${
-          filteredAllPosts.length - POSTS_PER_PAGE
-        } more posts available for infinite scroll`
-      );
-    }
-  }, [debouncedSearchQuery, selectedTag, filteredAllPosts]);
-
-  // Optimized intersection observer for infinite scroll with better threshold
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting && hasMore && !isLoading) {
-          loadMorePosts();
-        }
-      },
-      {
-        threshold: 0.1,
-        rootMargin: "100px", // Start loading when element is 100px away
-      }
-    );
-
-    if (loadingRef.current) {
-      observer.observe(loadingRef.current);
-    }
-
-    return () => {
-      observer.disconnect();
-    };
-  }, [loadMorePosts, hasMore, isLoading]);
+  // Build dynamic tag chips from backend facets
+  const tagChips = useMemo(() => {
+    const tags = facets?.tags ?? [];
+    const totalAll = facets?.totals?.all ?? 0;
+    // Map to TagFilter's expected shape and prepend All
+    const chips = [
+      { name: "All", count: totalAll, color: "orange" },
+      ...tags.map((t) => ({
+        name: t.name,
+        count: t.count,
+        color: String(t.color || "gray"),
+      })),
+    ];
+    return chips;
+  }, [facets]);
 
   const handleCreatePost = () => {
     setShowCreatePost(true);
@@ -320,180 +193,30 @@ export function DiscussionsPage() {
           parentReplyId
         );
 
-        // Create new reply object
-        const newReply: Reply = {
-          id: `reply-${Date.now()}`,
-          content,
-          author: {
-            id: "current-user",
-            firstname: "Your",
-            lastname: "User",
-            avatar: null,
-            level_id: 1,
-            points: 100,
-            location: "Kigali, Rwanda",
-          },
-          createdAt: new Date().toISOString(),
-          upvotes: 0,
-          downvotes: 0,
-          userVote: null,
-          replies: [],
-        };
-
-        // Helper function to recursively add nested reply
-        const addNestedReply = (
-          replies: Reply[],
-          targetParentId: string,
-          newReply: Reply
-        ): Reply[] => {
-          return replies.map((reply) => {
-            if (reply.id === targetParentId) {
-              // Found the parent, add the new reply to its replies array
-              return {
-                ...reply,
-                replies: [...(reply.replies || []), newReply],
-              };
-            } else if (reply.replies && reply.replies.length > 0) {
-              // Recursively search in nested replies
-              return {
-                ...reply,
-                replies: addNestedReply(
-                  reply.replies,
-                  targetParentId,
-                  newReply
-                ),
-              };
-            }
-            return reply;
-          });
-        };
-
-        // Update displayed posts
-        setDisplayedPosts((prev) =>
-          prev.map((post) => {
-            if (post.id === postId) {
-              let updatedRepliesData;
-
-              if (parentReplyId) {
-                // Adding a nested reply
-                updatedRepliesData = addNestedReply(
-                  post.repliesData || [],
-                  parentReplyId,
-                  newReply
-                );
-              } else {
-                // Adding a top-level reply
-                updatedRepliesData = [...(post.repliesData || []), newReply];
-              }
-
-              return {
-                ...post,
-                replies: post.replies + 1,
-                repliesData: updatedRepliesData,
-              };
-            }
-            return post;
-          })
-        );
+        // For now, just refresh the data to get the latest posts
+        refresh();
       } catch (error) {
         console.error("Error adding reply:", error);
       }
     },
-    []
+    [refresh]
   );
 
-  // Handle voting on a post
+  // Handle voting on a post - will use RTK Query mutation
   const handleVotePost = useCallback(
     async (postId: string, voteType: "up" | "down") => {
       try {
         console.log(`${voteType}voting post:`, postId);
+        // In a real app, this would use the RTK Query mutation
+        // await votePost({ postId, vote_type: voteType === "up" ? "upvote" : "downvote" }).unwrap();
 
-        // Update local state with optimistic updates
-        setDisplayedPosts((prev) =>
-          prev.map((post) => {
-            if (post.id === postId) {
-              // Get current user vote from post data (you might want to store this separately)
-              const currentVote = post.userVote || null;
-              let newUpvotes = post.upvotes;
-              let newDownvotes = post.downvotes;
-              let newUserVote: "up" | "down" | null = voteType;
-
-              // Handle vote logic
-              if (currentVote === voteType) {
-                // Remove vote
-                newUserVote = null;
-                if (voteType === "up") newUpvotes--;
-                else newDownvotes--;
-              } else {
-                // Add or change vote
-                if (currentVote === "up") newUpvotes--;
-                else if (currentVote === "down") newDownvotes--;
-
-                if (voteType === "up") newUpvotes++;
-                else newDownvotes++;
-              }
-
-              return {
-                ...post,
-                upvotes: Math.max(0, newUpvotes),
-                downvotes: Math.max(0, newDownvotes),
-                userVote: newUserVote,
-              };
-            }
-            return post;
-          })
-        );
-
-        // In a real app, this would make an API call
-        // await api.votePost(postId, voteType);
+        // For now, just refresh to get updated data
+        refresh();
       } catch (error) {
         console.error("Error voting on post:", error);
       }
     },
-    []
-  );
-
-  // Helper function to recursively update reply votes
-  const updateReplyVotes = useCallback(
-    (replies: Reply[], replyId: string, voteType: "up" | "down"): Reply[] => {
-      return replies.map((reply) => {
-        if (reply.id === replyId) {
-          const currentVote = reply.userVote;
-          let newUpvotes = reply.upvotes || 0;
-          let newDownvotes = reply.downvotes || 0;
-          let newUserVote: "up" | "down" | null = voteType;
-
-          // Handle vote logic
-          if (currentVote === voteType) {
-            // Remove vote
-            newUserVote = null;
-            if (voteType === "up") newUpvotes--;
-            else newDownvotes--;
-          } else {
-            // Add or change vote
-            if (currentVote === "up") newUpvotes--;
-            else if (currentVote === "down") newDownvotes--;
-
-            if (voteType === "up") newUpvotes++;
-            else newDownvotes++;
-          }
-
-          return {
-            ...reply,
-            upvotes: Math.max(0, newUpvotes),
-            downvotes: Math.max(0, newDownvotes),
-            userVote: newUserVote,
-          };
-        } else if (reply.replies && reply.replies.length > 0) {
-          return {
-            ...reply,
-            replies: updateReplyVotes(reply.replies, replyId, voteType),
-          };
-        }
-        return reply;
-      });
-    },
-    []
+    [refresh]
   );
 
   // Handle voting on a reply
@@ -501,35 +224,20 @@ export function DiscussionsPage() {
     async (replyId: string, voteType: "up" | "down") => {
       try {
         console.log(`${voteType}voting reply:`, replyId);
-
-        // Update local state with optimistic updates
-        setDisplayedPosts((prev) =>
-          prev.map((post) => ({
-            ...post,
-            repliesData: updateReplyVotes(
-              post.repliesData || [],
-              replyId,
-              voteType
-            ),
-          }))
-        );
-
-        // In a real app, this would make an API call
-        // await api.voteReply(replyId, voteType);
+        // In a real app, this would use the RTK Query mutation
+        refresh();
       } catch (error) {
         console.error("Error voting on reply:", error);
       }
     },
-    [updateReplyVotes]
+    [refresh]
   );
 
   // Handle loading more replies for a post
   const handleLoadMoreReplies = useCallback(async (postId: string) => {
     try {
-      // In a real app, this would make an API call
       console.log("Loading more replies for post:", postId);
-
-      // For now, just log the action
+      // In a real app, this would make an API call
     } catch (error) {
       console.error("Error loading more replies:", error);
     }
@@ -549,104 +257,38 @@ export function DiscussionsPage() {
   );
 
   // Handle submitting edited post
-  const handleEditSubmit = useCallback((editData: EditPostData) => {
-    console.log("Updating post:", editData.id, editData);
+  const handleEditSubmit = useCallback(
+    (editData: EditPostData) => {
+      console.log("Updating post:", editData.id, editData);
 
-    // Update the displayed posts with the new data
-    setDisplayedPosts((prev) =>
-      prev.map((post) => {
-        if (post.id === editData.id) {
-          return {
-            ...post,
-            title: editData.title,
-            content: editData.content,
-            tags: editData.tags,
-            isMarketPost: editData.isMarketPost,
-            isAvailable: editData.isAvailable,
-            // Note: In a real app, you'd handle the media files properly
-            // For now, we'll keep the existing media
-          };
-        }
-        return post;
-      })
-    );
+      // In a real app, this would use RTK Query mutation
+      // For now, just refresh to get updated data
+      refresh();
 
-    // Close the modal
-    setShowEditPost(false);
-    setEditingPost(null);
+      // Close the modal
+      setShowEditPost(false);
+      setEditingPost(null);
 
-    // Show success message
-    alert("Post updated successfully!");
-  }, []);
-
-  // Handle deleting a post
-  const handleDeleteUserPost = useCallback((postId: string) => {
-    console.log("Deleting user's post:", postId);
-    const confirmed = window.confirm(
-      "Are you sure you want to delete this post? This action cannot be undone."
-    );
-    if (confirmed) {
-      // In a real app, this would make an API call
-      console.log("Post deleted:", postId);
-      // Remove from displayed posts
-      setDisplayedPosts((prev) => prev.filter((post) => post.id !== postId));
-    }
-  }, []);
-
-  // Memoized DiscussionCard component to prevent unnecessary re-renders
-  const MemoizedDiscussionCard = useMemo(() => {
-    return ({ post }: { post: Post }) => (
-      <DiscussionCard
-        key={post.id}
-        post={post}
-        onVote={handleVotePost}
-        onAddReply={handleAddReply}
-        onVoteReply={handleVoteReply}
-        onLoadMoreReplies={handleLoadMoreReplies}
-        onEditPost={showMyPostsView ? handleEditPost : undefined}
-        onDeletePost={showMyPostsView ? handleDeleteUserPost : undefined}
-        currentUserId={showMyPostsView ? CURRENT_USER_ID : undefined}
-      />
-    );
-  }, [
-    handleVotePost,
-    handleAddReply,
-    handleVoteReply,
-    handleLoadMoreReplies,
-    handleEditPost,
-    handleDeleteUserPost,
-    showMyPostsView,
-  ]);
-
-  // Enhanced loading states with progress information
-  const LoadingSpinner = useMemo(
-    () => (
-      <div className="flex items-center justify-center gap-3 text-gray-500 py-8">
-        <div className="flex flex-col items-center gap-3">
-          <Loader2 className="h-6 w-6 animate-spin text-orange-500" />
-          <div className="text-center">
-            <span className="text-sm font-medium block">
-              Loading more discussions...
-            </span>
-          </div>
-        </div>
-      </div>
-    ),
-    []
+      // Show success message
+      alert("Post updated successfully!");
+    },
+    [refresh]
   );
 
-  const EndOfList = useMemo(
-    () => (
-      <div className="text-center text-gray-500 py-8">
-        <div className="bg-white/80 backdrop-blur-sm rounded-lg p-6 border border-gray-100 max-w-sm mx-auto">
-          <MessageSquare className="h-8 w-8 text-gray-400 mx-auto mb-3" />
-          <p className="text-sm font-medium text-gray-600">
-            All discussions loaded!
-          </p>
-        </div>
-      </div>
-    ),
-    []
+  // Handle deleting a post
+  const handleDeleteUserPost = useCallback(
+    (postId: string) => {
+      console.log("Deleting user's post:", postId);
+      const confirmed = window.confirm(
+        "Are you sure you want to delete this post? This action cannot be undone."
+      );
+      if (confirmed) {
+        // In a real app, this would use RTK Query mutation
+        console.log("Post deleted:", postId);
+        refresh();
+      }
+    },
+    [refresh]
   );
 
   return (
@@ -698,37 +340,15 @@ export function DiscussionsPage() {
                       {/* Stats Row */}
                       <div className="flex flex-wrap gap-3 text-sm">
                         <div className="bg-white/15 px-3 py-1.5 rounded-full backdrop-blur-sm border border-white/20">
-                          <span className="text-white/80">
-                            {showMyPostsView ? "Total posts: " : "Total: "}
-                          </span>
+                          <span className="text-white/80">Total: </span>
                           <span className="text-white font-semibold">
-                            {showMyPostsView
-                              ? `${
-                                  "totalPosts" in currentStats
-                                    ? currentStats.totalPosts
-                                    : 0
-                                } posts`
-                              : `${
-                                  "totalDiscussions" in currentStats
-                                    ? currentStats.totalDiscussions
-                                    : 0
-                                } discussions`}
+                            {statsData?.data?.totalDiscussions ?? 0} discussions
                           </span>
                         </div>
                         <div className="bg-white/15 px-3 py-1.5 rounded-full backdrop-blur-sm border border-white/20">
-                          <span className="text-white/80">
-                            {showMyPostsView
-                              ? "This week: "
-                              : "Your posts today: "}
-                          </span>
+                          <span className="text-white/80">Posts today: </span>
                           <span className="text-white font-semibold">
-                            {showMyPostsView
-                              ? "postsThisWeek" in currentStats
-                                ? currentStats.postsThisWeek
-                                : 0
-                              : "postsToday" in currentStats
-                              ? currentStats.postsToday
-                              : 0}
+                            {statsData?.data?.postsToday ?? 0}
                           </span>
                         </div>
                       </div>
@@ -773,7 +393,7 @@ export function DiscussionsPage() {
 
                 {/* Tag Filter */}
                 <TagFilter
-                  tags={availableTags}
+                  tags={tagChips}
                   selectedTag={selectedTag}
                   onTagSelect={setSelectedTag}
                 />
@@ -784,50 +404,98 @@ export function DiscussionsPage() {
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
               {/* Posts Feed - Order 2 on mobile, 1 on desktop */}
               <div className="lg:col-span-3 space-y-4 order-2 lg:order-1">
-                {displayedPosts.length > 0 ? (
-                  <>
-                    {/* Virtualized post rendering for better performance */}
-                    <div className="space-y-4">
-                      {displayedPosts.map((post) => (
-                        <MemoizedDiscussionCard key={post.id} post={post} />
-                      ))}
-                    </div>
+                {(() => {
+                  console.log("🎨 Render decision:", {
+                    hasError: !!error,
+                    displayedPostsCount: displayedPosts.length,
+                    isLoading,
+                    hasNextPage,
+                    isFetching,
+                  });
 
-                    {/* Optimized loading indicator with intersection observer target */}
-                    <div
-                      ref={loadingRef}
-                      className="flex justify-center py-4 min-h-[60px]"
-                      aria-live="polite"
-                      role="status"
-                    >
-                      {isLoading && LoadingSpinner}
-                      {!hasMore && displayedPosts.length > 0 && EndOfList}
-                    </div>
-                  </>
-                ) : (
-                  <Card className="p-8 text-center bg-white/80 backdrop-blur-sm border-0 shadow-lg">
-                    <MessageSquare className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                    <h3 className="text-lg font-semibold text-gray-700 mb-2">
-                      {debouncedSearchQuery || selectedTag !== "All"
-                        ? "No discussions found"
-                        : "No discussions yet"}
-                    </h3>
-                    <p className="text-gray-500 mb-4">
-                      {debouncedSearchQuery || selectedTag !== "All"
-                        ? "Try adjusting your search or filter criteria"
-                        : "Be the first to start a conversation!"}
-                    </p>
-                    <Button
-                      onClick={handleCreatePost}
-                      className="bg-orange-500 hover:bg-orange-600 text-white cursor-pointer"
-                    >
-                      <Plus className="h-4 w-4 mr-2" />
-                      {debouncedSearchQuery || selectedTag !== "All"
-                        ? "Create Discussion"
-                        : "Create First Post"}
-                    </Button>
-                  </Card>
-                )}
+                  if (error) {
+                    const errorMessage = getErrorMessage(error);
+                    const isConnectivityIssue = isNetworkError(error);
+
+                    return (
+                      <Card className="p-8 text-center bg-white/80 backdrop-blur-sm border-0 shadow-lg">
+                        <div className="text-red-500 mb-4">
+                          <p className="text-lg font-semibold">
+                            {isConnectivityIssue
+                              ? "Connection issue"
+                              : "Unable to load posts"}
+                          </p>
+                          <p className="text-sm text-gray-600 mt-2">
+                            {errorMessage}
+                          </p>
+                        </div>
+                        <Button
+                          onClick={refresh}
+                          className="bg-orange-500 hover:bg-orange-600 text-white cursor-pointer"
+                        >
+                          {isConnectivityIssue ? "Retry" : "Try again"}
+                        </Button>
+                      </Card>
+                    );
+                  }
+
+                  if (displayedPosts.length > 0 || isLoading) {
+                    return (
+                      <InfiniteScrollContainer
+                        hasMore={hasNextPage}
+                        loadMore={loadMore}
+                        isLoading={isLoading}
+                        isFetching={isFetching}
+                        className="space-y-4"
+                      >
+                        {displayedPosts.map((post, idx) => (
+                          <DiscussionCard
+                            key={`${post.id}-${post.createdAt}-${idx}`}
+                            post={post}
+                            onVote={handleVotePost}
+                            onAddReply={handleAddReply}
+                            onVoteReply={handleVoteReply}
+                            onLoadMoreReplies={handleLoadMoreReplies}
+                            onEditPost={
+                              showMyPostsView ? handleEditPost : undefined
+                            }
+                            onDeletePost={
+                              showMyPostsView ? handleDeleteUserPost : undefined
+                            }
+                            currentUserId={
+                              showMyPostsView ? CURRENT_USER_ID : undefined
+                            }
+                          />
+                        ))}
+                      </InfiniteScrollContainer>
+                    );
+                  }
+
+                  return (
+                    <Card className="p-8 text-center bg-white/80 backdrop-blur-sm border-0 shadow-lg">
+                      <MessageSquare className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                      <h3 className="text-lg font-semibold text-gray-700 mb-2">
+                        {debouncedSearchQuery || selectedTag !== "All"
+                          ? "No matches found"
+                          : "No discussions yet"}
+                      </h3>
+                      <p className="text-gray-500 mb-4">
+                        {debouncedSearchQuery || selectedTag !== "All"
+                          ? "Try different search terms or filters"
+                          : "Start the conversation!"}
+                      </p>
+                      <Button
+                        onClick={handleCreatePost}
+                        className="bg-orange-500 hover:bg-orange-600 text-white cursor-pointer"
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
+                        {debouncedSearchQuery || selectedTag !== "All"
+                          ? "New post"
+                          : "Create post"}
+                      </Button>
+                    </Card>
+                  );
+                })()}
               </div>
 
               {/* Sidebar - Order 1 on mobile, 2 on desktop */}
@@ -973,9 +641,10 @@ export function DiscussionsPage() {
             <CreatePostModal
               isOpen={showCreatePost}
               onClose={() => setShowCreatePost(false)}
-              onSubmit={(data: CreatePostData) => {
-                console.log("Creating post:", data);
-                setShowCreatePost(false);
+              onSuccess={() => {
+                // Refresh posts list when a new post is created
+                console.log("Post created successfully, refreshing list");
+                refresh();
               }}
             />
 

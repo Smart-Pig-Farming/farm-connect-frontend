@@ -891,11 +891,6 @@ export const allMockPosts: Post[] = [
   },
 ];
 
-// Constants
-export const POSTS_PER_PAGE = 5; // Initial load: 5 posts
-export const POSTS_PER_LOAD_MORE = 2; // Subsequent loads: 2 posts each
-export const LOADING_DEBOUNCE_DELAY = 300; // 300ms debounce for search
-
 // Mock statistics
 export const mockStats = {
   totalDiscussions: 27, // Updated to reflect new total
@@ -905,18 +900,6 @@ export const mockStats = {
   currentRank: 15,
   rankChange: "up" as "up" | "down" | "same",
 };
-
-// Available tags for filtering
-export const availableTags = [
-  { name: "All", count: 27, color: "default" },
-  { name: "General", count: 18, color: "blue" },
-  { name: "Market", count: 7, color: "green" },
-  { name: "Health", count: 6, color: "red" },
-  { name: "Feed", count: 5, color: "yellow" },
-  { name: "Equipment", count: 5, color: "purple" },
-  { name: "Breeding", count: 0, color: "pink" },
-  { name: "Events", count: 0, color: "orange" },
-];
 
 // Mock data for user post management
 export const myPostsStats = {
