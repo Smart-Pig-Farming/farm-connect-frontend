@@ -37,7 +37,7 @@ export const useInfiniteScroll = (options: UseInfiniteScrollOptions = {}) => {
   // Create a stable filter key to detect when filters change
   const filterKey = useMemo(() => {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { cursor, ...filters } = queryParams;
+    const { cursor: _cursor, ...filters } = queryParams;
     return JSON.stringify(filters);
   }, [queryParams]);
 

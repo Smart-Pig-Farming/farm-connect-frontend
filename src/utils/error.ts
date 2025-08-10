@@ -18,6 +18,18 @@ function isSerializedError(error: unknown): error is SerializedError {
 }
 
 /**
+ * Type guard to check if object has a string message property
+ */
+function hasStringMessage(obj: unknown): obj is { message: string } {
+  return (
+    typeof obj === "object" &&
+    obj != null &&
+    "message" in obj &&
+    typeof (obj as Record<string, unknown>).message === "string"
+  );
+}
+
+/**
  * Extract readable error message from RTK Query error
  */
 export function getErrorMessage(error: unknown): string {
@@ -53,8 +65,9 @@ export function getErrorMessage(error: unknown): string {
         if (data.error) {
           return typeof data.error === "string"
             ? data.error
-            : ((data.error as Record<string, unknown>)?.message as string) ||
-                "Server error";
+            : hasStringMessage(data.error)
+            ? data.error.message
+            : "Server error";
         }
 
         if (typeof data.detail === "string") {

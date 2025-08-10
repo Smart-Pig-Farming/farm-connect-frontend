@@ -163,7 +163,7 @@ export const discussionsApi = baseApi.injectEndpoints({
       // Create unique cache keys based on filter params (excluding cursor)
       serializeQueryArgs: ({ queryArgs }) => {
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        const { cursor, ...filterParams } = queryArgs;
+        const { cursor: _cursor, ...filterParams } = queryArgs;
         return filterParams;
       },
       // Merge function to accumulate posts across pages

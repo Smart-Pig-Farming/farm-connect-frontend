@@ -135,13 +135,16 @@ export function SocialVideoPlayer({
         console.log("⏸️ Video paused:", postId);
       } else {
         setIsLoading(true);
-        await videoRef.current.play();
-        setIsPlaying(true);
-        setShowOverlay(false);
-        setShowPauseIndicator(false);
-        setIsLoading(false);
-        onPlay?.();
-        console.log("▶️ Video playing:", postId);
+        try {
+          await videoRef.current.play();
+          setIsPlaying(true);
+          setShowOverlay(false);
+          setShowPauseIndicator(false);
+          onPlay?.();
+          console.log("▶️ Video playing:", postId);
+        } finally {
+          setIsLoading(false);
+        }
       }
     } catch (error) {
       console.error("❌ Error toggling video playback:", error);
