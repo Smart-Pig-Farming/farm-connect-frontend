@@ -277,23 +277,38 @@ export const useWebSocket = (
     });
 
     // Moderation events
-    socket.on("moderation:content_reported", (data: ModerationReportedData | { id?: string }) => {
-      const d = data as { id?: string };
-      console.log("🚨 Content reported:", d?.id ?? "<unknown>");
-      handlersRef.current.onModerationReport?.(data as ModerationReportedData);
-    });
+    socket.on(
+      "moderation:content_reported",
+      (data: ModerationReportedData | { id?: string }) => {
+        const d = data as { id?: string };
+        console.log("🚨 Content reported:", d?.id ?? "<unknown>");
+        handlersRef.current.onModerationReport?.(
+          data as ModerationReportedData
+        );
+      }
+    );
 
-    socket.on("moderation:content_approved", (data: ModerationApprovalData | { contentId?: string }) => {
-      const d = data as { contentId?: string };
-      console.log("✅ Content approved:", d?.contentId ?? "<unknown>");
-      handlersRef.current.onModerationApproval?.(data as ModerationApprovalData);
-    });
+    socket.on(
+      "moderation:content_approved",
+      (data: ModerationApprovalData | { contentId?: string }) => {
+        const d = data as { contentId?: string };
+        console.log("✅ Content approved:", d?.contentId ?? "<unknown>");
+        handlersRef.current.onModerationApproval?.(
+          data as ModerationApprovalData
+        );
+      }
+    );
 
-    socket.on("moderation:content_rejected", (data: ModerationApprovalData | { contentId?: string }) => {
-      const d = data as { contentId?: string };
-      console.log("❌ Content rejected:", d?.contentId ?? "<unknown>");
-      handlersRef.current.onModerationApproval?.(data as ModerationApprovalData);
-    });
+    socket.on(
+      "moderation:content_rejected",
+      (data: ModerationApprovalData | { contentId?: string }) => {
+        const d = data as { contentId?: string };
+        console.log("❌ Content rejected:", d?.contentId ?? "<unknown>");
+        handlersRef.current.onModerationApproval?.(
+          data as ModerationApprovalData
+        );
+      }
+    );
 
     // Vote acknowledgment
     socket.on("vote:acknowledged", (data: { contentId: string }) => {

@@ -159,8 +159,12 @@ export function DiscussionCard({
     if (currentUserId && post.author.id === currentUserId && onDeletePost) {
       onDeletePost(post.id);
     } else {
-      // TODO: Implement delete functionality for moderators
-      console.log("Deleting post:", post.id);
+      // Moderators can also delete
+      if (canModerate && onDeletePost) {
+        onDeletePost(post.id);
+      } else {
+        console.log("Delete not permitted for this user", post.id);
+      }
     }
   };
 
@@ -177,13 +181,13 @@ export function DiscussionCard({
     e.stopPropagation();
     setShowDropdown(false);
     if (isApproving) return;
-  const prev = localApproved;
-  setLocalApproved(true);
+    const prev = localApproved;
+    setLocalApproved(true);
     try {
       await approvePost({ id: post.id }).unwrap();
       toast.success("Post approved");
     } catch {
-  setLocalApproved((prev ?? post.isModeratorApproved ?? false) as boolean);
+      setLocalApproved((prev ?? post.isModeratorApproved ?? false) as boolean);
       toast.error("Failed to approve post");
     }
   };
@@ -192,13 +196,13 @@ export function DiscussionCard({
     e.stopPropagation();
     setShowDropdown(false);
     if (isRejecting) return;
-  const prev = localApproved;
-  setLocalApproved(false);
+    const prev = localApproved;
+    setLocalApproved(false);
     try {
       await rejectPost({ id: post.id }).unwrap();
       toast.success("Approval removed");
     } catch {
-  setLocalApproved((prev ?? post.isModeratorApproved ?? false) as boolean);
+      setLocalApproved((prev ?? post.isModeratorApproved ?? false) as boolean);
       toast.error("Failed to remove approval");
     }
   };
@@ -483,7 +487,9 @@ export function DiscussionCard({
                   <div className="rounded-lg overflow-hidden border border-gray-200 shadow-sm">
                     <SocialVideoPlayer
                       src={post.video}
-                      poster={post.videoThumbnail || post.coverThumb || undefined}
+                      poster={
+                        post.videoThumbnail || post.coverThumb || undefined
+                      }
                       thumbnail={post.coverThumb || undefined}
                       postId={post.id}
                       className="w-full h-48 sm:h-56 lg:h-64"
@@ -502,7 +508,12 @@ export function DiscussionCard({
                     <div className="rounded-lg overflow-hidden border border-gray-200 shadow-sm">
                       <SocialVideoPlayer
                         src={post.video}
-                        poster={post.videoThumbnail || post.images[0] || post.coverThumb || undefined}
+                        poster={
+                          post.videoThumbnail ||
+                          post.images[0] ||
+                          post.coverThumb ||
+                          undefined
+                        }
                         thumbnail={post.coverThumb || undefined}
                         postId={post.id}
                         className="w-full h-32 sm:h-40"
@@ -594,7 +605,9 @@ export function DiscussionCard({
                 >
                   <ThumbsUp
                     className={`h-3 w-3 sm:h-3.5 sm:w-3.5 max-[475px]:h-2.5 max-[475px]:w-2.5 transition-transform duration-200 ${
-                      isUpSelected ? "scale-110 text-green-600" : "text-gray-600"
+                      isUpSelected
+                        ? "scale-110 text-green-600"
+                        : "text-gray-600"
                     }`}
                     strokeWidth={isUpSelected ? 2.5 : 2}
                   />
@@ -640,7 +653,9 @@ export function DiscussionCard({
                 >
                   <ThumbsDown
                     className={`h-3 w-3 sm:h-3.5 sm:w-3.5 max-[475px]:h-2.5 max-[475px]:w-2.5 transition-transform duration-200 ${
-                      isDownSelected ? "scale-110 text-red-600" : "text-gray-600"
+                      isDownSelected
+                        ? "scale-110 text-red-600"
+                        : "text-gray-600"
                     }`}
                     strokeWidth={isDownSelected ? 2.5 : 2}
                   />

@@ -5,7 +5,9 @@ export function getPostCoverThumbnail(post: PostMediaLike): string | null {
   if (post?.video?.thumbnail_url) return post.video.thumbnail_url || null;
   if (post?.images?.length && post.images[0]?.thumbnail_url)
     return post.images[0].thumbnail_url || null;
-  const firstMediaThumb = post?.media?.find((m) => !!m?.thumbnail_url)?.thumbnail_url;
+  const firstMediaThumb = post?.media?.find(
+    (m) => !!m?.thumbnail_url
+  )?.thumbnail_url;
   return firstMediaThumb || null;
 }
 

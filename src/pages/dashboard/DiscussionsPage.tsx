@@ -32,20 +32,21 @@ import { POSTS_PER_LOAD_MORE, LOADING_DEBOUNCE_DELAY } from "../../utils/posts";
 import {
   useGetPostsStatsQuery,
   useVotePostMutation,
+  useDeletePostMutation,
 } from "../../store/api/discussionsApi";
 import type { Post as ApiPost } from "../../store/api/discussionsApi";
 import { useInfiniteScroll } from "../../hooks/useInfiniteScroll";
 import { useMyPostsInfiniteScroll } from "../../hooks/useMyPostsInfiniteScroll";
 import { useGetMyPostsStatsQuery } from "../../store/api/discussionsApi";
 import { toast } from "sonner";
+import ConfirmDialog from "@/components/ui/confirm-dialog";
 import { getErrorMessage, isNetworkError } from "../../utils/error";
 import { getPostCoverThumbnail, getVideoThumbnail } from "../../lib/media";
 import { usePermissions } from "../../hooks/usePermissions";
 import { useWebSocket } from "../../hooks/useWebSocket";
 import type { PostMediaLike } from "@/types/postMedia";
 
-// Mock current user ID - in real app this would come from auth context
-const CURRENT_USER_ID = "user1"; // This matches the first author in mock data
+// Current user id is passed per-card when in My Posts view via each post's author.id
 
 // Map API post to UI post shape used by DiscussionCard
 const mapApiPostToUi = (p: ApiPost): Post => {
@@ -83,8 +84,8 @@ const mapApiPostToUi = (p: ApiPost): Post => {
     createdAt: p.createdAt,
     images: imagesArr.filter(Boolean) as string[],
     video: videoVal,
-  coverThumb,
-  videoThumbnail,
+    coverThumb,
+    videoThumbnail,
     isModeratorApproved: p.isModeratorApproved,
   };
 };
@@ -108,15 +109,24 @@ const useDebounce = (value: string, delay: number) => {
 
 export function DiscussionsPage() {
   // Overlay for thumbnails coming from WebSocket events
-  const [wsThumbs, setWsThumbs] = useState<Record<string, { coverThumb: string | null; videoThumbnail: string | null }>>({});
+  const [wsThumbs, setWsThumbs] = useState<
+    Record<string, { coverThumb: string | null; videoThumbnail: string | null }>
+  >({});
+  // Local optimistic hide for deleted posts (immediate UX)
+  const [clientDeleted, setClientDeleted] = useState<Record<string, boolean>>(
+    {}
+  );
 
   // Use shared PostMediaLike shape for WS payloads
   const { hasPermission } = usePermissions();
   const canModerateReports = hasPermission("MODERATE:REPORTS");
+  const canModeratePosts = hasPermission("MODERATE:POSTS");
   const [showCreatePost, setShowCreatePost] = useState(false);
   const [showMyPostsView, setShowMyPostsView] = useState(false);
   const [showEditPost, setShowEditPost] = useState(false);
   const [editingPost, setEditingPost] = useState<Post | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedTag, setSelectedTag] = useState("All");
   const [showModerationDashboard, setShowModerationDashboard] = useState(false);
@@ -174,15 +184,17 @@ export function DiscussionsPage() {
 
   // Map API posts to UI posts
   const displayedPosts = useMemo(() => {
-    const mapped = apiPosts.map((p) => {
-      const ui = mapApiPostToUi(p);
-      const overlay = wsThumbs[ui.id];
-      if (overlay) {
-        ui.coverThumb = overlay.coverThumb ?? ui.coverThumb;
-        ui.videoThumbnail = overlay.videoThumbnail ?? ui.videoThumbnail;
-      }
-      return ui;
-    });
+    const mapped = apiPosts
+      .filter((p) => !clientDeleted[p.id])
+      .map((p) => {
+        const ui = mapApiPostToUi(p);
+        const overlay = wsThumbs[ui.id];
+        if (overlay) {
+          ui.coverThumb = overlay.coverThumb ?? ui.coverThumb;
+          ui.videoThumbnail = overlay.videoThumbnail ?? ui.videoThumbnail;
+        }
+        return ui;
+      });
     console.log("🎯 DiscussionsPage mapping posts:", {
       apiPostsCount: apiPosts.length,
       mappedPostsCount: mapped.length,
@@ -192,10 +204,19 @@ export function DiscussionsPage() {
       error: !!error,
     });
     return mapped;
-  }, [apiPosts, hasNextPage, isLoading, isFetching, error, wsThumbs]);
+  }, [
+    apiPosts,
+    hasNextPage,
+    isLoading,
+    isFetching,
+    error,
+    wsThumbs,
+    clientDeleted,
+  ]);
 
   const { data: statsData } = useGetPostsStatsQuery();
   const [votePost] = useVotePostMutation();
+  const [deletePost] = useDeletePostMutation();
 
   // Real-time updates via WebSocket: refresh feeds on server events
   useWebSocket(
@@ -210,7 +231,10 @@ export function DiscussionsPage() {
           if (id) {
             setWsThumbs((prev) => ({
               ...prev,
-              [String(id)]: { coverThumb: cover ?? null, videoThumbnail: videoTn ?? null },
+              [String(id)]: {
+                coverThumb: cover ?? null,
+                videoThumbnail: videoTn ?? null,
+              },
             }));
           }
         }
@@ -225,7 +249,10 @@ export function DiscussionsPage() {
         if (id && (cover || videoTn)) {
           setWsThumbs((prev) => ({
             ...prev,
-            [String(id)]: { coverThumb: cover ?? null, videoThumbnail: videoTn ?? null },
+            [String(id)]: {
+              coverThumb: cover ?? null,
+              videoThumbnail: videoTn ?? null,
+            },
           }));
         }
         // Keep existing refresh to sync other fields
@@ -233,6 +260,23 @@ export function DiscussionsPage() {
       },
       onPostVote: () => {
         refresh();
+      },
+      onPostDelete: (data: { postId: string }) => {
+        // When another user deletes a post, refresh the active feed
+        if (data?.postId) {
+          // If we wanted to be surgical, we could also prune wsThumbs here
+          setWsThumbs((prev) => {
+            const next = { ...prev };
+            delete next[String(data.postId)];
+            return next;
+          });
+          // Hide instantly to avoid flicker
+          setClientDeleted((prev) => ({
+            ...prev,
+            [String(data.postId)]: true,
+          }));
+          refresh();
+        }
       },
     },
     {
@@ -380,21 +424,41 @@ export function DiscussionsPage() {
   // Handle deleting a post
   const handleDeleteUserPost = useCallback(
     (postId: string) => {
-      console.log("Deleting user's post:", postId);
-      const confirmed = window.confirm(
-        "Are you sure you want to delete this post? This action cannot be undone."
-      );
-      if (confirmed) {
-        // In a real app, this would use RTK Query mutation
-        console.log("Post deleted:", postId);
-        refresh();
-      }
+      setConfirmDeleteId(postId);
     },
-    [refresh]
+  []
   );
+
+  const confirmDelete = useCallback(async () => {
+    if (!confirmDeleteId) return;
+    try {
+      setIsDeleting(true);
+      const op = deletePost({ id: confirmDeleteId }).unwrap();
+      await toast.promise(op, {
+        loading: "Deleting post...",
+        success: "Post removed",
+        error: "Failed to delete post",
+      });
+      setClientDeleted((prev) => ({ ...prev, [confirmDeleteId]: true }));
+      refresh();
+    } finally {
+      setIsDeleting(false);
+      setConfirmDeleteId(null);
+    }
+  }, [confirmDeleteId, deletePost, refresh]);
 
   return (
     <>
+      <ConfirmDialog
+        open={!!confirmDeleteId}
+        title="Delete this post?"
+        description="This will remove the post for everyone. You can’t undo this."
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        onConfirm={confirmDelete}
+        onCancel={() => setConfirmDeleteId(null)}
+        loading={isDeleting}
+      />
       {/* Show Moderation Dashboard if active */}
       {showModerationDashboard ? (
         <ModerationDashboard
@@ -567,10 +631,12 @@ export function DiscussionsPage() {
                               showMyPostsView ? handleEditPost : undefined
                             }
                             onDeletePost={
-                              showMyPostsView ? handleDeleteUserPost : undefined
+                              showMyPostsView || canModeratePosts
+                                ? handleDeleteUserPost
+                                : undefined
                             }
                             currentUserId={
-                              showMyPostsView ? CURRENT_USER_ID : undefined
+                              showMyPostsView ? post.author.id : undefined
                             }
                           />
                         ))}

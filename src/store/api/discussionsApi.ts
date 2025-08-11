@@ -274,7 +274,16 @@ export const discussionsApi = baseApi.injectEndpoints({
         });
         return shouldRefetch;
       },
-      providesTags: ["Post"],
+      providesTags: (result) =>
+        result?.data?.posts
+          ? [
+              ...result.data.posts.map(({ id }) => ({
+                type: "Post" as const,
+                id,
+              })),
+              { type: "Post" as const, id: "LIST" },
+            ]
+          : [{ type: "Post" as const, id: "LIST" }],
     }),
 
     // Create a new post (JSON)
@@ -512,6 +521,20 @@ export const discussionsApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: ["Post"],
     }),
+
+    // Delete a post (soft delete on server)
+    deletePost: builder.mutation<{ success: boolean }, { id: string }>({
+      query: ({ id }) => ({
+        url: `/discussions/posts/${id}`,
+        method: "DELETE",
+      }),
+      // After delete, invalidate lists so active queries refetch without the post
+      invalidatesTags: (_res, _err, { id }) => [
+        { type: "Post", id },
+        { type: "Post", id: "LIST" },
+        { type: "Post", id: "MY_POSTS" },
+      ],
+    }),
   }),
 });
 
@@ -527,4 +550,5 @@ export const {
   useGetPostsStatsQuery,
   useApprovePostMutation,
   useRejectPostMutation,
+  useDeletePostMutation,
 } = discussionsApi;
