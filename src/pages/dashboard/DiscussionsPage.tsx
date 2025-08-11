@@ -36,6 +36,7 @@ import { useMyPostsInfiniteScroll } from "../../hooks/useMyPostsInfiniteScroll";
 import { useGetMyPostsStatsQuery } from "../../store/api/discussionsApi";
 import { toast } from "sonner";
 import { getErrorMessage, isNetworkError } from "../../utils/error";
+import { usePermissions } from "../../hooks/usePermissions";
 
 // Mock current user ID - in real app this would come from auth context
 const CURRENT_USER_ID = "user1"; // This matches the first author in mock data
@@ -96,6 +97,8 @@ const useDebounce = (value: string, delay: number) => {
 };
 
 export function DiscussionsPage() {
+  const { hasPermission } = usePermissions();
+  const canModerateReports = hasPermission("MODERATE:REPORTS");
   const [showCreatePost, setShowCreatePost] = useState(false);
   const [showMyPostsView, setShowMyPostsView] = useState(false);
   const [showEditPost, setShowEditPost] = useState(false);
@@ -635,22 +638,24 @@ export function DiscussionsPage() {
                           </p>
                         </div>
                       </button>
-                      <button
-                        onClick={() => setShowModerationDashboard(true)}
-                        className="w-full p-4 flex items-center gap-3 text-left hover:bg-gradient-to-r hover:from-purple-50 hover:to-purple-100/50 hover:cursor-pointer  transition-all duration-300 group border-b border-gray-100/50 last:border-b-0"
-                      >
-                        <div className="p-2 bg-purple-500 rounded-lg group-hover:bg-purple-600 transition-colors duration-300">
-                          <Shield className="h-4 w-4 text-white" />
-                        </div>
-                        <div className="flex-1">
-                          <span className="text-sm font-medium text-gray-700 group-hover:text-gray-900">
-                            Moderate Posts
-                          </span>
-                          <p className="text-xs text-gray-500 group-hover:text-gray-600">
-                            Review community content
-                          </p>
-                        </div>
-                      </button>
+                      {canModerateReports && (
+                        <button
+                          onClick={() => setShowModerationDashboard(true)}
+                          className="w-full p-4 flex items-center gap-3 text-left hover:bg-gradient-to-r hover:from-purple-50 hover:to-purple-100/50 hover:cursor-pointer  transition-all duration-300 group border-b border-gray-100/50 last:border-b-0"
+                        >
+                          <div className="p-2 bg-purple-500 rounded-lg group-hover:bg-purple-600 transition-colors duration-300">
+                            <Shield className="h-4 w-4 text-white" />
+                          </div>
+                          <div className="flex-1">
+                            <span className="text-sm font-medium text-gray-700 group-hover:text-gray-900">
+                              Moderate Reports
+                            </span>
+                            <p className="text-xs text-gray-500 group-hover:text-gray-600">
+                              Review community content
+                            </p>
+                          </div>
+                        </button>
+                      )}
                       <button
                         onClick={() => setShowLeaderboard(true)}
                         className="w-full p-4 flex items-center gap-3 text-left hover:bg-gradient-to-r hover:from-green-50 hover:to-green-100/50 hover:cursor-pointer  transition-all duration-300 group border-b border-gray-100/50 last:border-b-0"
