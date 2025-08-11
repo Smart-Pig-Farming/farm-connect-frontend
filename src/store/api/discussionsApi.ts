@@ -21,8 +21,9 @@ export interface Post {
   }>;
   upvotes: number;
   downvotes: number;
-  userVote: "upvote" | "downvote" | null;
+  userVote: "up" | "down" | "upvote" | "downvote" | null; // Accept both variants from API
   replies: number;
+  shares: number; // Added to match API spec
   isMarketPost: boolean;
   isAvailable: boolean;
   createdAt: string;
@@ -103,6 +104,18 @@ export interface PostsStatsResponse {
   };
 }
 
+export interface MyPostsStatsResponse {
+  success: boolean;
+  data: {
+    totalMyPosts: number;
+    myPostsToday: number;
+    approvedPosts: number;
+    pendingPosts: number;
+    marketPosts: number;
+    regularPosts: number;
+  };
+}
+
 export interface VoteResponse {
   success: boolean;
   message: string;
@@ -126,6 +139,21 @@ export interface PostsQueryParams {
   sort?: "recent" | "popular" | "replies";
   is_market_post?: boolean;
   user_id?: number;
+}
+
+// My Posts specific query parameters (extends PostsQueryParams)
+export interface MyPostsQueryParams {
+  // Pagination (choose one approach)
+  page?: number;
+  cursor?: string;
+  limit?: number;
+
+  // Filtering & Search
+  search?: string;
+  tag?: string;
+  sort?: "recent" | "popular" | "replies";
+  is_market_post?: boolean;
+  include_unapproved?: boolean; // Specific to my posts endpoint
 }
 
 // Create post form data interface
@@ -271,8 +299,8 @@ export const discussionsApi = baseApi.injectEndpoints({
             discussionsApi.util.updateQueryData("getPosts", {}, (draft) => {
               const post = draft.data?.posts.find((p: Post) => p.id === postId);
               if (post) {
-                const wasUpvoted = post.userVote === "upvote";
-                const wasDownvoted = post.userVote === "downvote";
+                const wasUpvoted = post.userVote === "up";
+                const wasDownvoted = post.userVote === "down";
 
                 if (vote_type === "upvote") {
                   if (wasUpvoted) {
@@ -285,7 +313,7 @@ export const discussionsApi = baseApi.injectEndpoints({
                     if (wasDownvoted) {
                       post.downvotes -= 1;
                     }
-                    post.userVote = "upvote";
+                    post.userVote = "up";
                   }
                 } else {
                   if (wasDownvoted) {
@@ -298,7 +326,7 @@ export const discussionsApi = baseApi.injectEndpoints({
                     if (wasUpvoted) {
                       post.upvotes -= 1;
                     }
-                    post.userVote = "downvote";
+                    post.userVote = "down";
                   }
                 }
               }
@@ -328,12 +356,117 @@ export const discussionsApi = baseApi.injectEndpoints({
     getPostsStats: builder.query<PostsStatsResponse, void>({
       query: () => "/discussions/posts/stats",
     }),
+
+    // Get statistics for the authenticated user's posts
+    getMyPostsStats: builder.query<MyPostsStatsResponse, void>({
+      query: () => "/discussions/my-posts/stats",
+      providesTags: [{ type: "Post", id: "MY_POSTS" }],
+    }),
+
+    // Get posts created by the authenticated user
+    getMyPosts: builder.query<PostsResponse, MyPostsQueryParams>({
+      query: (params) => {
+        const queryParams: Record<string, string> = {};
+
+        // Always include cursor parameter for cursor-based pagination
+        // Empty string for first page, ISO timestamp for subsequent pages
+        if (params.cursor !== undefined) {
+          queryParams.cursor = params.cursor;
+        }
+
+        // Add pagination parameters
+        if (params.limit) queryParams.limit = params.limit.toString();
+        if (params.page) queryParams.page = params.page.toString();
+
+        // Add filtering parameters
+        if (params.search) queryParams.search = params.search;
+        if (params.tag && params.tag !== "All") queryParams.tag = params.tag;
+        if (params.sort) queryParams.sort = params.sort;
+        if (params.is_market_post !== undefined) {
+          queryParams.is_market_post = params.is_market_post.toString();
+        }
+        if (params.include_unapproved !== undefined) {
+          queryParams.include_unapproved = params.include_unapproved.toString();
+        }
+
+        return {
+          url: "/discussions/my-posts",
+          params: queryParams,
+        };
+      },
+      // Create unique cache keys based on filter params (excluding cursor)
+      serializeQueryArgs: ({ queryArgs }) => {
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { cursor: _cursor, ...filterParams } = queryArgs;
+        return filterParams;
+      },
+      // Merge function to accumulate posts across pages for infinite scroll
+      merge: (currentCache, newItems, { arg }) => {
+        const newCursor = arg.cursor;
+        console.log("🔄 Merging my posts data:", {
+          newCursor,
+          currentCacheExists: !!currentCache,
+          newItemsCount: newItems?.data?.posts?.length || 0,
+          newCursorType: typeof newCursor,
+        });
+
+        // If cursor has ISO timestamp, append posts to existing ones
+        if (currentCache && newCursor && typeof newCursor === "string") {
+          console.log(
+            "📝 Current cache posts:",
+            currentCache.data?.posts?.length || 0
+          );
+          console.log(
+            "📝 New posts to append:",
+            newItems?.data?.posts?.length || 0
+          );
+
+          // If we have a cursor (ISO timestamp), append new posts to existing ones
+          const mergedData = {
+            ...newItems,
+            data: {
+              ...newItems.data,
+              posts: [
+                ...(currentCache.data?.posts || []),
+                ...(newItems.data?.posts || []),
+              ],
+            },
+          };
+
+          console.log("Appending my posts:", {
+            previousCount: currentCache.data?.posts?.length || 0,
+            newCount: newItems.data?.posts?.length || 0,
+            totalCount: mergedData.data?.posts?.length || 0,
+            nextCursor: newItems.data?.pagination?.nextCursor,
+            hasNextPage: newItems.data?.pagination?.hasNextPage,
+          });
+
+          return mergedData;
+        }
+
+        // For first page (no cursor or empty cursor), return new data
+        console.log("🆕 Returning fresh my posts data (first page)");
+        return newItems;
+      },
+      providesTags: (result) =>
+        result?.data?.posts
+          ? [
+              ...result.data.posts.map(({ id }) => ({
+                type: "Post" as const,
+                id,
+              })),
+              { type: "Post", id: "MY_POSTS" },
+            ]
+          : [{ type: "Post", id: "MY_POSTS" }],
+    }),
   }),
 });
 
 // Export hooks for use in components
 export const {
   useGetPostsQuery,
+  useGetMyPostsQuery,
+  useGetMyPostsStatsQuery,
   useCreatePostMutation,
   useVotePostMutation,
   useGetTagsQuery,

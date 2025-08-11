@@ -32,6 +32,9 @@ import { POSTS_PER_LOAD_MORE, LOADING_DEBOUNCE_DELAY } from "../../utils/posts";
 import { useGetPostsStatsQuery } from "../../store/api/discussionsApi";
 import type { Post as ApiPost } from "../../store/api/discussionsApi";
 import { useInfiniteScroll } from "../../hooks/useInfiniteScroll";
+import { useMyPostsInfiniteScroll } from "../../hooks/useMyPostsInfiniteScroll";
+import { useGetMyPostsStatsQuery } from "../../store/api/discussionsApi";
+import { toast } from "sonner";
 import { getErrorMessage, isNetworkError } from "../../utils/error";
 
 // Mock current user ID - in real app this would come from auth context
@@ -106,6 +109,41 @@ export function DiscussionsPage() {
   const debouncedSearchQuery = useDebounce(searchQuery, LOADING_DEBOUNCE_DELAY);
 
   // Use the new infinite scroll hook
+  // Community posts feed (enabled when not in My Posts view)
+  const communityFeed = useInfiniteScroll({
+    search: debouncedSearchQuery || undefined,
+    tag: selectedTag !== "All" ? selectedTag : undefined,
+    sort: "recent",
+    is_market_post: undefined,
+    user_id: undefined,
+    limit: POSTS_PER_LOAD_MORE,
+    enabled: !showMyPostsView,
+  });
+
+  // My posts feed (enabled when My Posts view)
+  const myPostsFeed = useMyPostsInfiniteScroll({
+    search: debouncedSearchQuery || undefined,
+    tag: selectedTag !== "All" ? selectedTag : undefined,
+    sort: "recent",
+    limit: POSTS_PER_LOAD_MORE,
+    enabled: showMyPostsView,
+  });
+
+  // My posts stats for the sidebar header counts when in My Posts view
+  const { data: myStats, error: myStatsError } = useGetMyPostsStatsQuery(
+    undefined,
+    { skip: !showMyPostsView }
+  );
+
+  // Toast on errors
+  useEffect(() => {
+    if (showMyPostsView) {
+      if (myStatsError) toast.error("Failed to load your post stats");
+      if (myPostsFeed.error) toast.error("Failed to load your posts");
+    }
+  }, [showMyPostsView, myStatsError, myPostsFeed.error]);
+
+  // Select active feed depending on view
   const {
     posts: apiPosts,
     isLoading,
@@ -115,14 +153,7 @@ export function DiscussionsPage() {
     refresh,
     facets,
     error,
-  } = useInfiniteScroll({
-    search: debouncedSearchQuery || undefined,
-    tag: selectedTag !== "All" ? selectedTag : undefined,
-    sort: "recent",
-    is_market_post: undefined,
-    user_id: showMyPostsView ? 1 : undefined, // TODO: map to real user id
-    limit: POSTS_PER_LOAD_MORE,
-  });
+  } = showMyPostsView ? myPostsFeed : communityFeed;
 
   // Map API posts to UI posts
   const displayedPosts = useMemo(() => {
@@ -342,13 +373,18 @@ export function DiscussionsPage() {
                         <div className="bg-white/15 px-3 py-1.5 rounded-full backdrop-blur-sm border border-white/20">
                           <span className="text-white/80">Total: </span>
                           <span className="text-white font-semibold">
-                            {statsData?.data?.totalDiscussions ?? 0} discussions
+                            {showMyPostsView
+                              ? myStats?.data?.totalMyPosts ?? 0
+                              : statsData?.data?.totalDiscussions ?? 0}{" "}
+                            discussions
                           </span>
                         </div>
                         <div className="bg-white/15 px-3 py-1.5 rounded-full backdrop-blur-sm border border-white/20">
                           <span className="text-white/80">Posts today: </span>
                           <span className="text-white font-semibold">
-                            {statsData?.data?.postsToday ?? 0}
+                            {showMyPostsView
+                              ? myStats?.data?.myPostsToday ?? 0
+                              : statsData?.data?.postsToday ?? 0}
                           </span>
                         </div>
                       </div>

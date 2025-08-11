@@ -1,40 +1,67 @@
 import { useCallback, useMemo, useState, useEffect } from "react";
 import { skipToken } from "@reduxjs/toolkit/query";
-import { useGetPostsQuery } from "../store/api/discussionsApi";
-import type { PostsQueryParams } from "../store/api/discussionsApi";
+import { useGetMyPostsQuery } from "../store/api/discussionsApi";
+import type { MyPostsQueryParams } from "../store/api/discussionsApi";
 
-export interface UseInfiniteScrollOptions {
+export interface UseMyPostsInfiniteScrollOptions {
   search?: string;
   tag?: string;
   sort?: "recent" | "popular" | "replies";
   is_market_post?: boolean;
-  user_id?: number;
+  include_unapproved?: boolean;
   limit?: number;
   enabled?: boolean; // when false, skip fetching
 }
 
-export const useInfiniteScroll = (options: UseInfiniteScrollOptions = {}) => {
+export const useMyPostsInfiniteScroll = (
+  options: UseMyPostsInfiniteScrollOptions = {}
+) => {
   const [currentCursor, setCurrentCursor] = useState<string>("");
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  const queryParams: PostsQueryParams = useMemo(
+  const queryParams: MyPostsQueryParams = useMemo(
     () => ({
       ...options,
       limit: options.limit || 10,
       // CRITICAL: Always include cursor parameter for cursor-based pagination
       // Empty string for first page, ISO timestamp for subsequent pages
       cursor: currentCursor,
+      // Default to include unapproved posts for user's own content
+      include_unapproved: options.include_unapproved ?? true,
     }),
     [options, currentCursor]
   );
 
-  const { data, isLoading, isFetching, error, refetch } = useGetPostsQuery(
+  const { data, isLoading, isFetching, error, refetch } = useGetMyPostsQuery(
     options.enabled === false ? skipToken : queryParams,
     {
       refetchOnMountOrArgChange: false,
       refetchOnFocus: false,
     }
   );
+
+  // Enhanced debug logging
+  console.log("🔍 useMyPostsInfiniteScroll hook state:", {
+    queryParams,
+    isLoading,
+    isFetching,
+    hasData: !!data,
+    dataStructure: data
+      ? {
+          success: data.success,
+          postsCount: data.data?.posts?.length || 0,
+          paginationExists: !!data.data?.pagination,
+          facetsExists: !!data.data?.facets,
+        }
+      : null,
+    error: error
+      ? {
+          status: "status" in error ? error.status : "unknown",
+          data: "data" in error ? error.data : "unknown",
+          message: "message" in error ? error.message : "unknown",
+        }
+      : null,
+  });
 
   // Create a stable filter key to detect when filters change
   const filterKey = useMemo(() => {
@@ -62,7 +89,7 @@ export const useInfiniteScroll = (options: UseInfiniteScrollOptions = {}) => {
   const totalCount = data?.data?.pagination?.count ?? posts.length;
 
   // Debug logging
-  console.log("📊 useInfiniteScroll state:", {
+  console.log("📊 useMyPostsInfiniteScroll state:", {
     postsCount: posts.length,
     hasNextPage,
     nextCursor,
@@ -74,7 +101,7 @@ export const useInfiniteScroll = (options: UseInfiniteScrollOptions = {}) => {
   });
 
   const loadMore = useCallback(() => {
-    console.log("🚀 loadMore called:", {
+    console.log("🚀 loadMore called for my posts:", {
       hasNextPage,
       isFetching,
       nextCursor,
@@ -97,13 +124,13 @@ export const useInfiniteScroll = (options: UseInfiniteScrollOptions = {}) => {
       nextCursor &&
       nextCursor !== currentCursor
     ) {
-      console.log("✅ Setting new cursor (ISO timestamp):", {
+      console.log("✅ Setting new cursor for my posts (ISO timestamp):", {
         nextCursor,
         isValidISO: /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(nextCursor),
       });
       setCurrentCursor(nextCursor);
     } else {
-      console.log("❌ Load more blocked:", {
+      console.log("❌ Load more blocked for my posts:", {
         hasNextPage,
         isFetching,
         hasNextCursor: !!nextCursor,
