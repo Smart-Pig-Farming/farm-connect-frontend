@@ -52,6 +52,15 @@ interface ReplyVoteData {
   downvotes: number;
 }
 
+// Generic moderation event payloads
+interface ModerationReportedData {
+  id: string;
+}
+
+interface ModerationApprovalData {
+  contentId: string;
+}
+
 interface NotificationData {
   id: string;
   userId: number;
@@ -64,7 +73,7 @@ interface NotificationData {
     | "post_reported";
   title: string;
   message: string;
-  data: Record<string, any>;
+  data: Record<string, unknown>;
   created_at: string;
 }
 
@@ -82,19 +91,19 @@ interface TypingData {
 // Event handlers interface
 interface WebSocketEventHandlers {
   onPostCreate?: (data: PostCreateData) => void;
-  onPostUpdate?: (data: any) => void;
+  onPostUpdate?: (data: unknown) => void;
   onPostDelete?: (data: { postId: string }) => void;
   onPostVote?: (data: PostVoteData) => void;
   onReplyCreate?: (data: ReplyCreateData) => void;
-  onReplyUpdate?: (data: any) => void;
+  onReplyUpdate?: (data: unknown) => void;
   onReplyDelete?: (data: { replyId: string; postId: string }) => void;
   onReplyVote?: (data: ReplyVoteData) => void;
   onUserOnline?: (data: UserActivity) => void;
   onUserOffline?: (data: UserActivity) => void;
   onUserTyping?: (data: TypingData) => void;
   onNotification?: (data: NotificationData) => void;
-  onModerationReport?: (data: any) => void;
-  onModerationApproval?: (data: any) => void;
+  onModerationReport?: (data: unknown) => void;
+  onModerationApproval?: (data: unknown) => void;
 }
 
 interface UseWebSocketOptions {
@@ -169,6 +178,7 @@ export const useWebSocket = (
         token: authToken,
       },
       transports: ["websocket", "polling"],
+      withCredentials: true,
       autoConnect: false,
     });
 
@@ -201,9 +211,10 @@ export const useWebSocket = (
       handlersRef.current.onPostCreate?.(data);
     });
 
-    socket.on("post:update", (data: any) => {
-      console.log("✏️ Post updated:", data.id);
-      handlersRef.current.onPostUpdate?.(data);
+    socket.on("post:update", (data: PostCreateData | { id?: string }) => {
+      const d = data as { id?: string };
+      console.log("✏️ Post updated:", d?.id ?? "<unknown>");
+      handlersRef.current.onPostUpdate?.(data as PostCreateData);
     });
 
     socket.on("post:delete", (data: { postId: string }) => {
@@ -221,9 +232,10 @@ export const useWebSocket = (
       handlersRef.current.onReplyCreate?.(data);
     });
 
-    socket.on("reply:update", (data: any) => {
-      console.log("✏️ Reply updated:", data.id);
-      handlersRef.current.onReplyUpdate?.(data);
+    socket.on("reply:update", (data: ReplyCreateData | { id?: string }) => {
+      const d = data as { id?: string };
+      console.log("✏️ Reply updated:", d?.id ?? "<unknown>");
+      handlersRef.current.onReplyUpdate?.(data as ReplyCreateData);
     });
 
     socket.on("reply:delete", (data: { replyId: string; postId: string }) => {
@@ -265,19 +277,22 @@ export const useWebSocket = (
     });
 
     // Moderation events
-    socket.on("moderation:content_reported", (data: any) => {
-      console.log("🚨 Content reported:", data.id);
-      handlersRef.current.onModerationReport?.(data);
+    socket.on("moderation:content_reported", (data: ModerationReportedData | { id?: string }) => {
+      const d = data as { id?: string };
+      console.log("🚨 Content reported:", d?.id ?? "<unknown>");
+      handlersRef.current.onModerationReport?.(data as ModerationReportedData);
     });
 
-    socket.on("moderation:content_approved", (data: any) => {
-      console.log("✅ Content approved:", data.contentId);
-      handlersRef.current.onModerationApproval?.(data);
+    socket.on("moderation:content_approved", (data: ModerationApprovalData | { contentId?: string }) => {
+      const d = data as { contentId?: string };
+      console.log("✅ Content approved:", d?.contentId ?? "<unknown>");
+      handlersRef.current.onModerationApproval?.(data as ModerationApprovalData);
     });
 
-    socket.on("moderation:content_rejected", (data: any) => {
-      console.log("❌ Content rejected:", data.contentId);
-      handlersRef.current.onModerationApproval?.(data);
+    socket.on("moderation:content_rejected", (data: ModerationApprovalData | { contentId?: string }) => {
+      const d = data as { contentId?: string };
+      console.log("❌ Content rejected:", d?.contentId ?? "<unknown>");
+      handlersRef.current.onModerationApproval?.(data as ModerationApprovalData);
     });
 
     // Vote acknowledgment
@@ -317,26 +332,6 @@ export const useWebSocket = (
     }
   }, []);
 
-  // Typing indicators with auto-stop
-  const startTyping = useCallback((postId: string) => {
-    if (socketRef.current?.connected) {
-      socketRef.current.emit("typing:start", { postId });
-
-      // Clear existing timeout for this post
-      const existingTimeout = typingTimeoutsRef.current.get(postId);
-      if (existingTimeout) {
-        clearTimeout(existingTimeout);
-      }
-
-      // Auto-stop typing after 3 seconds of inactivity
-      const timeout = setTimeout(() => {
-        stopTyping(postId);
-      }, 3000);
-
-      typingTimeoutsRef.current.set(postId, timeout);
-    }
-  }, []);
-
   const stopTyping = useCallback((postId: string) => {
     if (socketRef.current?.connected) {
       socketRef.current.emit("typing:stop", { postId });
@@ -349,6 +344,29 @@ export const useWebSocket = (
       }
     }
   }, []);
+
+  // Typing indicators with auto-stop
+  const startTyping = useCallback(
+    (postId: string) => {
+      if (socketRef.current?.connected) {
+        socketRef.current.emit("typing:start", { postId });
+
+        // Clear existing timeout for this post
+        const existingTimeout = typingTimeoutsRef.current.get(postId);
+        if (existingTimeout) {
+          clearTimeout(existingTimeout);
+        }
+
+        // Auto-stop typing after 3 seconds of inactivity
+        const timeout = setTimeout(() => {
+          stopTyping(postId);
+        }, 3000);
+
+        typingTimeoutsRef.current.set(postId, timeout);
+      }
+    },
+    [stopTyping]
+  );
 
   // Vote casting with acknowledgment
   const castVote = useCallback(
@@ -371,21 +389,22 @@ export const useWebSocket = (
 
   // Auto-connect on mount if enabled
   useEffect(() => {
-    if (autoConnect && authToken) {
+    if (autoConnect) {
       connect();
     }
 
     return () => {
       disconnect();
     };
-  }, [autoConnect, authToken, connect, disconnect]);
+  }, [autoConnect, connect, disconnect]);
 
   // Cleanup on unmount
   useEffect(() => {
+    const timeoutsMap = typingTimeoutsRef.current;
     return () => {
       // Clear all typing timeouts
-      typingTimeoutsRef.current.forEach((timeout) => clearTimeout(timeout));
-      typingTimeoutsRef.current.clear();
+      timeoutsMap.forEach((timeout) => clearTimeout(timeout));
+      timeoutsMap.clear();
     };
   }, []);
 

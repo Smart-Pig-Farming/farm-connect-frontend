@@ -83,10 +83,27 @@ export interface PostsResponse {
 
 export interface CreatePostResponse {
   success: boolean;
-  message: string;
+  data: { id: string; message: string };
+}
+
+export interface UploadMediaResponse {
+  success: boolean;
   data: {
-    post: Post;
+    media: Array<{
+      id: string | number;
+      media_type: "image" | "video";
+      storage_key: string;
+      file_name: string;
+      file_size: number;
+      mime_type: string;
+      display_order: number;
+    }>;
   };
+}
+
+export interface ApproveRejectResponse {
+  success: boolean;
+  data: { id: string; is_approved: boolean };
 }
 
 export interface TagsResponse {
@@ -260,19 +277,39 @@ export const discussionsApi = baseApi.injectEndpoints({
       providesTags: ["Post"],
     }),
 
-    // Create a new post
-    createPost: builder.mutation<CreatePostResponse, FormData>({
-      query: (formData) => ({
+    // Create a new post (JSON)
+    createPost: builder.mutation<
+      CreatePostResponse,
+      {
+        title: string;
+        content: string;
+        tags?: string[];
+        is_market_post?: boolean;
+        is_available?: boolean;
+      }
+    >({
+      query: (body) => ({
         url: "/discussions/posts",
         method: "POST",
-        body: formData,
-        // Don't set Content-Type header for FormData - browser will set it with boundary
-        prepareHeaders: (headers: Headers) => {
-          headers.delete("Content-Type");
-          return headers;
-        },
+        body,
       }),
       invalidatesTags: [{ type: "Post", id: "LIST" }],
+    }),
+
+    // Upload media for a post (multipart)
+    uploadPostMedia: builder.mutation<
+      UploadMediaResponse,
+      { postId: string; files: File[] }
+    >({
+      query: ({ postId, files }) => {
+        const fd = new FormData();
+        files.forEach((f) => fd.append("media", f));
+        return {
+          url: `/discussions/posts/${postId}/media`,
+          method: "POST",
+          body: fd,
+        } as const;
+      },
     }),
 
     // Vote on a post
@@ -459,6 +496,22 @@ export const discussionsApi = baseApi.injectEndpoints({
             ]
           : [{ type: "Post", id: "MY_POSTS" }],
     }),
+
+    // Admin moderation
+    approvePost: builder.mutation<ApproveRejectResponse, { id: string }>({
+      query: ({ id }) => ({
+        url: `/admin/discussions/posts/${id}/approve`,
+        method: "PATCH",
+      }),
+      invalidatesTags: ["Post"],
+    }),
+    rejectPost: builder.mutation<ApproveRejectResponse, { id: string }>({
+      query: ({ id }) => ({
+        url: `/admin/discussions/posts/${id}/reject`,
+        method: "PATCH",
+      }),
+      invalidatesTags: ["Post"],
+    }),
   }),
 });
 
@@ -468,7 +521,10 @@ export const {
   useGetMyPostsQuery,
   useGetMyPostsStatsQuery,
   useCreatePostMutation,
+  useUploadPostMediaMutation,
   useVotePostMutation,
   useGetTagsQuery,
   useGetPostsStatsQuery,
+  useApprovePostMutation,
+  useRejectPostMutation,
 } = discussionsApi;

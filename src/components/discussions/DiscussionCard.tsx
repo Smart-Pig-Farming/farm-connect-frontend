@@ -28,6 +28,11 @@ import { SocialVideoPlayer } from "@/components/ui/social-video-player";
 import { ImageGrid } from "@/components/ui/image-grid";
 import type { Post } from "../../data/posts";
 import { usePermissions } from "@/hooks/usePermissions";
+import {
+  useApprovePostMutation,
+  useRejectPostMutation,
+} from "@/store/api/discussionsApi";
+import { toast } from "sonner";
 
 interface DiscussionCardProps {
   post: Post;
@@ -56,6 +61,8 @@ export function DiscussionCard({
   onDeletePost,
   currentUserId,
 }: DiscussionCardProps) {
+  const isUpSelected = post.userVote === "up";
+  const isDownSelected = post.userVote === "down";
   const { hasPermission } = usePermissions();
   const canModerate = hasPermission("MODERATE:POSTS");
   const [showReportModal, setShowReportModal] = useState(false);
@@ -65,6 +72,17 @@ export function DiscussionCard({
   const [isContentExpanded, setIsContentExpanded] = useState(false);
   const [showReplies, setShowReplies] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const [localApproved, setLocalApproved] = useState<boolean | null>(null);
+  // Transient vote feedback
+  const [flashUp, setFlashUp] = useState(false);
+  const [flashDown, setFlashDown] = useState(false);
+  const [upDelta, setUpDelta] = useState<number | null>(null);
+  const [downDelta, setDownDelta] = useState<number | null>(null);
+
+  const [approvePost, { isLoading: isApproving }] = useApprovePostMutation();
+  const [rejectPost, { isLoading: isRejecting }] = useRejectPostMutation();
+
+  const isApproved = (localApproved ?? post.isModeratorApproved) === true;
 
   // Content truncation logic - social media style
   const MAX_CONTENT_LENGTH = 200; // Characters to show before "Read more"
@@ -95,6 +113,24 @@ export function DiscussionCard({
   }, [showDropdown]);
 
   const handleVote = (voteType: "up" | "down") => {
+    // Determine if this action adds or removes a vote based on current state
+    if (voteType === "up") {
+      const delta = post.userVote === "up" ? -1 : 1;
+      setUpDelta(delta);
+      setFlashUp(true);
+      setTimeout(() => {
+        setFlashUp(false);
+        setUpDelta(null);
+      }, 500);
+    } else {
+      const delta = post.userVote === "down" ? -1 : 1;
+      setDownDelta(delta);
+      setFlashDown(true);
+      setTimeout(() => {
+        setFlashDown(false);
+        setDownDelta(null);
+      }, 500);
+    }
     onVote?.(post.id, voteType);
   };
 
@@ -137,18 +173,34 @@ export function DiscussionCard({
     }
   };
 
-  const handleApprovePost = (e: React.MouseEvent) => {
+  const handleApprovePost = async (e: React.MouseEvent) => {
     e.stopPropagation();
     setShowDropdown(false);
-    // TODO: Implement approve functionality
-    console.log("Approving post:", post.id);
+    if (isApproving) return;
+  const prev = localApproved;
+  setLocalApproved(true);
+    try {
+      await approvePost({ id: post.id }).unwrap();
+      toast.success("Post approved");
+    } catch {
+  setLocalApproved((prev ?? post.isModeratorApproved ?? false) as boolean);
+      toast.error("Failed to approve post");
+    }
   };
 
-  const handleUndoApproval = (e: React.MouseEvent) => {
+  const handleUndoApproval = async (e: React.MouseEvent) => {
     e.stopPropagation();
     setShowDropdown(false);
-    // TODO: Implement undo approval functionality
-    console.log("Undoing approval for post:", post.id);
+    if (isRejecting) return;
+  const prev = localApproved;
+  setLocalApproved(false);
+    try {
+      await rejectPost({ id: post.id }).unwrap();
+      toast.success("Approval removed");
+    } catch {
+  setLocalApproved((prev ?? post.isModeratorApproved ?? false) as boolean);
+      toast.error("Failed to remove approval");
+    }
   };
 
   const toggleDropdown = (e: React.MouseEvent) => {
@@ -284,7 +336,7 @@ export function DiscussionCard({
                     ) : (
                       // Other users' posts - show moderation options or default options
                       <>
-                        {!post.isModeratorApproved ? (
+                        {!isApproved ? (
                           <button
                             onClick={handleApprovePost}
                             className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2 transition-colors duration-200"
@@ -348,7 +400,7 @@ export function DiscussionCard({
                 </div>
 
                 {/* Moderator Approval Badge - Mobile Responsive */}
-                {post.isModeratorApproved && (
+                {isApproved && (
                   <div className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 rounded-md sm:rounded-lg bg-gradient-to-r from-emerald-500 to-teal-600 shadow-md hover:shadow-lg transition-all duration-200 hover:scale-105 flex-shrink-0">
                     <Award
                       className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-white"
@@ -431,12 +483,8 @@ export function DiscussionCard({
                   <div className="rounded-lg overflow-hidden border border-gray-200 shadow-sm">
                     <SocialVideoPlayer
                       src={post.video}
-                      poster={
-                        post.images.length > 0
-                          ? post.images[0]
-                          : "/images/post_image.jpg"
-                      }
-                      thumbnail="/images/thumbnail.png"
+                      poster={post.videoThumbnail || post.coverThumb || undefined}
+                      thumbnail={post.coverThumb || undefined}
                       postId={post.id}
                       className="w-full h-48 sm:h-56 lg:h-64"
                       muted={true}
@@ -454,8 +502,8 @@ export function DiscussionCard({
                     <div className="rounded-lg overflow-hidden border border-gray-200 shadow-sm">
                       <SocialVideoPlayer
                         src={post.video}
-                        poster={post.images[0]}
-                        thumbnail="/images/thumbnail.png"
+                        poster={post.videoThumbnail || post.images[0] || post.coverThumb || undefined}
+                        thumbnail={post.coverThumb || undefined}
                         postId={post.id}
                         className="w-full h-32 sm:h-40"
                         muted={true}
@@ -518,30 +566,44 @@ export function DiscussionCard({
               <Button
                 variant="ghost"
                 size="sm"
-                className={`flex items-center gap-1 px-2 sm:px-3 py-1.5 sm:py-2 cursor-pointer transition-all duration-300 ease-in-out hover:scale-[1.02] max-[475px]:px-1.5 max-[475px]:py-1 max-[475px]:text-xs ${
+                className={`relative flex items-center gap-1 px-2 sm:px-3 py-1.5 sm:py-2 cursor-pointer transition-all duration-300 ease-in-out hover:scale-[1.02] max-[475px]:px-1.5 max-[475px]:py-1 max-[475px]:text-xs ${
                   post.userVote === "up"
                     ? "bg-green-50 text-green-600"
                     : "text-gray-600 hover:text-green-600"
-                }`}
+                } ${flashUp ? "ring-2 ring-green-300 ring-offset-1" : ""}`}
                 onClick={(e) => {
                   e.stopPropagation();
                   handleVote("up");
                 }}
               >
+                {typeof upDelta === "number" && (
+                  <span
+                    className={`absolute -top-2 right-1 text-[10px] font-semibold ${
+                      upDelta > 0 ? "text-green-600" : "text-gray-500"
+                    } animate-bounce`}
+                  >
+                    {upDelta > 0 ? "+1" : "-1"}
+                  </span>
+                )}
                 <div
                   className={`p-1 rounded border border-transparent transition-all duration-300 ease-in-out ${
-                    post.userVote === "up"
+                    isUpSelected
                       ? "border-green-400 bg-green-100"
                       : "hover:border-green-400"
-                  }`}
+                  } ${flashUp ? "animate-pulse" : ""}`}
                 >
                   <ThumbsUp
                     className={`h-3 w-3 sm:h-3.5 sm:w-3.5 max-[475px]:h-2.5 max-[475px]:w-2.5 transition-transform duration-200 ${
-                      post.userVote === "up" ? "scale-110" : ""
+                      isUpSelected ? "scale-110 text-green-600" : "text-gray-600"
                     }`}
+                    strokeWidth={isUpSelected ? 2.5 : 2}
                   />
                 </div>
-                <span className="text-xs sm:text-sm font-medium max-[475px]:text-[10px]">
+                <span
+                  className={`text-xs sm:text-sm font-medium max-[475px]:text-[10px] transition-transform duration-200 ${
+                    flashUp ? "scale-125" : ""
+                  } ${isUpSelected ? "text-green-700" : "text-gray-700"}`}
+                >
                   {post.upvotes}
                 </span>
               </Button>
@@ -550,30 +612,44 @@ export function DiscussionCard({
               <Button
                 variant="ghost"
                 size="sm"
-                className={`flex items-center gap-1 px-2 sm:px-3 py-1.5 sm:py-2 cursor-pointer transition-all duration-300 ease-in-out hover:scale-[1.02] max-[475px]:px-1.5 max-[475px]:py-1 max-[475px]:text-xs ${
+                className={`relative flex items-center gap-1 px-2 sm:px-3 py-1.5 sm:py-2 cursor-pointer transition-all duration-300 ease-in-out hover:scale-[1.02] max-[475px]:px-1.5 max-[475px]:py-1 max-[475px]:text-xs ${
                   post.userVote === "down"
                     ? "bg-red-50 text-red-600"
                     : "text-gray-600 hover:text-red-600"
-                }`}
+                } ${flashDown ? "ring-2 ring-red-300 ring-offset-1" : ""}`}
                 onClick={(e) => {
                   e.stopPropagation();
                   handleVote("down");
                 }}
               >
+                {typeof downDelta === "number" && (
+                  <span
+                    className={`absolute -top-2 right-1 text-[10px] font-semibold ${
+                      downDelta > 0 ? "text-red-600" : "text-gray-500"
+                    } animate-bounce`}
+                  >
+                    {downDelta > 0 ? "+1" : "-1"}
+                  </span>
+                )}
                 <div
                   className={`p-1 rounded border border-transparent transition-all duration-300 ease-in-out ${
-                    post.userVote === "down"
+                    isDownSelected
                       ? "border-red-400 bg-red-100"
                       : "hover:border-red-400"
-                  }`}
+                  } ${flashDown ? "animate-pulse" : ""}`}
                 >
                   <ThumbsDown
                     className={`h-3 w-3 sm:h-3.5 sm:w-3.5 max-[475px]:h-2.5 max-[475px]:w-2.5 transition-transform duration-200 ${
-                      post.userVote === "down" ? "scale-110" : ""
+                      isDownSelected ? "scale-110 text-red-600" : "text-gray-600"
                     }`}
+                    strokeWidth={isDownSelected ? 2.5 : 2}
                   />
                 </div>
-                <span className="text-xs sm:text-sm font-medium max-[475px]:text-[10px]">
+                <span
+                  className={`text-xs sm:text-sm font-medium max-[475px]:text-[10px] transition-transform duration-200 ${
+                    flashDown ? "scale-125" : ""
+                  } ${isDownSelected ? "text-red-700" : "text-gray-700"}`}
+                >
                   {post.downvotes}
                 </span>
               </Button>

@@ -29,14 +29,20 @@ import { ModerationDashboard } from "../../components/discussions/ModerationDash
 import { TagFilter } from "../../components/discussions/TagFilter";
 import { mockStats, type Post } from "../../data/posts";
 import { POSTS_PER_LOAD_MORE, LOADING_DEBOUNCE_DELAY } from "../../utils/posts";
-import { useGetPostsStatsQuery } from "../../store/api/discussionsApi";
+import {
+  useGetPostsStatsQuery,
+  useVotePostMutation,
+} from "../../store/api/discussionsApi";
 import type { Post as ApiPost } from "../../store/api/discussionsApi";
 import { useInfiniteScroll } from "../../hooks/useInfiniteScroll";
 import { useMyPostsInfiniteScroll } from "../../hooks/useMyPostsInfiniteScroll";
 import { useGetMyPostsStatsQuery } from "../../store/api/discussionsApi";
 import { toast } from "sonner";
 import { getErrorMessage, isNetworkError } from "../../utils/error";
+import { getPostCoverThumbnail, getVideoThumbnail } from "../../lib/media";
 import { usePermissions } from "../../hooks/usePermissions";
+import { useWebSocket } from "../../hooks/useWebSocket";
+import type { PostMediaLike } from "@/types/postMedia";
 
 // Mock current user ID - in real app this would come from auth context
 const CURRENT_USER_ID = "user1"; // This matches the first author in mock data
@@ -46,6 +52,8 @@ const mapApiPostToUi = (p: ApiPost): Post => {
   const tagStrings = p.tags.map((t) => t.name);
   const imagesArr = p.images.map((m) => m.url);
   const videoVal = p.video ? p.video.url : null;
+  const coverThumb = getPostCoverThumbnail(p);
+  const videoThumbnail = getVideoThumbnail(p);
   return {
     id: p.id,
     title: p.title,
@@ -75,6 +83,8 @@ const mapApiPostToUi = (p: ApiPost): Post => {
     createdAt: p.createdAt,
     images: imagesArr.filter(Boolean) as string[],
     video: videoVal,
+  coverThumb,
+  videoThumbnail,
     isModeratorApproved: p.isModeratorApproved,
   };
 };
@@ -97,6 +107,10 @@ const useDebounce = (value: string, delay: number) => {
 };
 
 export function DiscussionsPage() {
+  // Overlay for thumbnails coming from WebSocket events
+  const [wsThumbs, setWsThumbs] = useState<Record<string, { coverThumb: string | null; videoThumbnail: string | null }>>({});
+
+  // Use shared PostMediaLike shape for WS payloads
   const { hasPermission } = usePermissions();
   const canModerateReports = hasPermission("MODERATE:REPORTS");
   const [showCreatePost, setShowCreatePost] = useState(false);
@@ -160,7 +174,15 @@ export function DiscussionsPage() {
 
   // Map API posts to UI posts
   const displayedPosts = useMemo(() => {
-    const mapped = apiPosts.map(mapApiPostToUi);
+    const mapped = apiPosts.map((p) => {
+      const ui = mapApiPostToUi(p);
+      const overlay = wsThumbs[ui.id];
+      if (overlay) {
+        ui.coverThumb = overlay.coverThumb ?? ui.coverThumb;
+        ui.videoThumbnail = overlay.videoThumbnail ?? ui.videoThumbnail;
+      }
+      return ui;
+    });
     console.log("🎯 DiscussionsPage mapping posts:", {
       apiPostsCount: apiPosts.length,
       mappedPostsCount: mapped.length,
@@ -170,9 +192,56 @@ export function DiscussionsPage() {
       error: !!error,
     });
     return mapped;
-  }, [apiPosts, hasNextPage, isLoading, isFetching, error]);
+  }, [apiPosts, hasNextPage, isLoading, isFetching, error, wsThumbs]);
 
   const { data: statsData } = useGetPostsStatsQuery();
+  const [votePost] = useVotePostMutation();
+
+  // Real-time updates via WebSocket: refresh feeds on server events
+  useWebSocket(
+    {
+      onPostCreate: (data: unknown) => {
+        // Compute thumbnails from WS payload when available
+        const ws = data as PostMediaLike;
+        const cover = getPostCoverThumbnail(ws);
+        const videoTn = getVideoThumbnail(ws);
+        if (cover || videoTn) {
+          const id = ws?.id;
+          if (id) {
+            setWsThumbs((prev) => ({
+              ...prev,
+              [String(id)]: { coverThumb: cover ?? null, videoThumbnail: videoTn ?? null },
+            }));
+          }
+        }
+        // Also refresh list for non-My Posts view to bring in the new item
+        if (!showMyPostsView) refresh();
+      },
+      onPostUpdate: (data: unknown) => {
+        const ws = data as PostMediaLike;
+        const cover = getPostCoverThumbnail(ws);
+        const videoTn = getVideoThumbnail(ws);
+        const id = ws?.id;
+        if (id && (cover || videoTn)) {
+          setWsThumbs((prev) => ({
+            ...prev,
+            [String(id)]: { coverThumb: cover ?? null, videoThumbnail: videoTn ?? null },
+          }));
+        }
+        // Keep existing refresh to sync other fields
+        refresh();
+      },
+      onPostVote: () => {
+        refresh();
+      },
+    },
+    {
+      autoConnect: true,
+      serverUrl:
+        (import.meta as unknown as { env?: { VITE_API_URL?: string } }).env
+          ?.VITE_API_URL || "http://localhost:5000",
+    }
+  );
 
   // Helper function to convert Post to PostToEdit
   const convertPostToPostToEdit = useCallback(
@@ -240,17 +309,16 @@ export function DiscussionsPage() {
   const handleVotePost = useCallback(
     async (postId: string, voteType: "up" | "down") => {
       try {
-        console.log(`${voteType}voting post:`, postId);
-        // In a real app, this would use the RTK Query mutation
-        // await votePost({ postId, vote_type: voteType === "up" ? "upvote" : "downvote" }).unwrap();
-
-        // For now, just refresh to get updated data
-        refresh();
+        await votePost({
+          postId,
+          vote_type: voteType === "up" ? "upvote" : "downvote",
+        }).unwrap();
       } catch (error) {
         console.error("Error voting on post:", error);
+        toast.error("Failed to record your vote");
       }
     },
-    [refresh]
+    [votePost]
   );
 
   // Handle voting on a reply

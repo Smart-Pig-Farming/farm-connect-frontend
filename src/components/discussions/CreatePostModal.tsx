@@ -20,6 +20,7 @@ import {
   useCreatePostMutation,
   useGetTagsQuery,
 } from "@/store/api/discussionsApi";
+import type { UploadMediaResponse } from "@/store/api/discussionsApi";
 
 interface CreatePostModalProps {
   isOpen: boolean;
@@ -88,6 +89,8 @@ export function CreatePostModal({
   const [images, setImages] = useState<File[]>([]);
   const [video, setVideo] = useState<File | null>(null);
   const [mediaType, setMediaType] = useState<"images" | "video">("images");
+  const [isUploadingMedia, setIsUploadingMedia] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
 
   // Form validation state
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -117,6 +120,8 @@ export function CreatePostModal({
     setVideo(null);
     setMediaType("images");
     setErrors({});
+    setIsUploadingMedia(false);
+    setUploadProgress(0);
   }, []);
 
   useEffect(() => {
@@ -305,7 +310,7 @@ export function CreatePostModal({
     toast.info("Video removed");
   }, []);
 
-  // Form submission
+  // Form submission (2-step: create JSON, then upload media)
   const handleSubmit = async () => {
     // Validate all steps
     if (!validateStep("content") || !validateStep("media")) {
@@ -321,47 +326,42 @@ export function CreatePostModal({
       });
     }
 
-    // Create FormData
-    const formData = new FormData();
-    formData.append("title", title.trim());
-    formData.append("content", content.trim());
-    formData.append("is_market_post", isMarketPost.toString());
-    formData.append("is_available", isAvailable.toString());
+    // Build JSON payload first to avoid multipart tags issue
+    const body = {
+      title: title.trim(),
+      content: content.trim(),
+      tags: selectedTags,
+      is_market_post: isMarketPost,
+      is_available: isMarketPost ? isAvailable : true,
+    };
 
-    if (selectedTags.length > 0) {
-      formData.append("tags", JSON.stringify(selectedTags));
-    }
-
-    // Add media files
-    if (images.length > 0) {
-      images.forEach((image) => {
-        formData.append("media", image);
-      });
-    } else if (video) {
-      formData.append("media", video);
-    }
-
-    // Show loading toast
     const loadingToastId = toast.loading("Creating your post...", {
-      description: "Uploading content and media files",
+      description:
+        images.length || video
+          ? "Uploading content and media"
+          : "Submitting content",
     });
 
     try {
-      const result = await createPost(formData).unwrap();
+      // 1) Create post (JSON)
+      const created = await createPost(body).unwrap();
+      const postId = created.data.id;
 
-      // Dismiss loading toast
+      // 2) If media present, upload via separate endpoint
+      if (images.length > 0 || video) {
+        const files: File[] = images.length > 0 ? images : video ? [video] : [];
+        setIsUploadingMedia(true);
+        setUploadProgress(0);
+        await uploadPostMediaWithProgress(postId, files, (pct) => {
+          setUploadProgress(pct);
+        });
+        setUploadProgress(100);
+        setIsUploadingMedia(false);
+      }
+
       toast.dismiss(loadingToastId);
-
-      // Show success toast
       toast.success("Post created successfully!", {
-        description: result.message,
-        action: {
-          label: "View",
-          onClick: () => {
-            // TODO: Navigate to post detail
-            console.log("Navigate to post:", result.data.post.id);
-          },
-        },
+        description: created.data.message,
       });
 
       // Close modal and reset
@@ -403,6 +403,61 @@ export function CreatePostModal({
         },
       });
     }
+  };
+
+  // XHR helper for upload with progress
+  const uploadPostMediaWithProgress = (
+    postId: string,
+    files: File[],
+    onProgress?: (percent: number) => void
+  ) => {
+    return new Promise<UploadMediaResponse>((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open("POST", `/api/discussions/posts/${postId}/media`);
+      xhr.withCredentials = true; // include cookies
+
+      // CSRF header from cookie
+      try {
+        const csrf = document.cookie
+          .split("; ")
+          .find((c) => c.startsWith("csrfToken="))
+          ?.split("=")[1];
+        if (csrf) xhr.setRequestHeader("x-csrf-token", csrf);
+      } catch {
+        // noop
+      }
+
+      xhr.upload.onprogress = (event) => {
+        if (event.lengthComputable && onProgress) {
+          const pct = Math.round((event.loaded / event.total) * 100);
+          onProgress(pct);
+        }
+      };
+
+      xhr.onreadystatechange = () => {
+        if (xhr.readyState === XMLHttpRequest.DONE) {
+          try {
+            const status = xhr.status;
+            const json = JSON.parse(xhr.responseText || "{}");
+            if (status >= 200 && status < 300) {
+              resolve(json as UploadMediaResponse);
+            } else {
+              reject({ status, data: json });
+            }
+          } catch (e) {
+            reject(e);
+          }
+        }
+      };
+
+      xhr.onerror = () => {
+        reject({ status: 0, data: { message: "Network error" } });
+      };
+
+      const fd = new FormData();
+      files.forEach((f) => fd.append("media", f));
+      xhr.send(fd);
+    });
   };
 
   const handleTagToggle = useCallback((tagName: string) => {
@@ -804,6 +859,25 @@ export function CreatePostModal({
                 </div>
               )}
 
+              {isUploadingMedia && (
+                <div className="w-full mt-2">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-sm text-gray-600">
+                      Uploading media…
+                    </span>
+                    <span className="text-sm font-medium text-gray-800">
+                      {uploadProgress}%
+                    </span>
+                  </div>
+                  <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+                    <div
+                      className="h-2 bg-orange-500 transition-all"
+                      style={{ width: `${uploadProgress}%` }}
+                    />
+                  </div>
+                </div>
+              )}
+
               {errors.media && (
                 <p className="text-red-500 text-sm flex items-center">
                   <AlertCircle className="h-4 w-4 mr-1" />
@@ -849,13 +923,15 @@ export function CreatePostModal({
             ) : (
               <Button
                 onClick={handleSubmit}
-                disabled={isCreating}
+                disabled={isCreating || isUploadingMedia}
                 className="flex items-center space-x-2 bg-orange-600 hover:bg-orange-700 disabled:opacity-50"
               >
-                {isCreating ? (
+                {isCreating || isUploadingMedia ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin text-white" />
-                    <span>Creating...</span>
+                    <span>
+                      {isUploadingMedia ? "Uploading media..." : "Creating..."}
+                    </span>
                   </>
                 ) : (
                   <>

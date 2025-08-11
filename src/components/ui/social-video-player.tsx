@@ -457,7 +457,7 @@ export function SocialVideoPlayer({
       <video
         ref={videoRef}
         src={src}
-        poster={thumbnail || poster} // Use thumbnail first, then fallback to poster
+        poster={(thumbnail || poster) || undefined} // Prefer thumbnail, else poster, else undefined
         className="w-full h-full object-cover cursor-pointer"
         preload={preload}
         muted={muted}

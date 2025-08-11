@@ -6,11 +6,14 @@ import { Toaster } from "sonner";
 import { store, persistor } from "./store";
 import "./index.css";
 import App from "./App.tsx";
+import { initSocket } from "@/lib/socket";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <Provider store={store}>
       <PersistGate loading={null} persistor={persistor}>
+        {/* Initialize WebSocket connection */}
+        {initSocket() && null}
         <App />
         <Toaster
           position="top-right"

@@ -36,6 +36,9 @@ export interface Post {
   createdAt: string;
   images: string[];
   video: string | null;
+  // Optional thumbnails derived from API data
+  coverThumb?: string | null;
+  videoThumbnail?: string | null;
   isModeratorApproved?: boolean;
   repliesData?: Reply[];
 }
