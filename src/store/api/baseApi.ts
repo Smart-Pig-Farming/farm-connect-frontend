@@ -31,6 +31,7 @@ export const baseApi = createApi({
     "User",
     "Farm",
     "Post",
+    "Reply",
     "Tag",
     "BestPractice",
     "Quiz",

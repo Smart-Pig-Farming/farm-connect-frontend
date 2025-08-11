@@ -44,6 +44,8 @@ export interface EditPostData {
   video?: File | null;
   existingImages?: string[];
   existingVideo?: string;
+  removedImages?: string[];
+  removedVideo?: boolean;
 }
 
 const availableTags = [
@@ -99,6 +101,9 @@ export function EditPostModal({
   const [video, setVideo] = useState<File | null>(null);
   const [existingImages, setExistingImages] = useState<string[]>([]);
   const [existingVideo, setExistingVideo] = useState<string>("");
+  // Track explicit removals for server-side deletion
+  const [removedImages, setRemovedImages] = useState<string[]>([]);
+  const [removedVideo, setRemovedVideo] = useState<boolean>(false);
   // Track selected media type for compact form
   const [mediaType, setMediaType] = useState<"images" | "video">("images");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -128,6 +133,8 @@ export function EditPostModal({
       setMediaType(post.images && post.images.length > 0 ? "images" : "video");
       setCurrentStep("content");
       setErrors({});
+      setRemovedImages([]);
+      setRemovedVideo(false);
     }
   }, [post, isOpen]);
 
@@ -214,6 +221,8 @@ export function EditPostModal({
         video,
         existingImages,
         existingVideo,
+        removedImages,
+        removedVideo,
       });
       handleClose();
     } catch (error) {
@@ -235,6 +244,8 @@ export function EditPostModal({
     setVideo(null);
     setExistingImages([]);
     setExistingVideo("");
+    setRemovedImages([]);
+    setRemovedVideo(false);
     setIsSubmitting(false);
     onClose();
   };
@@ -266,7 +277,18 @@ export function EditPostModal({
   };
 
   const removeExistingImage = (index: number) => {
-    setExistingImages((prev) => prev.filter((_, i) => i !== index));
+    setExistingImages((prev) => {
+      const url = prev[index];
+      if (url) {
+        setRemovedImages((ri) => (ri.includes(url) ? ri : [...ri, url]));
+      }
+      return prev.filter((_, i) => i !== index);
+    });
+  };
+
+  const restoreRemovedImage = (url: string) => {
+    setRemovedImages((prev) => prev.filter((u) => u !== url));
+    setExistingImages((prev) => (prev.includes(url) ? prev : [...prev, url]));
   };
 
   const removeVideo = () => {
@@ -274,7 +296,8 @@ export function EditPostModal({
   };
 
   const removeExistingVideo = () => {
-    setExistingVideo("");
+    // Keep the preview but mark for deletion; user can Undo before submitting
+    setRemovedVideo(true);
   };
 
   // getTagColor removed; unified orange selection style used
@@ -505,7 +528,12 @@ export function EditPostModal({
                       type="checkbox"
                       id="marketPost"
                       checked={isMarketPost}
-                      onChange={(e) => setIsMarketPost(e.target.checked)}
+                      onChange={(e) => {
+                        const checked = e.target.checked;
+                        setIsMarketPost(checked);
+                        // Align UI state with backend behavior: when not a market post, availability is false
+                        if (!checked) setIsAvailable(false);
+                      }}
                       className="h-4 w-4 text-orange-600 focus:ring-orange-500 border-gray-300 rounded"
                     />
                     <Label
@@ -517,7 +545,8 @@ export function EditPostModal({
                     </Label>
                   </div>
                   <p className="text-xs text-green-700 ml-7">
-                    Mark this if you're offering products or services for sale
+                    Mark this if you're offering products or services for sale.
+                    Your choice will be saved when you update the post.
                   </p>
 
                   {isMarketPost && (
@@ -537,6 +566,10 @@ export function EditPostModal({
                           Item/Service is currently available
                         </Label>
                       </div>
+                      <p className="text-xs text-green-700">
+                        This availability will be saved when you update the
+                        post.
+                      </p>
                     </div>
                   )}
                 </div>
@@ -660,6 +693,44 @@ export function EditPostModal({
                         </div>
                       )}
 
+                      {/* Removed Images (marked for deletion) */}
+                      {removedImages.length > 0 && (
+                        <div className="space-y-2">
+                          <p className="text-xs font-medium text-red-600">
+                            Marked for removal:
+                          </p>
+                          <div className="grid grid-cols-2 gap-3">
+                            {removedImages.map((imageSrc) => (
+                              <div
+                                key={`removed-${imageSrc}`}
+                                className="group relative aspect-square"
+                              >
+                                <div className="relative w-full h-full rounded-lg overflow-hidden border-2 border-red-300 bg-red-50">
+                                  <img
+                                    src={imageSrc}
+                                    alt="Removed"
+                                    className="w-full h-full object-cover opacity-70"
+                                  />
+                                  <div className="absolute top-2 left-2 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-red-100 text-red-700 border border-red-200">
+                                    Removed
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      restoreRemovedImage(imageSrc)
+                                    }
+                                    className="absolute top-2 right-2 bg-white/90 hover:bg-white text-gray-700 border border-gray-300 rounded-full px-2 h-7 flex items-center justify-center shadow-sm transition-colors text-xs"
+                                  >
+                                    Undo
+                                  </button>
+                                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
                       {/* New Images */}
                       {images.length > 0 && (
                         <div className="space-y-2">
@@ -747,7 +818,13 @@ export function EditPostModal({
                             Current Video:
                           </p>
                           <div className="group relative">
-                            <div className="relative w-full aspect-video rounded-lg overflow-hidden border-2 border-orange-200 bg-orange-50">
+                            <div
+                              className={`relative w-full aspect-video rounded-lg overflow-hidden border-2 ${
+                                removedVideo
+                                  ? "border-red-300 bg-red-50"
+                                  : "border-orange-200 bg-orange-50"
+                              }`}
+                            >
                               <video
                                 src={existingVideo}
                                 className="w-full h-full object-cover"
@@ -760,6 +837,22 @@ export function EditPostModal({
                               >
                                 <X className="h-4 w-4" />
                               </button>
+                              {removedVideo && (
+                                <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                                  <div className="flex items-center gap-3">
+                                    <span className="text-xs font-semibold px-2 py-1 rounded-full bg-red-100 text-red-700 border border-red-200">
+                                      Removed
+                                    </span>
+                                    <button
+                                      type="button"
+                                      onClick={() => setRemovedVideo(false)}
+                                      className="text-xs px-2 py-1 rounded-full bg-white/90 border border-gray-300 hover:bg-white shadow-sm"
+                                    >
+                                      Undo
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
                               <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors pointer-events-none" />
                             </div>
                           </div>

@@ -137,10 +137,6 @@ export const PostsList: React.FC<PostsListProps> = ({
               console.log("Vote:", postId, voteType);
               // Implement voting logic
             }}
-            onAddReply={(postId, content) => {
-              console.log("Add reply:", postId, content);
-              // Implement reply logic
-            }}
             onVoteReply={(replyId, voteType) => {
               console.log("Vote reply:", replyId, voteType);
               // Implement reply voting logic

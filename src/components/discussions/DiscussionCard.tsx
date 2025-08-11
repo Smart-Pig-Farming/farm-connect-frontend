@@ -38,11 +38,6 @@ interface DiscussionCardProps {
   post: Post;
   onVote?: (postId: string, voteType: "up" | "down") => void;
   onView?: (postId: string) => void;
-  onAddReply?: (
-    postId: string,
-    content: string,
-    parentReplyId?: string
-  ) => void;
   onVoteReply?: (replyId: string, voteType: "up" | "down") => void;
   onLoadMoreReplies?: (postId: string) => void;
   onEditPost?: (postId: string) => void;
@@ -54,7 +49,6 @@ export function DiscussionCard({
   post,
   onVote,
   onView,
-  onAddReply,
   onVoteReply,
   onLoadMoreReplies,
   onEditPost,
@@ -417,10 +411,12 @@ export function DiscussionCard({
                 )}
               </div>
 
-              <div className="flex items-center gap-1 text-xs text-gray-500 mt-1">
-                <MapPin className="h-3 w-3" />
-                <span>{post.author.location}</span>
-              </div>
+              {post.author.location?.trim() && (
+                <div className="flex items-center gap-1 text-xs text-gray-500 mt-1">
+                  <MapPin className="h-3 w-3" />
+                  <span>{post.author.location}</span>
+                </div>
+              )}
             </div>
           </div>
 
@@ -713,10 +709,8 @@ export function DiscussionCard({
               postId={post.id}
               replies={post.repliesData || []}
               totalReplies={post.replies}
-              onAddReply={onAddReply}
               onVoteReply={onVoteReply}
               onLoadMore={() => onLoadMoreReplies?.(post.id)}
-              hasMore={false} // For now, disable pagination until proper server-side pagination is implemented
             />
           </div>
         )}

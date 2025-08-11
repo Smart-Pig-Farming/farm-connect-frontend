@@ -1,4 +1,10 @@
-import React, { useState, useRef, useEffect, useCallback } from "react";
+import React, {
+  useState,
+  useRef,
+  useEffect,
+  useCallback,
+  useMemo,
+} from "react";
 import {
   MessageSquare,
   ThumbsUp,
@@ -10,6 +16,14 @@ import {
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import type { Reply } from "../../data/posts";
+import { toast } from "sonner";
+import {
+  useGetRepliesQuery,
+  useAddReplyMutation,
+  useVoteReplyMutation,
+  type ReplyItem as ApiReply,
+} from "@/store/api/discussionsApi";
+import { useWebSocket } from "@/hooks/useWebSocket";
 
 interface RepliesSectionProps {
   postId: string;
@@ -29,7 +43,7 @@ export function RepliesSection({
   postId,
   replies,
   totalReplies,
-  onAddReply,
+  // onAddReply is now handled internally via API
   onVoteReply,
   onLoadMore,
   hasMore = false,
@@ -38,8 +52,279 @@ export function RepliesSection({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [localReplies, setLocalReplies] = useState<Reply[]>(replies);
   const [localTotalReplies, setLocalTotalReplies] = useState(totalReplies);
+  const [page, setPage] = useState(1);
+  const [limit] = useState(20);
+  const [loadedPages, setLoadedPages] = useState<Set<number>>(new Set());
   const [activeReplyId, setActiveReplyId] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [draftText, setDraftText] = useState("");
+  const [addReply] = useAddReplyMutation();
+  const [voteReply] = useVoteReplyMutation();
+
+  const {
+    data: fetched,
+    error: fetchError,
+    isFetching,
+    isUninitialized,
+    refetch,
+  } = useGetRepliesQuery({ postId, page, limit }, { skip: !isExpanded });
+
+  const dedupeById = useCallback((arr: Reply[]) => {
+    const seen = new Set<string>();
+    const out: Reply[] = [];
+    for (const r of arr) {
+      if (!seen.has(r.id)) {
+        seen.add(r.id);
+        out.push(r);
+      }
+    }
+    return out;
+  }, []);
+
+  // Normalize API replies into UI Reply type
+  const mapApiReply = useCallback((r: ApiReply): Reply => {
+    const child = (r.childReplies || []).map(mapApiReply);
+    const userVote: "up" | "down" | null =
+      r.userVote === "up" ? "up" : r.userVote === "down" ? "down" : null;
+    return {
+      id: String(r.id),
+      content: r.content,
+      author: {
+        id: String(r.author.id),
+        firstname: r.author.firstname,
+        lastname: r.author.lastname,
+        avatar: r.author.avatar ?? null,
+        level_id: 1,
+        points: 0,
+        location: "",
+      },
+      createdAt: r.createdAt,
+      upvotes: r.upvotes,
+      downvotes: r.downvotes,
+      userVote,
+      replies: child,
+    };
+  }, []);
+
+  // Merge fetched page into localReplies
+  useEffect(() => {
+    if (!isExpanded || !fetched?.data?.replies) return;
+    const converted = fetched.data.replies.map(mapApiReply);
+
+    // For page 1, always merge fresh data so new replies from refetch appear immediately
+    if (page === 1) {
+      // Backend sorts newest first, so prefer API order first
+      setLocalReplies((prev) => {
+        const merged = dedupeById([...converted, ...prev]);
+        if (merged.length === prev.length) {
+          let identical = true;
+          for (let i = 0; i < merged.length; i++) {
+            if (merged[i].id !== prev[i].id) {
+              identical = false;
+              break;
+            }
+          }
+          if (identical) return prev; // no real change
+        }
+        return merged;
+      });
+      const total =
+        fetched.data.pagination?.total ?? dedupeById(converted).length;
+      setLocalTotalReplies((prevTotal) => Math.max(total, prevTotal));
+      // Do NOT mutate loadedPages for page 1 to keep this merge idempotent
+      return;
+    }
+
+    // For subsequent pages, avoid re-merging the same page repeatedly
+    if (loadedPages.has(page)) return;
+    setLocalReplies((prev) => dedupeById([...prev, ...converted]));
+    const total =
+      fetched.data.pagination?.total ?? dedupeById(converted).length;
+    setLocalTotalReplies((prevTotal) => Math.max(prevTotal, total));
+    setLoadedPages((s) => {
+      if (s.has(page)) return s;
+      const next = new Set(s);
+      next.add(page);
+      return next;
+    });
+  }, [fetched, isExpanded, page, loadedPages, mapApiReply, dedupeById]);
+
+  // Show errors
+  useEffect(() => {
+    if (fetchError && isExpanded) {
+      toast.error("Failed to load replies");
+    }
+  }, [fetchError, isExpanded]);
+
+  // Map WS reply payload to UI Reply
+  const mapWsReply = useCallback(
+    (d: {
+      id: string | number;
+      content: string;
+      postId: string | number;
+      parentReplyId?: string | number;
+      author: { id: number; firstname: string; lastname: string };
+      upvotes: number;
+      downvotes: number;
+      depth: number;
+      created_at: string;
+    }): Reply => ({
+      id: String(d.id),
+      content: d.content,
+      author: {
+        id: String(d.author.id),
+        firstname: d.author.firstname,
+        lastname: d.author.lastname,
+        avatar: null,
+        level_id: 1,
+        points: 0,
+        location: "",
+      },
+      createdAt: d.created_at,
+      upvotes: d.upvotes ?? 0,
+      downvotes: d.downvotes ?? 0,
+      userVote: null,
+      replies: [],
+    }),
+    []
+  );
+
+  // Insert WS reply into local state
+  type WsReplyPayload = {
+    id: string | number;
+    content: string;
+    postId: string | number;
+    parentReplyId?: string | number;
+    author: { id: number; firstname: string; lastname: string };
+    upvotes: number;
+    downvotes: number;
+    depth: number;
+    created_at: string;
+  };
+
+  const applyWsReply = useCallback(
+    (payload: WsReplyPayload) => {
+      if (!payload) return;
+      if (String(payload.postId) !== String(postId)) return;
+      const wsReply = mapWsReply(payload);
+      const parentId = payload?.parentReplyId
+        ? String(payload.parentReplyId)
+        : null;
+      const depth = Number(payload?.depth ?? 1);
+      if (depth > 3) return;
+
+      const insertChild = (
+        arr: Reply[]
+      ): { updated: boolean; next: Reply[] } => {
+        let didUpdate = false;
+        const next = arr.map((r) => {
+          if (r.id === parentId) {
+            didUpdate = true;
+            const children = r.replies ? [...r.replies, wsReply] : [wsReply];
+            return { ...r, replies: children };
+          }
+          if (r.replies && r.replies.length) {
+            const nested = insertChild(r.replies);
+            if (nested.updated) {
+              didUpdate = true;
+              return { ...r, replies: nested.next };
+            }
+          }
+          return r;
+        });
+        return { updated: didUpdate, next };
+      };
+
+      setLocalReplies((prev) => {
+        if (parentId) {
+          const { updated, next } = insertChild(prev);
+          // If parent not found (due to pagination), prepend top-level as fallback
+          return updated ? dedupeById(next) : dedupeById([wsReply, ...prev]);
+        }
+        // Top-level reply: prepend
+        return dedupeById([wsReply, ...prev]);
+      });
+      setLocalTotalReplies((n) => n + 1);
+    },
+    [postId, mapWsReply, dedupeById]
+  );
+
+  // Apply socket reply:vote updates to local state
+  const applyWsReplyVote = useCallback(
+    (data: {
+      replyId: string;
+      postId: string;
+      userId: number;
+      voteType: "upvote" | "downvote" | null;
+      upvotes: number;
+      downvotes: number;
+    }) => {
+      if (!data || String(data.postId) !== String(postId)) return;
+      const update = (arr: Reply[]): Reply[] =>
+        arr.map((r) => {
+          if (r.id === data.replyId) {
+            // best-effort set counts; userVote is derived from server type
+            const userVote =
+              data.voteType === "upvote"
+                ? "up"
+                : data.voteType === "downvote"
+                ? "down"
+                : null;
+            return {
+              ...r,
+              upvotes: data.upvotes,
+              downvotes: data.downvotes,
+              userVote,
+            };
+          }
+          if (r.replies?.length) return { ...r, replies: update(r.replies) };
+          return r;
+        });
+      setLocalReplies((prev) => update(prev));
+    },
+    [postId]
+  );
+
+  // WebSocket setup: listen to reply:create when expanded
+  const serverUrl =
+    (import.meta as unknown as { env?: { VITE_API_URL?: string } }).env
+      ?.VITE_API_URL || "http://localhost:5000";
+  const wsHandlers = useMemo(
+    () => ({
+      onReplyCreate: (data: unknown) => applyWsReply(data as WsReplyPayload),
+      onReplyVote: (d: {
+        replyId: string;
+        postId: string;
+        userId: number;
+        voteType: "upvote" | "downvote" | null;
+        upvotes: number;
+        downvotes: number;
+      }) => applyWsReplyVote(d),
+    }),
+    [applyWsReply, applyWsReplyVote]
+  );
+
+  const ws = useWebSocket(wsHandlers, { autoConnect: isExpanded, serverUrl });
+
+  // Join/leave discussion room based on expansion
+  const { isConnected, joinDiscussion, leaveDiscussion } = ws || {};
+  useEffect(() => {
+    if (!isExpanded || !isConnected) return;
+    joinDiscussion?.(postId);
+    return () => leaveDiscussion?.(postId);
+  }, [isExpanded, isConnected, joinDiscussion, leaveDiscussion, postId]);
+
+  // On reconnect, refetch replies to resync
+  const lastRefetchAt = useRef(0);
+  useEffect(() => {
+    if (isExpanded && ws.connectionStatus === "connected") {
+      const now = Date.now();
+      if (now - lastRefetchAt.current > 3000) {
+        refetch();
+        lastRefetchAt.current = now;
+      }
+    }
+  }, [ws.connectionStatus, isExpanded, refetch]);
 
   // Update local state when props change
   React.useEffect(() => {
@@ -74,15 +359,37 @@ export function RepliesSection({
   const handleSubmitComment = useCallback(
     async (e: React.FormEvent) => {
       e.preventDefault();
-      const commentText = textareaRef.current?.value.trim() || "";
-      if (!commentText || isSubmitting) return;
+      if (isSubmitting) return;
+      const commentText = draftText;
+      if (!commentText || commentText.trim().length === 0) {
+        toast.error("Please enter a reply");
+        return;
+      }
 
       setIsSubmitting(true);
       try {
-        if (onAddReply) {
-          await onAddReply(postId, commentText, activeReplyId || undefined);
-          if (textareaRef.current) textareaRef.current.value = "";
-          setActiveReplyId(null);
+        const op = addReply({
+          postId,
+          content: commentText.trim(),
+          parent_reply_id: activeReplyId ? String(activeReplyId) : undefined,
+        }).unwrap();
+        await toast.promise(op, {
+          loading: "Posting reply...",
+          success: "Reply posted",
+          error: (e) =>
+            typeof e?.data?.message === "string"
+              ? e.data.message
+              : "Failed to post reply",
+        });
+        setDraftText("");
+        setActiveReplyId(null);
+        // Ensure list is visible so socket + fetch can render the new reply
+        if (!isExpanded) {
+          setIsExpanded(true);
+        }
+        // Only refetch if the query has already been started
+        if (!isUninitialized) {
+          refetch();
         }
       } catch (error) {
         console.error("Error submitting comment:", error);
@@ -90,48 +397,56 @@ export function RepliesSection({
         setIsSubmitting(false);
       }
     },
-    [isSubmitting, onAddReply, postId, activeReplyId]
+    [
+      isSubmitting,
+      addReply,
+      postId,
+      activeReplyId,
+      refetch,
+      isExpanded,
+      isUninitialized,
+      draftText,
+    ]
   );
 
-  const handleVoteReply = (replyId: string, voteType: "up" | "down") => {
-    onVoteReply?.(replyId, voteType);
-
-    const updateVotes = (replies: Reply[]): Reply[] => {
-      return replies.map((reply) => {
-        if (reply.id === replyId) {
-          const currentVote = reply.userVote;
-          let newUpvotes = reply.upvotes;
-          let newDownvotes = reply.downvotes;
-          let newUserVote: "up" | "down" | null = voteType;
-
-          if (currentVote === voteType) {
-            newUserVote = null;
-            if (voteType === "up") newUpvotes--;
-            else newDownvotes--;
-          } else {
-            if (currentVote === "up") newUpvotes--;
-            else if (currentVote === "down") newDownvotes--;
-            if (voteType === "up") newUpvotes++;
-            else newDownvotes++;
+  const handleVoteReply = async (replyId: string, voteType: "up" | "down") => {
+    // Optimistic UI: mirror toggling logic locally
+    setLocalReplies((prev) => {
+      const update = (arr: Reply[]): Reply[] =>
+        arr.map((r) => {
+          if (r.id === replyId) {
+            const current = r.userVote;
+            let up = r.upvotes;
+            let down = r.downvotes;
+            let next: "up" | "down" | null = voteType;
+            if (current === voteType) {
+              // toggle off
+              next = null;
+              if (voteType === "up") up = Math.max(0, up - 1);
+              else down = Math.max(0, down - 1);
+            } else {
+              if (current === "up") up = Math.max(0, up - 1);
+              if (current === "down") down = Math.max(0, down - 1);
+              if (voteType === "up") up += 1;
+              else down += 1;
+            }
+            return { ...r, upvotes: up, downvotes: down, userVote: next };
           }
+          if (r.replies?.length) return { ...r, replies: update(r.replies) };
+          return r;
+        });
+      return update(prev);
+    });
 
-          return {
-            ...reply,
-            upvotes: Math.max(0, newUpvotes),
-            downvotes: Math.max(0, newDownvotes),
-            userVote: newUserVote,
-          };
-        } else if (reply.replies && reply.replies.length > 0) {
-          return {
-            ...reply,
-            replies: updateVotes(reply.replies),
-          };
-        }
-        return reply;
-      });
-    };
-
-    setLocalReplies(updateVotes(localReplies));
+    try {
+      const serverType = voteType === "up" ? "upvote" : "downvote";
+      await voteReply({ replyId, vote_type: serverType, postId }).unwrap();
+    } catch {
+      // If server rejects, refetch to reconcile
+      refetch();
+      toast.error("Failed to vote on reply");
+    }
+    onVoteReply?.(replyId, voteType);
   };
 
   // Helper function to find a reply by ID
@@ -198,7 +513,7 @@ export function RepliesSection({
     depth?: number;
   }) => {
     const marginLeft = depth * 24;
-    const maxDepth = 6;
+    const maxDepth = 3;
 
     return (
       <div className="space-y-3" style={{ marginLeft: `${marginLeft}px` }}>
@@ -268,6 +583,7 @@ export function RepliesSection({
                   size="sm"
                   onClick={() => {
                     setActiveReplyId(reply.id);
+                    setDraftText("");
                     setTimeout(() => {
                       const replyForm =
                         document.querySelector("#main-reply-form");
@@ -315,7 +631,7 @@ export function RepliesSection({
   };
 
   // Main Reply Form Component
-  const MainReplyForm = useCallback(
+  const mainReplyForm = useMemo(
     () => (
       <div id="main-reply-form" className="flex gap-3 mt-4">
         <Avatar className="w-8 h-8 flex-shrink-0">
@@ -338,6 +654,8 @@ export function RepliesSection({
                 }
                 className="w-full px-4 py-3 text-sm resize-none border-0 focus:ring-0 focus:outline-none min-h-[80px]"
                 rows={3}
+                value={draftText}
+                onChange={(e) => setDraftText(e.target.value)}
               />
 
               {activeReplyId && replyContext && (
@@ -385,14 +703,12 @@ export function RepliesSection({
         </div>
       </div>
     ),
-    [activeReplyId, isSubmitting, handleSubmitComment, replyContext]
+    [activeReplyId, isSubmitting, handleSubmitComment, replyContext, draftText]
   );
 
   if (displayTotalCount === 0) {
     return (
-      <div className="mt-4 border-t border-gray-100 pt-4">
-        <MainReplyForm />
-      </div>
+      <div className="mt-4 border-t border-gray-100 pt-4">{mainReplyForm}</div>
     );
   }
 
@@ -433,14 +749,18 @@ export function RepliesSection({
               <ReplyItem key={reply.id} reply={reply} depth={0} />
             ))}
 
-        {showLoadMoreButton && (
+        {(showLoadMoreButton ||
+          (isExpanded && fetched?.data?.pagination?.hasNextPage)) && (
           <Button
             variant="ghost"
             size="sm"
-            onClick={onLoadMore}
+            onClick={() => {
+              if (fetched?.data?.pagination?.hasNextPage) setPage((p) => p + 1);
+              onLoadMore?.();
+            }}
             className="text-sm text-blue-600 hover:text-blue-700 p-0 h-auto ml-11"
           >
-            Load more replies...
+            {isFetching ? "Loading..." : "Load more replies..."}
           </Button>
         )}
       </div>
@@ -456,7 +776,7 @@ export function RepliesSection({
         </Button>
       )}
 
-      <MainReplyForm />
+      {mainReplyForm}
     </div>
   );
 }

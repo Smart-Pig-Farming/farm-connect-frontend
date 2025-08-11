@@ -33,8 +33,14 @@ import {
   useGetPostsStatsQuery,
   useVotePostMutation,
   useDeletePostMutation,
+  useUpdatePostMutation,
+  useUploadPostMediaMutation,
 } from "../../store/api/discussionsApi";
-import type { Post as ApiPost } from "../../store/api/discussionsApi";
+import type {
+  Post as ApiPost,
+  PostsQueryParams,
+  MyPostsQueryParams,
+} from "../../store/api/discussionsApi";
 import { useInfiniteScroll } from "../../hooks/useInfiniteScroll";
 import { useMyPostsInfiniteScroll } from "../../hooks/useMyPostsInfiniteScroll";
 import { useGetMyPostsStatsQuery } from "../../store/api/discussionsApi";
@@ -45,6 +51,8 @@ import { getPostCoverThumbnail, getVideoThumbnail } from "../../lib/media";
 import { usePermissions } from "../../hooks/usePermissions";
 import { useWebSocket } from "../../hooks/useWebSocket";
 import type { PostMediaLike } from "@/types/postMedia";
+import { useAppDispatch } from "@/store/hooks";
+import { discussionsApi } from "@/store/api/discussionsApi";
 
 // Current user id is passed per-card when in My Posts view via each post's author.id
 
@@ -55,6 +63,13 @@ const mapApiPostToUi = (p: ApiPost): Post => {
   const videoVal = p.video ? p.video.url : null;
   const coverThumb = getPostCoverThumbnail(p);
   const videoThumbnail = getVideoThumbnail(p);
+  // Normalize userVote coming from API or optimistic cache
+  const apiVote = p.userVote as unknown as
+    | "up"
+    | "down"
+    | "upvote"
+    | "downvote"
+    | null;
   return {
     id: p.id,
     title: p.title,
@@ -72,9 +87,9 @@ const mapApiPostToUi = (p: ApiPost): Post => {
     upvotes: p.upvotes,
     downvotes: p.downvotes,
     userVote:
-      p.userVote === "upvote"
+      apiVote === "upvote" || apiVote === "up"
         ? "up"
-        : p.userVote === "downvote"
+        : apiVote === "downvote" || apiVote === "down"
         ? "down"
         : null,
     replies: p.replies,
@@ -108,6 +123,7 @@ const useDebounce = (value: string, delay: number) => {
 };
 
 export function DiscussionsPage() {
+  const dispatch = useAppDispatch();
   // Overlay for thumbnails coming from WebSocket events
   const [wsThumbs, setWsThumbs] = useState<
     Record<string, { coverThumb: string | null; videoThumbnail: string | null }>
@@ -217,6 +233,35 @@ export function DiscussionsPage() {
   const { data: statsData } = useGetPostsStatsQuery();
   const [votePost] = useVotePostMutation();
   const [deletePost] = useDeletePostMutation();
+  const [updatePost] = useUpdatePostMutation();
+  const [uploadPostMedia] = useUploadPostMediaMutation();
+
+  // Memoized query args to precisely target RTK Query caches for surgical updates
+  const communityQueryArgs: PostsQueryParams = useMemo(
+    () => ({
+      search: debouncedSearchQuery || undefined,
+      tag: selectedTag !== "All" ? selectedTag : undefined,
+      sort: "recent",
+      is_market_post: undefined,
+      user_id: undefined,
+      limit: POSTS_PER_LOAD_MORE,
+      // cursor ignored by serializeQueryArgs, any value ok
+      cursor: "",
+    }),
+    [debouncedSearchQuery, selectedTag]
+  );
+
+  const myPostsQueryArgs: MyPostsQueryParams = useMemo(
+    () => ({
+      search: debouncedSearchQuery || undefined,
+      tag: selectedTag !== "All" ? selectedTag : undefined,
+      sort: "recent",
+      limit: POSTS_PER_LOAD_MORE,
+      include_unapproved: true,
+      cursor: "",
+    }),
+    [debouncedSearchQuery, selectedTag]
+  );
 
   // Real-time updates via WebSocket: refresh feeds on server events
   useWebSocket(
@@ -242,7 +287,12 @@ export function DiscussionsPage() {
         if (!showMyPostsView) refresh();
       },
       onPostUpdate: (data: unknown) => {
-        const ws = data as PostMediaLike;
+        const ws = data as PostMediaLike & {
+          title?: string;
+          content?: string;
+          tags?: string[];
+          is_market_post?: boolean;
+        };
         const cover = getPostCoverThumbnail(ws);
         const videoTn = getVideoThumbnail(ws);
         const id = ws?.id;
@@ -255,11 +305,83 @@ export function DiscussionsPage() {
             },
           }));
         }
-        // Keep existing refresh to sync other fields
-        refresh();
+        // Surgically patch caches for updated fields to avoid a full refetch
+        if (id) {
+          const patchFn = (draft: { data?: { posts?: ApiPost[] } }) => {
+            const post = draft?.data?.posts?.find((p) => p.id === id);
+            if (post) {
+              if (ws.title !== undefined) post.title = ws.title as string;
+              if (ws.content !== undefined) post.content = ws.content as string;
+              if (Array.isArray(ws.tags)) {
+                post.tags = (ws.tags as string[]).map((name) => ({
+                  id: name,
+                  name,
+                  color: "gray",
+                }));
+              }
+              const isMarket = (ws as { is_market_post?: boolean })
+                .is_market_post;
+              if (typeof isMarket === "boolean") post.isMarketPost = isMarket;
+            }
+          };
+          dispatch(
+            discussionsApi.util.updateQueryData(
+              "getPosts",
+              communityQueryArgs,
+              patchFn
+            )
+          );
+          dispatch(
+            discussionsApi.util.updateQueryData(
+              "getMyPosts",
+              myPostsQueryArgs,
+              patchFn
+            )
+          );
+        }
       },
-      onPostVote: () => {
-        refresh();
+      onReplyCreate: () => {
+        // RepliesSection handles real-time rendering within a post; counts sync on refresh.
+      },
+      onPostVote: (data: {
+        postId: string;
+        upvotes: number;
+        downvotes: number;
+        userVote?: "upvote" | "downvote" | null;
+      }) => {
+        // Surgically update vote counts from WebSocket without overriding optimistic state
+        if (data?.postId) {
+          const patchFn = (draft: { data?: { posts?: ApiPost[] } }) => {
+            const post = draft?.data?.posts?.find((p) => p.id === data.postId);
+            if (post) {
+              post.upvotes = data.upvotes;
+              post.downvotes = data.downvotes;
+              // Only update userVote if provided (to avoid overriding optimistic state)
+              if (data.userVote !== undefined) {
+                post.userVote =
+                  data.userVote === "upvote"
+                    ? "upvote"
+                    : data.userVote === "downvote"
+                    ? "downvote"
+                    : null;
+              }
+            }
+          };
+          dispatch(
+            discussionsApi.util.updateQueryData(
+              "getPosts",
+              communityQueryArgs,
+              patchFn
+            )
+          );
+          dispatch(
+            discussionsApi.util.updateQueryData(
+              "getMyPosts",
+              myPostsQueryArgs,
+              patchFn
+            )
+          );
+        }
       },
       onPostDelete: (data: { postId: string }) => {
         // When another user deletes a post, refresh the active feed
@@ -286,6 +408,8 @@ export function DiscussionsPage() {
           ?.VITE_API_URL || "http://localhost:5000",
     }
   );
+
+  //
 
   // Helper function to convert Post to PostToEdit
   const convertPostToPostToEdit = useCallback(
@@ -325,29 +449,6 @@ export function DiscussionsPage() {
   const handleCreatePost = () => {
     setShowCreatePost(true);
   };
-
-  // Handle adding a new reply to a post (for inline replies)
-  const handleAddReply = useCallback(
-    async (postId: string, content: string, parentReplyId?: string) => {
-      try {
-        // In a real app, this would make an API call
-        console.log(
-          "Adding reply to post:",
-          postId,
-          "Content:",
-          content,
-          "Parent:",
-          parentReplyId
-        );
-
-        // For now, just refresh the data to get the latest posts
-        refresh();
-      } catch (error) {
-        console.error("Error adding reply:", error);
-      }
-    },
-    [refresh]
-  );
 
   // Handle voting on a post - will use RTK Query mutation
   const handleVotePost = useCallback(
@@ -404,30 +505,81 @@ export function DiscussionsPage() {
 
   // Handle submitting edited post
   const handleEditSubmit = useCallback(
-    (editData: EditPostData) => {
-      console.log("Updating post:", editData.id, editData);
+    async (editData: EditPostData) => {
+      const {
+        id,
+        title,
+        content,
+        tags,
+        isMarketPost,
+        isAvailable,
+        images,
+        video,
+        existingImages,
+        existingVideo,
+      } = editData;
+      try {
+        // Derive media removals. We compare the original post media urls vs existingImages/existingVideo.
+        const original = displayedPosts.find((p) => p.id === id);
+        const originalImageUrls = original?.images || [];
+        const remainingExisting = existingImages || [];
+        const removeImages = originalImageUrls.filter(
+          (u) => !remainingExisting.includes(u)
+        );
+        const originalVideoUrl = original?.video || null;
+        const removeVideo = Boolean(originalVideoUrl && !existingVideo);
 
-      // In a real app, this would use RTK Query mutation
-      // For now, just refresh to get updated data
-      refresh();
+        const op = updatePost({
+          id,
+          data: {
+            title,
+            content,
+            tags,
+            is_market_post: isMarketPost,
+            is_available: isMarketPost ? isAvailable : false,
+            remove_images: removeImages.length ? removeImages : undefined,
+            remove_video: removeVideo || undefined,
+          },
+        }).unwrap();
 
-      // Close the modal
-      setShowEditPost(false);
-      setEditingPost(null);
+        await toast.promise(op, {
+          loading: "Saving changes...",
+          success: "Post updated",
+          error: "Failed to update post",
+        });
 
-      // Show success message
-      alert("Post updated successfully!");
+        // If there are new media files, upload them
+        if ((images && images.length > 0) || (video && video instanceof File)) {
+          const files: File[] = [];
+          if (images && images.length) files.push(...images);
+          if (video && video instanceof File) files.push(video);
+          if (files.length) {
+            const mediaOp = uploadPostMedia({ postId: id, files }).unwrap();
+            await toast.promise(mediaOp, {
+              loading: "Uploading media...",
+              success: "Media updated",
+              error: "Failed to upload media",
+            });
+          }
+        }
+
+        // Refresh feeds to reflect any server-side modifications
+        refresh();
+
+        // Close modal
+        setShowEditPost(false);
+        setEditingPost(null);
+      } catch (e) {
+        console.error("Edit post failed", e);
+      }
     },
-    [refresh]
+    [updatePost, uploadPostMedia, refresh, displayedPosts]
   );
 
   // Handle deleting a post
-  const handleDeleteUserPost = useCallback(
-    (postId: string) => {
-      setConfirmDeleteId(postId);
-    },
-  []
-  );
+  const handleDeleteUserPost = useCallback((postId: string) => {
+    setConfirmDeleteId(postId);
+  }, []);
 
   const confirmDelete = useCallback(async () => {
     if (!confirmDeleteId) return;
@@ -624,7 +776,6 @@ export function DiscussionsPage() {
                             key={`${post.id}-${post.createdAt}-${idx}`}
                             post={post}
                             onVote={handleVotePost}
-                            onAddReply={handleAddReply}
                             onVoteReply={handleVoteReply}
                             onLoadMoreReplies={handleLoadMoreReplies}
                             onEditPost={

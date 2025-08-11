@@ -143,6 +143,38 @@ export interface VoteResponse {
   };
 }
 
+// Replies types
+export interface ReplyItem {
+  id: string;
+  content: string;
+  author: {
+    id: number;
+    firstname: string;
+    lastname: string;
+    avatar?: string | null;
+  };
+  createdAt: string;
+  upvotes: number;
+  downvotes: number;
+  userVote?: "up" | "down" | "upvote" | "downvote" | null;
+  childReplies?: ReplyItem[];
+  depth?: number;
+}
+
+export interface RepliesResponse {
+  success: boolean;
+  data: {
+    replies: ReplyItem[];
+    pagination: {
+      page: number;
+      limit: number;
+      total: number;
+      totalPages: number;
+      hasNextPage: boolean;
+    };
+  };
+}
+
 // Query parameters interface
 export interface PostsQueryParams {
   // Pagination (choose one approach)
@@ -286,6 +318,114 @@ export const discussionsApi = baseApi.injectEndpoints({
           : [{ type: "Post" as const, id: "LIST" }],
     }),
 
+    // Update a post (partial fields)
+    updatePost: builder.mutation<
+      { success: boolean; data?: { id: string } },
+      {
+        id: string;
+        data: {
+          title?: string;
+          content?: string;
+          tags?: string[];
+          is_market_post?: boolean;
+          is_available?: boolean;
+          // Optional media deletion by URL (frontend uses URLs as identifiers)
+          remove_images?: string[];
+          remove_video?: boolean;
+        };
+      }
+    >({
+      query: ({ id, data }) => ({
+        url: `/discussions/posts/${id}`,
+        method: "PATCH",
+        body: data,
+      }),
+      async onQueryStarted({ id, data }, { dispatch, queryFulfilled }) {
+        // Optimistically update caches for both community and my posts lists
+        const patches: Array<{ undo: () => void }> = [];
+
+        const patchCommunity = dispatch(
+          discussionsApi.util.updateQueryData(
+            "getPosts",
+            {} as PostsQueryParams,
+            (draft: PostsResponse) => {
+              const posts = draft?.data?.posts;
+              const target = posts?.find((p) => p.id === id);
+              if (target) {
+                if (data.title !== undefined) target.title = data.title;
+                if (data.content !== undefined) target.content = data.content;
+                if (data.tags !== undefined) {
+                  // Map string tag names back to API Tag shape minimally
+                  target.tags = data.tags.map((name) => ({
+                    id: name,
+                    name,
+                    color: "gray",
+                  }));
+                }
+                if (data.is_market_post !== undefined)
+                  target.isMarketPost = data.is_market_post;
+                if (data.is_available !== undefined)
+                  target.isAvailable = data.is_available;
+                // Optimistically remove media by URL if requested
+                if (Array.isArray(data.remove_images) && target.images) {
+                  target.images = target.images.filter(
+                    (img) => !data.remove_images!.includes(img.url)
+                  );
+                }
+                if (data.remove_video && target.video) {
+                  target.video = null;
+                }
+              }
+            }
+          )
+        );
+
+        const patchMyPosts = dispatch(
+          discussionsApi.util.updateQueryData(
+            "getMyPosts",
+            {} as MyPostsQueryParams,
+            (draft: PostsResponse) => {
+              const posts = draft?.data?.posts;
+              const target = posts?.find((p) => p.id === id);
+              if (target) {
+                if (data.title !== undefined) target.title = data.title;
+                if (data.content !== undefined) target.content = data.content;
+                if (data.tags !== undefined) {
+                  target.tags = data.tags.map((name) => ({
+                    id: name,
+                    name,
+                    color: "gray",
+                  }));
+                }
+                if (data.is_market_post !== undefined)
+                  target.isMarketPost = data.is_market_post;
+                if (data.is_available !== undefined)
+                  target.isAvailable = data.is_available;
+                // Optimistically remove media by URL if requested
+                if (Array.isArray(data.remove_images) && target.images) {
+                  target.images = target.images.filter(
+                    (img) => !data.remove_images!.includes(img.url)
+                  );
+                }
+                if (data.remove_video && target.video) {
+                  target.video = null;
+                }
+              }
+            }
+          )
+        );
+
+        try {
+          patches.push(patchCommunity);
+          patches.push(patchMyPosts);
+          await queryFulfilled;
+        } catch {
+          patches.forEach((p) => p.undo());
+        }
+      },
+      invalidatesTags: (_res, _err, { id }) => [{ type: "Post", id }],
+    }),
+
     // Create a new post (JSON)
     createPost: builder.mutation<
       CreatePostResponse,
@@ -377,6 +517,45 @@ export const discussionsApi = baseApi.injectEndpoints({
                 }
               }
             })
+          )
+        );
+
+        // Also update the My Posts cache so highlight persists in that view
+        patchResults.push(
+          dispatch(
+            discussionsApi.util.updateQueryData(
+              "getMyPosts",
+              {},
+              (draft: PostsResponse) => {
+                const post = draft.data?.posts.find(
+                  (p: Post) => p.id === postId
+                );
+                if (post) {
+                  const wasUpvoted = post.userVote === "up";
+                  const wasDownvoted = post.userVote === "down";
+
+                  if (vote_type === "upvote") {
+                    if (wasUpvoted) {
+                      post.upvotes -= 1;
+                      post.userVote = null;
+                    } else {
+                      post.upvotes += 1;
+                      if (wasDownvoted) post.downvotes -= 1;
+                      post.userVote = "up";
+                    }
+                  } else {
+                    if (wasDownvoted) {
+                      post.downvotes -= 1;
+                      post.userVote = null;
+                    } else {
+                      post.downvotes += 1;
+                      if (wasUpvoted) post.upvotes -= 1;
+                      post.userVote = "down";
+                    }
+                  }
+                }
+              }
+            )
           )
         );
 
@@ -535,6 +714,51 @@ export const discussionsApi = baseApi.injectEndpoints({
         { type: "Post", id: "MY_POSTS" },
       ],
     }),
+
+    // Get replies for a post (paginated)
+    getReplies: builder.query<
+      RepliesResponse,
+      { postId: string; page?: number; limit?: number }
+    >({
+      query: ({ postId, page = 1, limit = 20 }) => ({
+        url: `/discussions/posts/${postId}/replies`,
+        params: { page, limit },
+      }),
+      providesTags: (_res, _err, { postId }) => [
+        { type: "Reply", id: `LIST_${postId}` },
+      ],
+    }),
+
+    // Add a reply to a post (or nested via parent_reply_id)
+    addReply: builder.mutation<
+      { success: boolean; data: { id: string; message: string } },
+      { postId: string; content: string; parent_reply_id?: string }
+    >({
+      query: ({ postId, content, parent_reply_id }) => ({
+        url: `/discussions/posts/${postId}/replies`,
+        method: "POST",
+        body: { content, parent_reply_id },
+      }),
+      invalidatesTags: (_res, _err, { postId }) => [
+        { type: "Reply", id: `LIST_${postId}` },
+      ],
+    }),
+
+    // Vote on a reply
+    voteReply: builder.mutation<
+      VoteResponse,
+      { replyId: string; vote_type: "upvote" | "downvote"; postId: string }
+    >({
+      query: ({ replyId, vote_type }) => ({
+        url: `/discussions/replies/${replyId}/vote`,
+        method: "POST",
+        body: { vote_type },
+      }),
+      // Keep replies list fresh
+      invalidatesTags: (_res, _err, { postId }) => [
+        { type: "Reply", id: `LIST_${postId}` },
+      ],
+    }),
   }),
 });
 
@@ -551,4 +775,8 @@ export const {
   useApprovePostMutation,
   useRejectPostMutation,
   useDeletePostMutation,
+  useGetRepliesQuery,
+  useAddReplyMutation,
+  useVoteReplyMutation,
+  useUpdatePostMutation,
 } = discussionsApi;

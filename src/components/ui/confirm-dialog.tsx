@@ -46,7 +46,10 @@ export function ConfirmDialog({
       role="dialog"
       aria-modal="true"
     >
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={!loading ? onCancel : undefined} />
+      <div
+        className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+        onClick={!loading ? onCancel : undefined}
+      />
 
       <div className="relative w-full max-w-sm rounded-lg bg-white shadow-xl border border-gray-200">
         <div className="px-4 pt-4 pb-2">
@@ -54,7 +57,9 @@ export function ConfirmDialog({
             {title}
           </h3>
           {description && (
-            <p className="mt-1 text-xs sm:text-sm text-gray-600">{description}</p>
+            <p className="mt-1 text-xs sm:text-sm text-gray-600">
+              {description}
+            </p>
           )}
         </div>
         <div className="px-4 py-3 flex items-center justify-end gap-2 border-t border-gray-100">
