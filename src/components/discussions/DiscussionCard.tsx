@@ -306,9 +306,17 @@ export function DiscussionCard({
               <div className="relative" ref={dropdownRef}>
                 <button
                   onClick={toggleDropdown}
-                  className="p-1.5 hover:bg-gray-100 rounded-full transition-colors duration-200"
+                  className="p-1.5 hover:bg-gray-100 rounded-full transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400"
+                  aria-label="More options"
+                  title="More"
                 >
-                  <MoreVertical className="h-4 w-4 text-gray-500" />
+                  <div className="flex flex-col items-center leading-none hover:cursor-pointer">
+                    <MoreVertical className="h-4 w-4 text-gray-500" />
+                    <span className="mt-0.5 text-[10px] text-gray-400 hidden sm:block">
+                      More
+                    </span>
+                    <span className="sr-only">More options</span>
+                  </div>
                 </button>
 
                 {showDropdown && (
