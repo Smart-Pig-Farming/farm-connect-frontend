@@ -537,8 +537,9 @@ export function DiscussionsPage() {
             tags,
             is_market_post: isMarketPost,
             is_available: isMarketPost ? isAvailable : false,
-            remove_images: removeImages.length ? removeImages : undefined,
-            remove_video: removeVideo || undefined,
+            // Backend expects removedImages (array of URLs) and removedVideo (boolean)
+            removedImages: removeImages.length ? removeImages : undefined,
+            removedVideo: removeVideo || undefined,
           },
         }).unwrap();
 

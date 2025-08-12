@@ -113,6 +113,11 @@ export function EditPostModal({
     tags?: string;
   }>({});
 
+  // Derived state for XOR enforcement
+  const imageCount = existingImages.length + images.length;
+  const hasAnyImage = imageCount > 0;
+  const hasAnyVideo = Boolean(video || (existingVideo && !removedVideo));
+
   // Refs for focusing invalid inputs
   const titleRef = useRef<HTMLInputElement | null>(null);
   const contentRef = useRef<HTMLTextAreaElement | null>(null);
@@ -255,6 +260,8 @@ export function EditPostModal({
     if (files) {
       Array.from(files).forEach((file) => {
         if (file.type.startsWith("image/")) {
+          // Prevent selecting images if a video exists (new or existing not marked removed)
+          if (hasAnyVideo) return;
           // Add to images if less than 4 images (including existing)
           setImages((prev) => {
             const totalImages = prev.length + existingImages.length;
@@ -264,9 +271,12 @@ export function EditPostModal({
             return prev;
           });
         } else if (file.type.startsWith("video/")) {
+          // Prevent selecting video if any images exist
+          if (hasAnyImage) return;
           // Replace video (only one video allowed)
           setVideo(file);
           setExistingVideo("");
+          setRemovedVideo(false);
         }
       });
     }
@@ -531,8 +541,8 @@ export function EditPostModal({
                       onChange={(e) => {
                         const checked = e.target.checked;
                         setIsMarketPost(checked);
-                        // Align UI state with backend behavior: when not a market post, availability is false
-                        if (!checked) setIsAvailable(false);
+                        // Align with backend: non-market posts are always available
+                        if (!checked) setIsAvailable(true);
                       }}
                       className="h-4 w-4 text-orange-600 focus:ring-orange-500 border-gray-300 rounded"
                     />
@@ -651,6 +661,12 @@ export function EditPostModal({
                   {/* Image Upload Section */}
                   {mediaType === "images" && (
                     <div className="space-y-4">
+                      {hasAnyVideo && (
+                        <div className="p-3 rounded-md border border-amber-300 bg-amber-50 text-amber-800 text-xs">
+                          This post currently has a video. Remove the video
+                          first to add images.
+                        </div>
+                      )}
                       <div className="flex items-center justify-between">
                         <span className="text-sm font-medium text-gray-700">
                           Manage Images
@@ -680,12 +696,14 @@ export function EditPostModal({
                                   />
                                   <button
                                     type="button"
+                                    aria-label="Remove image"
+                                    title="Remove image"
                                     onClick={() => removeExistingImage(i)}
-                                    className="absolute top-2 right-2 bg-white/90 hover:bg-white text-gray-700 border border-gray-300 rounded-full w-7 h-7 flex items-center justify-center shadow-sm transition-colors"
+                                    className="absolute top-2 right-2 z-10 bg-white/90 hover:bg-white text-gray-700 border border-gray-300 rounded-full w-8 h-8 flex items-center justify-center shadow-sm transition-colors"
                                   >
-                                    <X className="h-3.5 w-3.5" />
+                                    <X className="h-4 w-4" />
                                   </button>
-                                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
+                                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors pointer-events-none" />
                                 </div>
                               </div>
                             ))}
@@ -716,14 +734,16 @@ export function EditPostModal({
                                   </div>
                                   <button
                                     type="button"
+                                    aria-label="Undo remove image"
+                                    title="Undo remove"
                                     onClick={() =>
                                       restoreRemovedImage(imageSrc)
                                     }
-                                    className="absolute top-2 right-2 bg-white/90 hover:bg-white text-gray-700 border border-gray-300 rounded-full px-2 h-7 flex items-center justify-center shadow-sm transition-colors text-xs"
+                                    className="absolute top-2 right-2 z-10 bg-white/90 hover:bg-white text-gray-700 border border-gray-300 rounded-full px-3 h-8 flex items-center justify-center shadow-sm transition-colors text-xs"
                                   >
                                     Undo
                                   </button>
-                                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
+                                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors pointer-events-none" />
                                 </div>
                               </div>
                             ))}
@@ -751,12 +771,14 @@ export function EditPostModal({
                                   />
                                   <button
                                     type="button"
+                                    aria-label="Remove image"
+                                    title="Remove image"
                                     onClick={() => removeImage(i)}
-                                    className="absolute top-2 right-2 bg-white/90 hover:bg-white text-gray-700 border border-gray-300 rounded-full w-7 h-7 flex items-center justify-center shadow-sm transition-colors"
+                                    className="absolute top-2 right-2 z-10 bg-white/90 hover:bg-white text-gray-700 border border-gray-300 rounded-full w-8 h-8 flex items-center justify-center shadow-sm transition-colors"
                                   >
-                                    <X className="h-3.5 w-3.5" />
+                                    <X className="h-4 w-4" />
                                   </button>
-                                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
+                                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors pointer-events-none" />
                                 </div>
                               </div>
                             ))}
@@ -765,41 +787,48 @@ export function EditPostModal({
                       )}
 
                       {/* Add New Images */}
-                      {existingImages.length + images.length < 4 && (
-                        <div className="space-y-2">
-                          <p className="text-xs text-gray-600 font-medium">
-                            Add More Images:
-                          </p>
-                          <label className="relative w-full h-32 flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-lg cursor-pointer transition-all hover:border-orange-400 hover:bg-orange-50/50">
-                            <div className="flex flex-col items-center space-y-2">
-                              <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center hover:bg-orange-100 transition-colors">
-                                <Upload className="h-5 w-5 text-gray-400 hover:text-orange-500 transition-colors" />
+                      {existingImages.length + images.length < 4 &&
+                        !hasAnyVideo && (
+                          <div className="space-y-2">
+                            <p className="text-xs text-gray-600 font-medium">
+                              Add More Images:
+                            </p>
+                            <label className="relative w-full h-32 flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-lg cursor-pointer transition-all hover:border-orange-400 hover:bg-orange-50/50">
+                              <div className="flex flex-col items-center space-y-2">
+                                <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center hover:bg-orange-100 transition-colors">
+                                  <Upload className="h-5 w-5 text-gray-400 hover:text-orange-500 transition-colors" />
+                                </div>
+                                <div className="text-center">
+                                  <p className="text-sm font-medium text-gray-700 hover:text-orange-600 transition-colors">
+                                    Add Images
+                                  </p>
+                                  <p className="text-xs text-gray-500">
+                                    PNG, JPG up to 10MB
+                                  </p>
+                                </div>
                               </div>
-                              <div className="text-center">
-                                <p className="text-sm font-medium text-gray-700 hover:text-orange-600 transition-colors">
-                                  Add Images
-                                </p>
-                                <p className="text-xs text-gray-500">
-                                  PNG, JPG up to 10MB
-                                </p>
-                              </div>
-                            </div>
-                            <input
-                              type="file"
-                              accept="image/*"
-                              multiple
-                              onChange={handleFileUpload}
-                              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                            />
-                          </label>
-                        </div>
-                      )}
+                              <input
+                                type="file"
+                                accept="image/*"
+                                multiple
+                                onChange={handleFileUpload}
+                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                              />
+                            </label>
+                          </div>
+                        )}
                     </div>
                   )}
 
                   {/* Video Upload Section */}
                   {mediaType === "video" && (
                     <div className="space-y-4">
+                      {hasAnyImage && (
+                        <div className="p-3 rounded-md border border-amber-300 bg-amber-50 text-amber-800 text-xs">
+                          This post currently has images. Remove all images
+                          first to add a video.
+                        </div>
+                      )}
                       <div className="flex items-center justify-between">
                         <span className="text-sm font-medium text-gray-700">
                           Manage Video
@@ -886,7 +915,7 @@ export function EditPostModal({
                       )}
 
                       {/* Upload New Video */}
-                      {!video && (
+                      {!video && !hasAnyImage && (
                         <div className="space-y-2">
                           <p className="text-xs text-gray-600 font-medium">
                             {existingVideo ? "Replace Video:" : "Add Video:"}

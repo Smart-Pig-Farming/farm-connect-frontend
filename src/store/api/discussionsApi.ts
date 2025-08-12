@@ -329,20 +329,36 @@ export const discussionsApi = baseApi.injectEndpoints({
           tags?: string[];
           is_market_post?: boolean;
           is_available?: boolean;
-          // Optional media deletion by URL (frontend uses URLs as identifiers)
+          // Accept either snake_case or camelCase from callers
           remove_images?: string[];
           remove_video?: boolean;
+          removedImages?: string[];
+          removedVideo?: boolean;
         };
       }
     >({
-      query: ({ id, data }) => ({
-        url: `/discussions/posts/${id}`,
-        method: "PATCH",
-        body: data,
-      }),
+      query: ({ id, data }) => {
+        // Normalize to backend expected keys: removedImages, removedVideo
+        const normalized = {
+          title: data.title,
+          content: data.content,
+          tags: data.tags,
+          is_market_post: data.is_market_post,
+          is_available: data.is_available,
+          removedImages: data.removedImages ?? data.remove_images,
+          removedVideo: data.removedVideo ?? data.remove_video,
+        };
+        return {
+          url: `/discussions/posts/${id}`,
+          method: "PATCH",
+          body: normalized,
+        };
+      },
       async onQueryStarted({ id, data }, { dispatch, queryFulfilled }) {
         // Optimistically update caches for both community and my posts lists
         const patches: Array<{ undo: () => void }> = [];
+        const removeImages = (data.removedImages ?? data.remove_images) || [];
+        const removeVideo = data.removedVideo ?? data.remove_video;
 
         const patchCommunity = dispatch(
           discussionsApi.util.updateQueryData(
@@ -367,12 +383,12 @@ export const discussionsApi = baseApi.injectEndpoints({
                 if (data.is_available !== undefined)
                   target.isAvailable = data.is_available;
                 // Optimistically remove media by URL if requested
-                if (Array.isArray(data.remove_images) && target.images) {
+                if (Array.isArray(removeImages) && target.images) {
                   target.images = target.images.filter(
-                    (img) => !data.remove_images!.includes(img.url)
+                    (img) => !removeImages.includes(img.url)
                   );
                 }
-                if (data.remove_video && target.video) {
+                if (removeVideo && target.video) {
                   target.video = null;
                 }
               }
@@ -402,12 +418,12 @@ export const discussionsApi = baseApi.injectEndpoints({
                 if (data.is_available !== undefined)
                   target.isAvailable = data.is_available;
                 // Optimistically remove media by URL if requested
-                if (Array.isArray(data.remove_images) && target.images) {
+                if (Array.isArray(removeImages) && target.images) {
                   target.images = target.images.filter(
-                    (img) => !data.remove_images!.includes(img.url)
+                    (img) => !removeImages.includes(img.url)
                   );
                 }
-                if (data.remove_video && target.video) {
+                if (removeVideo && target.video) {
                   target.video = null;
                 }
               }
