@@ -1,4 +1,5 @@
 import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
+// No RootState import needed since we don't read from store in prepareHeaders
 
 // Define the base API slice
 export const baseApi = createApi({
@@ -7,8 +8,22 @@ export const baseApi = createApi({
     baseUrl: "/api",
     credentials: "include", // Include HttpOnly cookies in requests
     prepareHeaders: (headers) => {
-      // No need to set Authorization header - authentication is via HttpOnly cookies
-      headers.set("Content-Type", "application/json");
+      // Authentication is cookie-based (HttpOnly). No bearer token needed.
+      // If in the future we add a token to auth state, it can be set here.
+
+      // CSRF: mirror cookie value into header for state-changing requests
+      try {
+        if (typeof document !== "undefined") {
+          const csrf = document.cookie
+            .split("; ")
+            .find((c) => c.startsWith("csrfToken="))
+            ?.split("=")[1];
+          if (csrf) headers.set("x-csrf-token", csrf);
+        }
+      } catch {
+        // noop in non-browser contexts
+      }
+
       return headers;
     },
   }),
@@ -16,6 +31,8 @@ export const baseApi = createApi({
     "User",
     "Farm",
     "Post",
+    "Reply",
+    "Tag",
     "BestPractice",
     "Quiz",
     "Comment",

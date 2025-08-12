@@ -11,6 +11,7 @@ export default defineConfig({
     },
   },
   server: {
+    port: 5173, // Force port 5173 to match backend CORS settings
     proxy: {
       "/api": {
         target: "http://localhost:5000",

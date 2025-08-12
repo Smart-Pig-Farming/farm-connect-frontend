@@ -50,7 +50,7 @@ export function Header({ sidebarCollapsed, isMobile = false }: HeaderProps) {
 
     const roleMap: Record<string, string> = {
       admin: "Administrator",
-      farmer: "Farm Manager",
+      farmer: "Farmer",
       vet: "Veterinarian",
       govt: "Government Official",
     };
@@ -205,7 +205,7 @@ export function Header({ sidebarCollapsed, isMobile = false }: HeaderProps) {
 
             {/* Enhanced Dropdown Menu */}
             {dropdownOpen && (
-              <div className="absolute right-0 mt-3 w-64 sm:w-72 bg-white/95 backdrop-blur-xl rounded-2xl shadow-xl border border-white/20 py-2 z-50 animate-in slide-in-from-top-2 duration-200">
+              <div className="absolute right-0 mt-3 w-64 sm:w-72 bg-white/95 backdrop-blur-xl rounded-2xl shadow-xl border border-white/20 py-2 z-[9999] animate-in slide-in-from-top-2 duration-200">
                 <div className="px-4 py-3 border-b border-gray-100/50">
                   <div className="flex items-center space-x-3">
                     <div className="w-12 h-12 bg-gradient-to-r from-orange-400 to-orange-500 rounded-xl flex items-center justify-center shadow-md">

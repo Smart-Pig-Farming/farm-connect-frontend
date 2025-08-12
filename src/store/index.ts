@@ -17,8 +17,8 @@ import { combineReducers } from "@reduxjs/toolkit";
 import { baseApi } from "./api/baseApi";
 import "./api/authApi";
 import "./api/userApi";
-import "./api/contentApi";
 import "./api/permissionsApi";
+import "./api/discussionsApi";
 
 // Import regular slices
 import authSlice from "./slices/authSlice";

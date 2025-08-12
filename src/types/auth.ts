@@ -15,8 +15,8 @@ export interface LoginRequest {
 }
 
 export interface RegisterFarmerRequest {
-  firstname: string;
-  lastname: string;
+  firstName: string;
+  lastName: string;
   email: string;
   password: string;
   farmName: string;
