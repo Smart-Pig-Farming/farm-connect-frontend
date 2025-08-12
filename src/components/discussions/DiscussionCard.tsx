@@ -300,8 +300,9 @@ export function DiscussionCard({
               {post.createdAt}
             </span>
 
-            {/* Dropdown Menu (visible only to users with Moderate:Posts permission) */}
-            {canModerate && (
+            {/* Actions Menu: authors always see edit/delete; moderators see moderation + delete */}
+            {(currentUserId && post.author.id === currentUserId) ||
+            canModerate ? (
               <div className="relative" ref={dropdownRef}>
                 <button
                   onClick={toggleDropdown}
@@ -363,7 +364,7 @@ export function DiscussionCard({
                   </div>
                 )}
               </div>
-            )}
+            ) : null}
           </div>
         </div>
 
