@@ -516,7 +516,8 @@ export function DiscussionsPage() {
         images,
         video,
         existingImages,
-        existingVideo,
+  existingVideo,
+  removedVideo,
       } = editData;
       try {
         // Derive media removals. We compare the original post media urls vs existingImages/existingVideo.
@@ -527,7 +528,8 @@ export function DiscussionsPage() {
           (u) => !remainingExisting.includes(u)
         );
         const originalVideoUrl = original?.video || null;
-        const removeVideo = Boolean(originalVideoUrl && !existingVideo);
+  // Respect the modal's explicit removedVideo flag; fallback to diff-based detection
+  const removeVideo = Boolean(removedVideo) || Boolean(originalVideoUrl && !existingVideo);
 
         const op = updatePost({
           id,

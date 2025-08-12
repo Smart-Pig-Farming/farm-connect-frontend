@@ -55,8 +55,16 @@ export function DiscussionCard({
   onDeletePost,
   currentUserId,
 }: DiscussionCardProps) {
-  const isUpSelected = post.userVote === "up";
-  const isDownSelected = post.userVote === "down";
+  // Persistently-highlighted vote state: local state mirrors server value, updates instantly on click
+  const [localUserVote, setLocalUserVote] = useState<"up" | "down" | null>(
+    post.userVote ?? null
+  );
+  useEffect(() => {
+    setLocalUserVote(post.userVote ?? null);
+  }, [post.userVote]);
+  const currentVote = localUserVote ?? post.userVote;
+  const isUpSelected = currentVote === "up";
+  const isDownSelected = currentVote === "down";
   const { hasPermission } = usePermissions();
   const canModerate = hasPermission("MODERATE:POSTS");
   const [showReportModal, setShowReportModal] = useState(false);
@@ -116,6 +124,8 @@ export function DiscussionCard({
         setFlashUp(false);
         setUpDelta(null);
       }, 500);
+      // Immediate local highlight toggle
+      setLocalUserVote(isUpSelected ? null : "up");
     } else {
       const delta = post.userVote === "down" ? -1 : 1;
       setDownDelta(delta);
@@ -124,6 +134,8 @@ export function DiscussionCard({
         setFlashDown(false);
         setDownDelta(null);
       }, 500);
+      // Immediate local highlight toggle
+      setLocalUserVote(isDownSelected ? null : "down");
     }
     onVote?.(post.id, voteType);
   };
