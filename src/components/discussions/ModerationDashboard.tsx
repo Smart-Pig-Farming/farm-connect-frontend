@@ -484,7 +484,7 @@ export function ModerationDashboard({
       {/* Modern Search and Filters */}
       <div className="bg-white/40 backdrop-blur-sm border-b border-gray-200/30">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex flex-col lg:flex-row gap-4">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
             {/* Search Bar */}
             <div className="w-full lg:flex-1 lg:min-w-[260px] min-w-0 relative group">
               <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
@@ -499,7 +499,7 @@ export function ModerationDashboard({
             </div>
 
             {/* Filter Controls */}
-            <div className="flex gap-3 flex-wrap md:flex-nowrap items-stretch md:items-center w-full">
+            <div className="flex gap-3 flex-wrap md:flex-nowrap items-stretch md:items-center w-full lg:w-auto">
               <select
                 value={timeFilter}
                 onChange={(e) => handleTimeFilterChange(e.target.value)}
