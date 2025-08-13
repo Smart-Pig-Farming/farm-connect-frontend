@@ -4,12 +4,10 @@ import type {
   EnhancedModerationReport,
   PostSnapshot,
   EnhancedModerationHistoryItem,
-  ModerationMetrics,
   ReportResponse,
   BulkModerationRequest,
   BulkModerationResponse,
   ModerationFilters,
-  ModerationAnalytics,
   RateLimitError,
   PendingModerationItem,
   ModerationHistoryResponse,
@@ -30,7 +28,7 @@ export const moderationApi = createApi({
     baseUrl: "http://localhost:5000/api/moderation",
     credentials: "include",
   }),
-  tagTypes: ["PendingReports", "ModerationHistory", "ModerationMetrics"],
+  tagTypes: ["PendingReports", "ModerationHistory"],
   endpoints: (builder) => ({
     // Get pending moderation reports with enhanced data
     getPendingReports: builder.query<
@@ -63,7 +61,7 @@ export const moderationApi = createApi({
         method: "POST",
         body: reportData,
       }),
-      invalidatesTags: ["PendingReports", "ModerationMetrics"],
+  invalidatesTags: ["PendingReports"],
       transformErrorResponse: (response: { status: number; data: unknown }) => {
         // Handle rate limit errors specifically
         if (response.status === 429) {
@@ -127,11 +125,7 @@ export const moderationApi = createApi({
           justification: decisionData.justification,
         },
       }),
-      invalidatesTags: [
-        "PendingReports",
-        "ModerationHistory",
-        "ModerationMetrics",
-      ],
+  invalidatesTags: ["PendingReports", "ModerationHistory"],
     }),
 
     // Bulk moderation decisions
@@ -144,11 +138,7 @@ export const moderationApi = createApi({
         method: "POST",
         body: bulkData,
       }),
-      invalidatesTags: [
-        "PendingReports",
-        "ModerationHistory",
-        "ModerationMetrics",
-      ],
+  invalidatesTags: ["PendingReports", "ModerationHistory"],
     }),
 
     // Get moderation history with snapshots
@@ -184,34 +174,7 @@ export const moderationApi = createApi({
       query: (postId) => `/compare/${postId}`,
     }),
 
-    // Get moderation metrics
-    getModerationMetrics: builder.query<
-      ModerationMetrics,
-      {
-        timeRange?: "24h" | "7days" | "30days" | "90days" | "all";
-        moderatorId?: number;
-      }
-    >({
-      query: ({ timeRange = "7days", moderatorId }) => ({
-        url: "/metrics",
-        params: { timeRange, moderatorId },
-      }),
-      providesTags: ["ModerationMetrics"],
-    }),
-
-    // Get moderation analytics
-    getModerationAnalytics: builder.query<
-      ModerationAnalytics,
-      {
-        startDate: string;
-        endDate: string;
-      }
-    >({
-      query: ({ startDate, endDate }) => ({
-        url: "/analytics",
-        params: { startDate, endDate },
-      }),
-    }),
+  // Metrics & analytics endpoints removed
 
     // Reopen a closed report (if conditions are met)
     reopenReport: builder.mutation<
@@ -343,8 +306,6 @@ export const {
   useGetModerationHistoryQuery,
   useGetPostSnapshotQuery,
   useComparePostVersionsQuery,
-  useGetModerationMetricsQuery,
-  useGetModerationAnalyticsQuery,
   useReopenReportMutation,
   useGetRateLimitStatusQuery,
   useGetReportDetailsQuery,
@@ -416,7 +377,6 @@ export const handleModerationUpdate = (
       dispatch(
         moderationApi.util.invalidateTags([
           "PendingReports",
-          "ModerationMetrics",
         ])
       );
       break;
@@ -426,7 +386,6 @@ export const handleModerationUpdate = (
         moderationApi.util.invalidateTags([
           "PendingReports",
           "ModerationHistory",
-          "ModerationMetrics",
         ])
       );
       break;

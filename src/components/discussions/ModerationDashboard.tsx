@@ -1,14 +1,5 @@
 import { useMemo, useState, useCallback } from "react";
-import {
-  ArrowLeft,
-  Shield,
-  Search,
-  ChevronLeft,
-  ChevronRight,
-  CheckCircle2,
-  Timer,
-  Hourglass,
-} from "lucide-react";
+import { ArrowLeft, Shield, Search, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -23,7 +14,6 @@ import {
   useGetPendingModerationQuery,
   useGetModerationHistoryQuery,
   useDecideModerationMutation,
-  useGetModerationMetricsQuery,
 } from "@/store/api/discussionsApi";
 import type {
   ModerationPendingItem,
@@ -95,42 +85,7 @@ export function ModerationDashboard({
       limit: pageSize,
     });
   const [decideModeration] = useDecideModerationMutation();
-  const { data: metrics } = useGetModerationMetricsQuery();
-
-  // Safe number extractor for flexible metrics bag
-  const num = useCallback(
-    (v: unknown, fallback: number) =>
-      typeof v === "number" && Number.isFinite(v) ? v : fallback,
-    []
-  );
-  const fallbackPendingCount = useMemo(
-    () => pendingData?.pagination?.total ?? pendingData?.data?.length ?? 0,
-    [pendingData]
-  );
-  const metricsPendingCount = num(
-    metrics?.data?.pendingCount,
-    fallbackPendingCount
-  );
-  const metricsDecisions7d = num(metrics?.data?.decisionsLast7d, 0);
-  const metricsMedianTTD = Math.round(
-    num(metrics?.data?.medianTimeToDecisionSec, 0)
-  );
-
-  // Show analytics only when useful (reduce noise when all zero)
-  const showAnalyticsBar =
-    metricsPendingCount > 0 || metricsDecisions7d > 0 || metricsMedianTTD > 0;
-
-  // Tiny helper for human-friendly durations (seconds → 1m 20s, 2h, etc.)
-  const formatDuration = (totalSeconds: number) => {
-    if (!totalSeconds || totalSeconds <= 0) return "0s";
-    const hours = Math.floor(totalSeconds / 3600);
-    const minutes = Math.floor((totalSeconds % 3600) / 60);
-    const seconds = totalSeconds % 60;
-    if (hours > 0) return minutes > 0 ? `${hours}h ${minutes}m` : `${hours}h`;
-    if (minutes > 0)
-      return seconds > 0 ? `${minutes}m ${seconds}s` : `${minutes}m`;
-    return `${seconds}s`;
-  };
+  // Metrics removed
 
   const ensureReason = (r: string): ModerationReport["reason"] => {
     const allowed: readonly ModerationReport["reason"][] = [
@@ -456,30 +411,7 @@ export function ModerationDashboard({
                 History
               </button>
             </div>
-            {/* Metrics summary (intuitive) */}
-            {showAnalyticsBar && (
-              <div className="hidden md:flex items-stretch gap-3 py-2">
-                <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-orange-50 border border-orange-200 text-orange-800 text-sm font-medium">
-                  <Hourglass className="h-4 w-4" />
-                  <span>{metricsPendingCount}</span>
-                  <span className="text-xs text-orange-700/80">Pending</span>
-                </div>
-                <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-blue-50 border border-blue-200 text-blue-800 text-sm font-medium">
-                  <CheckCircle2 className="h-4 w-4" />
-                  <span>{metricsDecisions7d}</span>
-                  <span className="text-xs text-blue-700/80">
-                    Decisions (7d)
-                  </span>
-                </div>
-                <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm font-medium">
-                  <Timer className="h-4 w-4" />
-                  <span>{formatDuration(metricsMedianTTD)}</span>
-                  <span className="text-xs text-emerald-700/80">
-                    Median TTD
-                  </span>
-                </div>
-              </div>
-            )}
+            {/* Metrics summary removed */}
           </div>
         </div>
       </div>

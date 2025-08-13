@@ -13,8 +13,6 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   AlertTriangle,
-  Clock,
-  CheckCircle,
   XCircle,
   Eye,
   Search,
@@ -22,28 +20,23 @@ import {
   Download,
   RefreshCw,
   Archive,
-  BarChart3,
   Shield,
-  Users,
-  TrendingUp,
   Camera,
   FileText,
+  CheckCircle,
 } from "lucide-react";
 import {
   useGetPendingReportsQuery,
   useGetModerationHistoryQuery,
-  useGetModerationMetricsQuery,
   useMakeDecisionMutation,
   useMakeBulkDecisionMutation,
   formatModerationReason,
   formatDecision,
-  formatDuration,
 } from "@/store/api/moderationApi";
 import type {
   PendingModerationItem,
   EnhancedModerationHistoryItem,
   ModerationFilters,
-  ModerationMetrics,
   ModerationHistoryResponse,
 } from "@/types/moderation";
 import { toast } from "sonner";
@@ -56,9 +49,9 @@ export const ModerationDashboard: React.FC<ModerationDashboardProps> = ({
   className = "",
 }) => {
   // State management
-  const [activeTab, setActiveTab] = useState<
-    "pending" | "history" | "analytics"
-  >("pending");
+  const [activeTab, setActiveTab] = useState<"pending" | "history">(
+    "pending"
+  );
   const [selectedReports, setSelectedReports] = useState<Set<string>>(
     new Set()
   );
@@ -94,10 +87,7 @@ export const ModerationDashboard: React.FC<ModerationDashboardProps> = ({
       timeRange: filters.timeRange,
     });
 
-  const { data: metrics, isLoading: metricsLoading } =
-    useGetModerationMetricsQuery({
-      timeRange: filters.timeRange === "all" ? "90days" : filters.timeRange,
-    });
+  // Metrics removed
 
   const [makeDecision] = useMakeDecisionMutation();
   const [makeBulkDecision] = useMakeBulkDecisionMutation();
@@ -193,91 +183,7 @@ export const ModerationDashboard: React.FC<ModerationDashboardProps> = ({
     pendingReports?.reports &&
     selectedReports.size === pendingReports.reports.length;
 
-  // Metrics summary cards
-  const MetricsCards = useMemo(() => {
-    if (metricsLoading || !metrics) {
-      return (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-          {[...Array(4)].map((_, i) => (
-            <Card key={i} className="animate-pulse">
-              <CardContent className="p-6">
-                <div className="h-4 bg-gray-200 rounded mb-2"></div>
-                <div className="h-8 bg-gray-200 rounded"></div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      );
-    }
-
-    return (
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">
-                  Pending Reports
-                </p>
-                <p className="text-2xl font-bold text-orange-600">
-                  {metrics.pendingCount}
-                </p>
-              </div>
-              <AlertTriangle className="h-8 w-8 text-orange-500" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">
-                  Resolved (7d)
-                </p>
-                <p className="text-2xl font-bold text-green-600">
-                  {metrics.decisionsLast7d}
-                </p>
-              </div>
-              <CheckCircle className="h-8 w-8 text-green-500" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">
-                  Avg Response Time
-                </p>
-                <p className="text-2xl font-bold text-blue-600">
-                  {formatDuration(metrics.medianTimeToDecisionSec)}
-                </p>
-              </div>
-              <Clock className="h-8 w-8 text-blue-500" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">
-                  Report Accuracy
-                </p>
-                <p className="text-2xl font-bold text-purple-600">
-                  {Math.round(metrics.reportAccuracy * 100)}%
-                </p>
-              </div>
-              <TrendingUp className="h-8 w-8 text-purple-500" />
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }, [metrics, metricsLoading]);
+  // Metrics summary removed
 
   // Pending reports list
   const PendingReportsList = useMemo(() => {
@@ -359,8 +265,7 @@ export const ModerationDashboard: React.FC<ModerationDashboardProps> = ({
         </div>
       </div>
 
-      {/* Metrics */}
-      {MetricsCards}
+  {/* Metrics removed */}
 
       {/* Filters and Search */}
       <Card className="mb-6">
@@ -490,26 +395,18 @@ export const ModerationDashboard: React.FC<ModerationDashboardProps> = ({
       <Tabs
         value={activeTab}
         onValueChange={(value: string) =>
-          setActiveTab(value as "pending" | "history" | "analytics")
+          setActiveTab(value as "pending" | "history")
         }
       >
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="pending" className="flex items-center gap-2">
             <AlertTriangle className="h-4 w-4" />
             Pending Reports
-            {metrics?.pendingCount && (
-              <Badge variant="secondary" className="ml-1">
-                {metrics.pendingCount}
-              </Badge>
-            )}
+            {/* Metrics count removed */}
           </TabsTrigger>
           <TabsTrigger value="history" className="flex items-center gap-2">
             <Archive className="h-4 w-4" />
             Moderation History
-          </TabsTrigger>
-          <TabsTrigger value="analytics" className="flex items-center gap-2">
-            <BarChart3 className="h-4 w-4" />
-            Analytics
           </TabsTrigger>
         </TabsList>
 
@@ -524,14 +421,7 @@ export const ModerationDashboard: React.FC<ModerationDashboardProps> = ({
             showSnapshots={showSnapshots}
           />
         </TabsContent>
-
-        <TabsContent value="analytics" className="mt-6">
-          <ModerationAnalytics
-            metrics={metrics}
-            loading={metricsLoading}
-            timeRange={filters.timeRange || "7days"}
-          />
-        </TabsContent>
+  {/* Analytics tab removed */}
       </Tabs>
     </div>
   );
@@ -813,160 +703,6 @@ const ModerationHistoryList: React.FC<ModerationHistoryListProps> = ({
           </CardContent>
         </Card>
       ))}
-    </div>
-  );
-};
-
-// Analytics Component
-interface ModerationAnalyticsProps {
-  metrics: ModerationMetrics | undefined;
-  loading: boolean;
-  timeRange: string;
-}
-
-const ModerationAnalytics: React.FC<ModerationAnalyticsProps> = ({
-  metrics,
-  loading,
-  timeRange,
-}) => {
-  if (loading || !metrics) {
-    return (
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {[...Array(4)].map((_, i) => (
-          <Card key={i} className="animate-pulse">
-            <CardContent className="p-6">
-              <div className="h-4 bg-gray-200 rounded mb-4"></div>
-              <div className="h-32 bg-gray-200 rounded"></div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-    );
-  }
-
-  return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <BarChart3 className="h-5 w-5" />
-            Decision Distribution
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">Content Retained</span>
-              <span className="text-lg font-bold text-green-600">
-                {metrics.decisionDistribution.retained}
-              </span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">Content Deleted</span>
-              <span className="text-lg font-bold text-red-600">
-                {metrics.decisionDistribution.deleted}
-              </span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">Users Warned</span>
-              <span className="text-lg font-bold text-yellow-600">
-                {metrics.decisionDistribution.warned}
-              </span>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Users className="h-5 w-5" />
-            Community Stats
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">Unique Reporters</span>
-              <span className="text-lg font-bold">
-                {metrics.totalUniqueReporters}
-              </span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">Avg Reports/Post</span>
-              <span className="text-lg font-bold">
-                {metrics.avgReportsPerPost.toFixed(1)}
-              </span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">Report Accuracy</span>
-              <span className="text-lg font-bold text-purple-600">
-                {Math.round(metrics.reportAccuracy * 100)}%
-              </span>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Clock className="h-5 w-5" />
-            Response Times
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">Median Response</span>
-              <span className="text-lg font-bold text-blue-600">
-                {formatDuration(metrics.medianTimeToDecisionSec)}
-              </span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">
-                Decisions ({timeRange})
-              </span>
-              <span className="text-lg font-bold">
-                {metrics.decisionsLast7d}
-              </span>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Shield className="h-5 w-5" />
-            System Health
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">Pending Reports</span>
-              <span
-                className={`text-lg font-bold ${
-                  metrics.pendingCount > 10
-                    ? "text-red-600"
-                    : metrics.pendingCount > 5
-                    ? "text-yellow-600"
-                    : "text-green-600"
-                }`}
-              >
-                {metrics.pendingCount}
-              </span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">Rate Limit Entries</span>
-              <span className="text-lg font-bold">
-                {metrics.rateLimitEntriesCount}
-              </span>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 };

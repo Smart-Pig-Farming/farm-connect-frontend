@@ -72,10 +72,7 @@ export interface ModerationHistoryItem {
   post?: Partial<Post>;
 }
 
-export interface ModerationMetrics {
-  // Flexible metrics bag from backend
-  [key: string]: unknown;
-}
+// Metrics support removed
 
 export interface PaginationMeta {
   page?: number;
@@ -855,14 +852,7 @@ export const discussionsApi = baseApi.injectEndpoints({
       providesTags: [{ type: "Report", id: "HISTORY" }],
     }),
 
-    // Moderation: metrics
-    getModerationMetrics: builder.query<
-      { success: boolean; data: ModerationMetrics },
-      void
-    >({
-      query: () => ({ url: `/moderation/metrics` }),
-      providesTags: [{ type: "Report", id: "METRICS" }],
-    }),
+  // Metrics endpoint was removed
 
     // Delete a post (soft delete on server)
     deletePost: builder.mutation<{ success: boolean }, { id: string }>({
@@ -947,5 +937,4 @@ export const {
   useGetPendingModerationQuery,
   useDecideModerationMutation,
   useGetModerationHistoryQuery,
-  useGetModerationMetricsQuery,
 } = discussionsApi;

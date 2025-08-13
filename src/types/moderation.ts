@@ -58,21 +58,7 @@ export interface EnhancedModerationHistoryItem {
   originalPost?: Partial<Post>; // For comparison
 }
 
-export interface ModerationMetrics {
-  pendingCount: number;
-  resolvedCount: number;
-  decisionsLast7d: number;
-  medianTimeToDecisionSec: number;
-  decisionDistribution: {
-    retained: number;
-    deleted: number;
-    warned: number;
-  };
-  avgReportsPerPost: number;
-  totalUniqueReporters: number;
-  rateLimitEntriesCount: number;
-  reportAccuracy: number; // Percentage of reports that led to action
-}
+// Metrics types removed
 
 export interface RateLimitError {
   error: string;
@@ -223,32 +209,7 @@ export interface ModerationHistoryResponse {
   hasMore: boolean;
 }
 
-// Analytics types
-export interface ModerationAnalytics {
-  responseTimes: {
-    average: number;
-    median: number;
-    percentile95: number;
-  };
-  reportAccuracy: {
-    percentage: number;
-    trend: "up" | "down" | "stable";
-  };
-  reportVolume: {
-    daily: Array<{
-      date: string;
-      count: number;
-    }>;
-    byReason: Record<string, number>;
-  };
-  moderatorPerformance: Array<{
-    moderatorId: number;
-    moderatorName: string;
-    decisionsCount: number;
-    averageResponseTime: number;
-    accuracy: number;
-  }>;
-}
+// Analytics types removed
 
 // Component prop types
 export interface ModerationCardProps {
