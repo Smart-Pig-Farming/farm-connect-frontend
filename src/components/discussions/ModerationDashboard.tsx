@@ -375,36 +375,39 @@ export function ModerationDashboard({
       {/* Modern Header */}
       <div className="bg-white/80 backdrop-blur-sm border-b border-gray-200/60 sticky top-0 z-30">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-20">
+          {/* Header container wraps on small screens to avoid horizontal overflow */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 py-4">
             {/* Back Button & Title */}
-            <div className="flex items-center gap-6">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={onBackToDiscussions}
-                className="flex items-center gap-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100/50 rounded-xl px-4 py-2 transition-all duration-200"
-              >
-                <ArrowLeft className="h-4 w-4" />
-                <span className="font-medium">Back to Discussions</span>
-              </Button>
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-6 w-full">
+              <div className="flex items-center justify-between sm:justify-start w-full sm:w-auto">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={onBackToDiscussions}
+                  className="flex items-center gap-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100/50 rounded-xl px-4 py-2 transition-all duration-200 shrink-0"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                  <span className="font-medium">Back to Discussions</span>
+                </Button>
+              </div>
 
-              <div className="flex items-center gap-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl shadow-lg">
+              <div className="flex items-center gap-4 flex-wrap min-w-0 w-full sm:w-auto">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="p-2 bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl shadow-lg shrink-0">
                     <Shield className="h-5 w-5 text-white" />
                   </div>
-                  <div>
-                    <h1 className="text-2xl font-bold text-gray-900">
+                  <div className="min-w-0">
+                    <h1 className="text-2xl font-bold text-gray-900 leading-tight break-words">
                       Moderation Center
                     </h1>
-                    <p className="text-sm text-gray-500">
+                    <p className="text-sm text-gray-500 break-words">
                       Manage community content
                     </p>
                   </div>
                 </div>
 
                 {pendingTotal > 0 && (
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 shrink-0">
                     <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
                     <Badge
                       variant="destructive"
@@ -494,16 +497,23 @@ export function ModerationDashboard({
                 placeholder="Search posts, users, or moderators..."
                 value={searchQuery}
                 onChange={(e) => handleSearchChange(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 h-12 bg-white/80 backdrop-blur-sm border-gray-200/60 rounded-xl shadow-sm focus:shadow-md focus:ring-2 focus:ring-orange-500/20 focus:border-orange-300 transition-all duration-200"
+                className="w-full pl-10 pr-4 py-3 h-12 bg-white/80 backdrop-blur-sm border-gray-200/60 rounded-xl shadow-sm focus:shadow-md focus:ring-2 focus:ring-orange-500/20 focus:border-orange-300 transition-all duration-200 min-w-0"
               />
             </div>
 
             {/* Filter Controls */}
-            <div className="flex gap-3 flex-wrap md:flex-nowrap items-stretch md:items-center w-full lg:w-auto">
+            {/* On small screens, especially in History tab, stack controls vertically to avoid side-by-side crowding */}
+            <div
+              className={`flex gap-3 w-full lg:w-auto items-stretch md:items-center ${
+                activeTab === "history"
+                  ? "flex-col md:flex-row"
+                  : "flex-wrap md:flex-nowrap"
+              }`}
+            >
               <select
                 value={timeFilter}
                 onChange={(e) => handleTimeFilterChange(e.target.value)}
-                className="bg-white/80 backdrop-blur-sm border border-gray-200/60 rounded-xl px-4 py-3 h-12 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-300 shadow-sm hover:shadow-md transition-all duration-200 min-w-28 sm:min-w-36 shrink-0"
+                className="bg-white/80 backdrop-blur-sm border border-gray-200/60 rounded-xl px-4 py-3 h-12 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-300 shadow-sm hover:shadow-md transition-all duration-200 w-full md:w-auto md:min-w-36 shrink-0"
               >
                 <option value="7days">Last 7 Days</option>
                 <option value="30days">Last 30 Days</option>
@@ -515,7 +525,7 @@ export function ModerationDashboard({
               {activeTab === "history" && (
                 <>
                   {/* Segmented control for md+ screens */}
-                  <div className="hidden md:flex bg-white/80 backdrop-blur-sm border border-gray-200/60 rounded-xl h-12 p-1 shadow-sm">
+                  <div className="hidden md:flex bg-white/80 backdrop-blur-sm border border-gray-200/60 rounded-xl h-12 p-1 shadow-sm md:w-auto">
                     {[
                       { key: "all", label: "All" },
                       { key: "retained", label: "Retained" },
@@ -545,7 +555,7 @@ export function ModerationDashboard({
 
                   {/* Compact select for small screens */}
                   <select
-                    className="md:hidden bg-white/80 backdrop-blur-sm border border-gray-200/60 rounded-xl px-4 py-3 h-12 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-300 shadow-sm hover:shadow-md transition-all duration-200 min-w-28 sm:min-w-36 shrink-0"
+                    className="md:hidden bg-white/80 backdrop-blur-sm border border-gray-200/60 rounded-xl px-4 py-3 h-12 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-300 shadow-sm hover:shadow-md transition-all duration-200 w-full md:w-auto md:min-w-36 shrink-0"
                     value={decisionFilter}
                     onChange={(e) =>
                       handleDecisionFilterChange(
@@ -570,7 +580,7 @@ export function ModerationDashboard({
               <select
                 value={pageSize}
                 onChange={(e) => handlePageSizeChange(Number(e.target.value))}
-                className="bg-white/80 backdrop-blur-sm border border-gray-200/60 rounded-xl px-4 py-3 h-12 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-300 shadow-sm hover:shadow-md transition-all duration-200 min-w-24 sm:min-w-28 shrink-0"
+                className="bg-white/80 backdrop-blur-sm border border-gray-200/60 rounded-xl px-4 py-3 h-12 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-300 shadow-sm hover:shadow-md transition-all duration-200 w-full md:w-auto md:min-w-28 shrink-0"
                 aria-label="Items per page"
               >
                 <option value={5}>5 / page</option>
@@ -588,17 +598,17 @@ export function ModerationDashboard({
         {activeTab === "pending" ? (
           <div className="space-y-8">
             {/* Section Header */}
-            <div className="flex items-center justify-between">
+            <div className="flex items-start sm:items-center justify-between gap-3 flex-wrap">
               <div>
-                <h2 className="text-2xl font-bold text-gray-900 mb-1">
+                <h2 className="text-2xl font-bold text-gray-900 mb-1 break-words leading-tight">
                   Pending Moderation
                 </h2>
-                <p className="text-gray-600">
+                <p className="text-gray-600 break-words">
                   Review reported content and take appropriate action
                 </p>
               </div>
               {pendingModerations.length > 0 && (
-                <div className="text-right">
+                <div className="text-right ml-auto">
                   <p className="text-sm font-medium text-gray-900">
                     {pendingTotal} post
                     {pendingTotal !== 1 ? "s" : ""}
@@ -638,7 +648,7 @@ export function ModerationDashboard({
                   {pendingModerations.map((modStatus) => (
                     <div
                       key={modStatus.postId}
-                      className="bg-white/70 rounded-2xl shadow-sm hover:shadow-lg transition-all duration-300"
+                      className="bg-white/70 rounded-2xl shadow-sm hover:shadow-lg transition-all duration-300 break-words"
                     >
                       <ModerationCard
                         moderationStatus={modStatus}
@@ -706,17 +716,17 @@ export function ModerationDashboard({
         ) : (
           <div className="space-y-8">
             {/* Section Header */}
-            <div className="flex items-center justify-between">
+            <div className="flex items-start sm:items-center justify-between gap-3 flex-wrap">
               <div>
-                <h2 className="text-2xl font-bold text-gray-900 mb-1">
+                <h2 className="text-2xl font-bold text-gray-900 mb-1 break-words leading-tight">
                   Moderation History
                 </h2>
-                <p className="text-gray-600">
+                <p className="text-gray-600 break-words">
                   Track completed moderation actions and decisions
                 </p>
               </div>
               {moderationHistory.length > 0 && (
-                <div className="text-right">
+                <div className="text-right ml-auto">
                   <p className="text-sm font-medium text-gray-900">
                     {historyTotal} action
                     {historyTotal !== 1 ? "s" : ""}
@@ -751,14 +761,14 @@ export function ModerationDashboard({
                 </div>
               </div>
             ) : (
-              <div className="space-y-6">
-                <div className="grid gap-4">
+              <div className="space-y-6 overflow-x-hidden">
+                <div className="grid gap-4 max-w-full">
                   {moderationHistory.map((modStatus) => (
                     <div
                       key={`${modStatus.postId}-${
                         modStatus.action?.id || "no-action"
                       }`}
-                      className="bg-white/70 backdrop-blur-sm rounded-xl shadow-sm hover:shadow-md transition-all duration-200"
+                      className="bg-white/70 backdrop-blur-sm rounded-xl shadow-sm hover:shadow-md transition-all duration-200 break-words w-full max-w-full overflow-hidden"
                     >
                       <ModerationHistoryCard
                         moderationStatus={
