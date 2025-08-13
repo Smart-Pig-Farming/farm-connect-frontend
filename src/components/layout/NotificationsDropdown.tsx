@@ -114,16 +114,16 @@ export default function NotificationsDropdown() {
         reportCount?: number;
       }) => {
         console.log(
-          "🔔 NotificationsDropdown received moderation decision:",
+          "NotificationsDropdown received moderation decision:",
           data
         );
 
         const decisionText =
           {
-            retained: "✅ Content Retained",
-            deleted: "🗑️ Content Deleted",
-            warned: "⚠️ User Warned",
-          }[data.decision] || "📝 Moderation Decision";
+            retained: "Content Retained",
+            deleted: "Content Deleted",
+            warned: "User Warned",
+          }[data.decision] || "Moderation Decision";
 
         const reportText = data.reportCount
           ? ` (${data.reportCount} report${data.reportCount > 1 ? "s" : ""})`
@@ -219,7 +219,9 @@ export default function NotificationsDropdown() {
       </button>
 
       {open && (
-        <div className="absolute right-0 mt-3 w-80 max-h-[420px] overflow-y-auto bg-white/95 backdrop-blur-xl rounded-2xl shadow-xl border border-white/20 z-[9999] animate-in fade-in slide-in-from-top-2 duration-200">
+        <div
+          className="fixed left-3 right-3 top-14 md:absolute md:right-0 md:left-auto md:top-auto md:mt-3 md:w-80 w-auto max-h-[70vh] md:max-h-[420px] overflow-y-auto bg-white/95 backdrop-blur-xl rounded-2xl shadow-xl border border-white/20 z-[9999] animate-in fade-in slide-in-from-top-2 duration-200"
+        >
           <div className="sticky top-0 bg-white/70 backdrop-blur-xl border-b border-gray-100/50 px-4 py-3 flex items-center justify-between">
             <div className="font-semibold text-gray-800 text-sm">
               Notifications
@@ -247,11 +249,11 @@ export default function NotificationsDropdown() {
               No notifications
             </div>
           ) : (
-            <ul className="divide-y divide-gray-100/60">
+    <ul className="divide-y divide-gray-100/60">
               {allNotifications.map((n) => (
                 <li
                   key={n.id}
-                  className="px-4 py-3 hover:bg-orange-50/40 transition-colors"
+      className="px-4 py-3 hover:bg-orange-50/40 transition-colors"
                 >
                   <div className="flex items-start gap-3">
                     <div
@@ -262,10 +264,10 @@ export default function NotificationsDropdown() {
                       {n.title?.[0]?.toUpperCase() || "!"}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="text-sm font-semibold text-gray-900 truncate">
+                      <div className="text-sm font-semibold text-gray-900 whitespace-normal break-words leading-5 md:leading-5">
                         {n.title}
                       </div>
-                      <div className="text-xs text-gray-600 line-clamp-2 mt-1">
+                      <div className="text-xs text-gray-600 whitespace-normal break-words mt-1 leading-5">
                         {n.message}
                       </div>
                       <div className="text-[10px] text-gray-400 mt-1">
