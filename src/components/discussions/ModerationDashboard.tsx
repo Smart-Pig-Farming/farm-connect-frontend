@@ -274,8 +274,23 @@ export function ModerationDashboard({
         refetchPending();
       },
       // We'll wire decision event in the ws hook and handle it here
-      onModerationDecision: () => {
-        toast.info("Moderation decision applied remotely");
+      onModerationDecision: (data) => {
+        console.log("🔔 Received moderation decision:", data);
+
+        const decisionText =
+          {
+            retained: "✅ Content retained",
+            deleted: "🗑️ Content deleted",
+            warned: "⚠️ User warned",
+          }[data.decision] || "📝 Decision applied";
+
+        const message = data.justification
+          ? `${decisionText}: ${data.justification}`
+          : decisionText;
+
+        toast.success(message, {
+          duration: 4000,
+        });
         refreshData();
       },
     },

@@ -190,6 +190,39 @@ export interface ModerationFilters {
   limit?: number;
 }
 
+// Add missing interface
+export interface PendingModerationItem {
+  id: string;
+  post_id: string;
+  reporter_id: number;
+  reason:
+    | "inappropriate"
+    | "spam"
+    | "fraudulent"
+    | "misinformation"
+    | "technical"
+    | "other";
+  details?: string;
+  created_at: string;
+  report_count: number;
+  post: Partial<Post>;
+  reporter: {
+    id: number;
+    firstname: string;
+    lastname: string;
+  };
+  post_snapshot?: PostSnapshot;
+}
+
+// Add missing response interface
+export interface ModerationHistoryResponse {
+  items: EnhancedModerationHistoryItem[];
+  totalCount: number;
+  page: number;
+  limit: number;
+  hasMore: boolean;
+}
+
 // Analytics types
 export interface ModerationAnalytics {
   responseTimes: {

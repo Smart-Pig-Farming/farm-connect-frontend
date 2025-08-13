@@ -11,39 +11,10 @@ import type {
   ModerationFilters,
   ModerationAnalytics,
   RateLimitError,
-} from "../types/moderation";
+  PendingModerationItem,
+  ModerationHistoryResponse,
+} from "../../types/moderation";
 import type { Post } from "./discussionsApi";
-
-export interface PendingModerationItem {
-  id: string;
-  post_id: string;
-  reporter_id: number;
-  reason:
-    | "inappropriate"
-    | "spam"
-    | "fraudulent"
-    | "misinformation"
-    | "technical"
-    | "other";
-  details?: string;
-  created_at: string;
-  report_count: number;
-  post: Partial<Post>;
-  reporter: {
-    id: number;
-    firstname: string;
-    lastname: string;
-  };
-  post_snapshot?: PostSnapshot;
-}
-
-export interface ModerationHistoryResponse {
-  items: EnhancedModerationHistoryItem[];
-  totalCount: number;
-  page: number;
-  limit: number;
-  hasMore: boolean;
-}
 
 export interface PendingReportsResponse {
   reports: PendingModerationItem[];
@@ -68,7 +39,7 @@ export const moderationApi = createApi({
         page?: number;
         limit?: number;
         search?: string;
-        timeRange?: "24h" | "7days" | "30days" | "all";
+        timeRange?: "24h" | "7days" | "30days" | "90days" | "all";
       }
     >({
       query: ({ page = 1, limit = 10, search, timeRange }) => ({
@@ -217,7 +188,7 @@ export const moderationApi = createApi({
     getModerationMetrics: builder.query<
       ModerationMetrics,
       {
-        timeRange?: "24h" | "7days" | "30days" | "90days";
+        timeRange?: "24h" | "7days" | "30days" | "90days" | "all";
         moderatorId?: number;
       }
     >({
@@ -395,7 +366,7 @@ export const isModerationRateLimitError = (
 export const formatModerationReason = (
   reason: EnhancedModerationReport["reason"]
 ): string => {
-  const reasonMap = {
+  const reasonMap: Record<EnhancedModerationReport["reason"], string> = {
     inappropriate: "Inappropriate Content",
     spam: "Spam",
     fraudulent: "Fraudulent Activity",
@@ -436,7 +407,7 @@ export const formatRetryAfter = (retryAfter: number): string => {
 // Real-time update handlers for WebSocket integration
 export const handleModerationUpdate = (
   data: { type: string; payload?: unknown },
-  dispatch: ReturnType<typeof moderationApi.util.invalidateTags>
+  dispatch: (action: { type: string; payload: unknown[] }) => void
 ) => {
   const { type } = data;
 

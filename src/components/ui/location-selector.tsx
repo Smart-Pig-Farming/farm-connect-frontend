@@ -1,5 +1,11 @@
 import { useState, useEffect } from "react";
-import { Select } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { locationData } from "@/data/location";
 
@@ -89,37 +95,62 @@ export function LocationSelector({
       <div className="space-y-2">
         <Label htmlFor="province">Province</Label>
         <Select
-          id="province"
-          options={provinces}
           value={selectedProvince}
-          onChange={(e) => handleProvinceChange(e.target.value)}
-          placeholder="Select Province"
-          disabled={disabled}
-        />
+          onValueChange={(value: string) => handleProvinceChange(value)}
+        >
+          <SelectTrigger className={disabled ? "opacity-50" : ""}>
+            <SelectValue placeholder="Select Province" />
+          </SelectTrigger>
+          <SelectContent>
+            {provinces.map((province) => (
+              <SelectItem key={province.value} value={province.value}>
+                {province.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       <div className="space-y-2">
         <Label htmlFor="district">District</Label>
         <Select
-          id="district"
-          options={districts}
           value={selectedDistrict}
-          onChange={(e) => handleDistrictChange(e.target.value)}
-          placeholder="Select District"
-          disabled={disabled || !selectedProvince}
-        />
+          onValueChange={(value: string) => handleDistrictChange(value)}
+        >
+          <SelectTrigger
+            className={disabled || !selectedProvince ? "opacity-50" : ""}
+          >
+            <SelectValue placeholder="Select District" />
+          </SelectTrigger>
+          <SelectContent>
+            {districts.map((district) => (
+              <SelectItem key={district.value} value={district.value}>
+                {district.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       <div className="space-y-2">
         <Label htmlFor="sector">Sector</Label>
         <Select
-          id="sector"
-          options={sectors}
           value={selectedSector}
-          onChange={(e) => handleSectorChange(e.target.value)}
-          placeholder="Select Sector"
-          disabled={disabled || !selectedDistrict}
-        />
+          onValueChange={(value: string) => handleSectorChange(value)}
+        >
+          <SelectTrigger
+            className={disabled || !selectedDistrict ? "opacity-50" : ""}
+          >
+            <SelectValue placeholder="Select Sector" />
+          </SelectTrigger>
+          <SelectContent>
+            {sectors.map((sector) => (
+              <SelectItem key={sector.value} value={sector.value}>
+                {sector.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {error && <p className="text-sm text-red-500">{error}</p>}

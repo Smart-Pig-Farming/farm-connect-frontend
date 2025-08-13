@@ -79,13 +79,25 @@ export const ModerationDashboard: React.FC<ModerationDashboardProps> = ({
     data: pendingReports,
     isLoading: pendingLoading,
     refetch: refetchPending,
-  } = useGetPendingReportsQuery(filters);
+  } = useGetPendingReportsQuery({
+    page: filters.page,
+    limit: filters.limit,
+    search: filters.search,
+    timeRange: filters.timeRange,
+  });
 
   const { data: moderationHistory, isLoading: historyLoading } =
-    useGetModerationHistoryQuery(filters);
+    useGetModerationHistoryQuery({
+      page: filters.page,
+      limit: filters.limit,
+      search: filters.search,
+      timeRange: filters.timeRange,
+    });
 
   const { data: metrics, isLoading: metricsLoading } =
-    useGetModerationMetricsQuery({ timeRange: filters.timeRange });
+    useGetModerationMetricsQuery({
+      timeRange: filters.timeRange === "all" ? "90days" : filters.timeRange,
+    });
 
   const [makeDecision] = useMakeDecisionMutation();
   const [makeBulkDecision] = useMakeBulkDecisionMutation();
@@ -372,9 +384,16 @@ export const ModerationDashboard: React.FC<ModerationDashboardProps> = ({
 
             <Select
               value={filters.timeRange || "7days"}
-              onValueChange={(
-                value: "24h" | "7days" | "30days" | "90days" | "all"
-              ) => handleFilterChange({ timeRange: value })}
+              onValueChange={(value: string) =>
+                handleFilterChange({
+                  timeRange: value as
+                    | "24h"
+                    | "7days"
+                    | "30days"
+                    | "90days"
+                    | "all",
+                })
+              }
             >
               <SelectTrigger>
                 <SelectValue placeholder="Time Range" />
@@ -428,8 +447,8 @@ export const ModerationDashboard: React.FC<ModerationDashboardProps> = ({
                 </span>
                 <Select
                   value={bulkAction}
-                  onValueChange={(value: "retained" | "deleted" | "warned") =>
-                    setBulkAction(value)
+                  onValueChange={(value: string) =>
+                    setBulkAction(value as "retained" | "deleted" | "warned")
                   }
                 >
                   <SelectTrigger className="w-40">
@@ -470,8 +489,8 @@ export const ModerationDashboard: React.FC<ModerationDashboardProps> = ({
       {/* Main Content Tabs */}
       <Tabs
         value={activeTab}
-        onValueChange={(value: "pending" | "history" | "analytics") =>
-          setActiveTab(value)
+        onValueChange={(value: string) =>
+          setActiveTab(value as "pending" | "history" | "analytics")
         }
       >
         <TabsList className="grid w-full grid-cols-3">
@@ -592,13 +611,12 @@ const ReportCard: React.FC<ReportCardProps> = ({
                   Reported by: {report.reporter.firstname}{" "}
                   {report.reporter.lastname}
                 </span>
-                {report.post.media_urls &&
-                  report.post.media_urls.length > 0 && (
-                    <span className="flex items-center gap-1">
-                      <Camera className="h-3 w-3" />
-                      {report.post.media_urls.length} media
-                    </span>
-                  )}
+                {report.post.media && report.post.media.length > 0 && (
+                  <span className="flex items-center gap-1">
+                    <Camera className="h-3 w-3" />
+                    {report.post.media.length} media
+                  </span>
+                )}
               </div>
               {report.details && (
                 <div className="mt-2 p-2 bg-gray-50 rounded text-sm">

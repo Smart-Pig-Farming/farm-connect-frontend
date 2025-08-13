@@ -19,6 +19,7 @@ import "./api/authApi";
 import "./api/userApi";
 import "./api/permissionsApi";
 import "./api/discussionsApi";
+import { notificationsApi } from "./api/notificationsApi";
 
 // Import regular slices
 import authSlice from "./slices/authSlice";
@@ -36,6 +37,7 @@ const authPersistConfig = {
 const rootReducer = combineReducers({
   // RTK Query API
   [baseApi.reducerPath]: baseApi.reducer,
+  [notificationsApi.reducerPath]: notificationsApi.reducer,
 
   // Regular slices
   auth: persistReducer(authPersistConfig, authSlice),
@@ -51,7 +53,7 @@ export const store = configureStore({
       serializableCheck: {
         ignoredActions: [FLUSH, REHYDRATE, PAUSE, PERSIST, PURGE, REGISTER],
       },
-    }).concat(baseApi.middleware),
+    }).concat(baseApi.middleware, notificationsApi.middleware),
 
   devTools: process.env.NODE_ENV !== "production",
 });
