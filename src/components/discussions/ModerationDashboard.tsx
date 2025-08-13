@@ -45,6 +45,9 @@ export function ModerationDashboard({
   const [activeTab, setActiveTab] = useState<"pending" | "history">("pending");
   const [searchQuery, setSearchQuery] = useState("");
   const [timeFilter, setTimeFilter] = useState("7days");
+  const [decisionFilter, setDecisionFilter] = useState<
+    "all" | "retained" | "deleted" | "warned"
+  >("all");
 
   // Server-side pagination state (separate per tab)
   const [pendingPage, setPendingPage] = useState(1);
@@ -83,6 +86,11 @@ export function ModerationDashboard({
   const { data: historyData, refetch: refetchHistory } =
     useGetModerationHistoryQuery({
       from: fromIso,
+      search: searchQuery || undefined,
+      decision:
+        decisionFilter === "all"
+          ? undefined
+          : (decisionFilter as "retained" | "deleted" | "warned"),
       page: historyPage,
       limit: pageSize,
     });
@@ -349,6 +357,13 @@ export function ModerationDashboard({
     setHistoryPage(1);
   };
 
+  const handleDecisionFilterChange = (
+    value: "all" | "retained" | "deleted" | "warned"
+  ) => {
+    setDecisionFilter(value);
+    setHistoryPage(1);
+  };
+
   const handlePageSizeChange = (value: number) => {
     setPageSize(value);
     setPendingPage(1);
@@ -356,7 +371,7 @@ export function ModerationDashboard({
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-orange-50/20">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-orange-50/20 overflow-x-hidden">
       {/* Modern Header */}
       <div className="bg-white/80 backdrop-blur-sm border-b border-gray-200/60 sticky top-0 z-30">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -408,7 +423,7 @@ export function ModerationDashboard({
       {/* Modern Tabs */}
       <div className="bg-white/60 backdrop-blur-sm border-b border-gray-200/40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between flex-wrap gap-3">
             <div className="flex bg-gray-100/60 rounded-xl p-1 backdrop-blur-sm">
               <button
                 onClick={() => handleTabChange("pending")}
@@ -471,7 +486,7 @@ export function ModerationDashboard({
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex flex-col lg:flex-row gap-4">
             {/* Search Bar */}
-            <div className="flex-1 relative group">
+            <div className="w-full lg:flex-1 lg:min-w-[260px] min-w-0 relative group">
               <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
                 <Search className="h-4 w-4 text-gray-400 group-focus-within:text-orange-500 transition-colors" />
               </div>
@@ -479,16 +494,16 @@ export function ModerationDashboard({
                 placeholder="Search posts, users, or moderators..."
                 value={searchQuery}
                 onChange={(e) => handleSearchChange(e.target.value)}
-                className="pl-10 pr-4 py-3 h-12 bg-white/80 backdrop-blur-sm border-gray-200/60 rounded-xl shadow-sm focus:shadow-md focus:ring-2 focus:ring-orange-500/20 focus:border-orange-300 transition-all duration-200"
+                className="w-full pl-10 pr-4 py-3 h-12 bg-white/80 backdrop-blur-sm border-gray-200/60 rounded-xl shadow-sm focus:shadow-md focus:ring-2 focus:ring-orange-500/20 focus:border-orange-300 transition-all duration-200"
               />
             </div>
 
             {/* Filter Controls */}
-            <div className="flex gap-3">
+            <div className="flex gap-3 flex-wrap md:flex-nowrap items-stretch md:items-center w-full">
               <select
                 value={timeFilter}
                 onChange={(e) => handleTimeFilterChange(e.target.value)}
-                className="bg-white/80 backdrop-blur-sm border border-gray-200/60 rounded-xl px-4 py-3 h-12 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-300 shadow-sm hover:shadow-md transition-all duration-200 min-w-36"
+                className="bg-white/80 backdrop-blur-sm border border-gray-200/60 rounded-xl px-4 py-3 h-12 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-300 shadow-sm hover:shadow-md transition-all duration-200 min-w-28 sm:min-w-36 shrink-0"
               >
                 <option value="7days">Last 7 Days</option>
                 <option value="30days">Last 30 Days</option>
@@ -496,11 +511,66 @@ export function ModerationDashboard({
                 <option value="all">All Time</option>
               </select>
 
+              {/* Decision Filter (History only) - responsive */}
+              {activeTab === "history" && (
+                <>
+                  {/* Segmented control for md+ screens */}
+                  <div className="hidden md:flex bg-white/80 backdrop-blur-sm border border-gray-200/60 rounded-xl h-12 p-1 shadow-sm">
+                    {[
+                      { key: "all", label: "All" },
+                      { key: "retained", label: "Retained" },
+                      { key: "deleted", label: "Deleted" },
+                      { key: "warned", label: "Warned" },
+                    ].map((opt) => (
+                      <button
+                        key={opt.key}
+                        type="button"
+                        onClick={() =>
+                          handleDecisionFilterChange(
+                            opt.key as "all" | "retained" | "deleted" | "warned"
+                          )
+                        }
+                        className={`px-3 sm:px-4 rounded-lg text-sm font-medium transition-colors duration-200 ${
+                          decisionFilter === opt.key
+                            ? "bg-orange-600 text-white"
+                            : "text-gray-700 hover:bg-gray-100/70"
+                        }`}
+                        aria-pressed={decisionFilter === opt.key}
+                        aria-label={`Filter by ${opt.label.toLowerCase()} decision`}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Compact select for small screens */}
+                  <select
+                    className="md:hidden bg-white/80 backdrop-blur-sm border border-gray-200/60 rounded-xl px-4 py-3 h-12 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-300 shadow-sm hover:shadow-md transition-all duration-200 min-w-28 sm:min-w-36 shrink-0"
+                    value={decisionFilter}
+                    onChange={(e) =>
+                      handleDecisionFilterChange(
+                        e.target.value as
+                          | "all"
+                          | "retained"
+                          | "deleted"
+                          | "warned"
+                      )
+                    }
+                    aria-label="Decision filter"
+                  >
+                    <option value="all">All Decisions</option>
+                    <option value="retained">Retained</option>
+                    <option value="deleted">Deleted</option>
+                    <option value="warned">Warned</option>
+                  </select>
+                </>
+              )}
+
               {/* Page size selector */}
               <select
                 value={pageSize}
                 onChange={(e) => handlePageSizeChange(Number(e.target.value))}
-                className="bg-white/80 backdrop-blur-sm border border-gray-200/60 rounded-xl px-4 py-3 h-12 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-300 shadow-sm hover:shadow-md transition-all duration-200 min-w-28"
+                className="bg-white/80 backdrop-blur-sm border border-gray-200/60 rounded-xl px-4 py-3 h-12 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-300 shadow-sm hover:shadow-md transition-all duration-200 min-w-24 sm:min-w-28 shrink-0"
                 aria-label="Items per page"
               >
                 <option value={5}>5 / page</option>
@@ -585,7 +655,7 @@ export function ModerationDashboard({
 
                 {/* Pagination Controls */}
                 {pendingTotalPages > 1 && (
-                  <div className="flex items-center justify-center gap-2 mt-8">
+                  <div className="flex flex-wrap items-center justify-center gap-2 mt-8 max-w-full">
                     <Button
                       variant="outline"
                       size="sm"
@@ -597,7 +667,7 @@ export function ModerationDashboard({
                       Previous
                     </Button>
 
-                    <div className="flex items-center gap-1">
+                    <div className="flex flex-wrap items-center gap-1 max-w-full">
                       {Array.from(
                         { length: pendingTotalPages },
                         (_, i) => i + 1
@@ -706,7 +776,7 @@ export function ModerationDashboard({
 
                 {/* Pagination Controls */}
                 {historyTotalPages > 1 && (
-                  <div className="flex items-center justify-center gap-2 mt-8">
+                  <div className="flex flex-wrap items-center justify-center gap-2 mt-8 max-w-full">
                     <Button
                       variant="outline"
                       size="sm"
@@ -718,7 +788,7 @@ export function ModerationDashboard({
                       Previous
                     </Button>
 
-                    <div className="flex items-center gap-1">
+                    <div className="flex flex-wrap items-center gap-1 max-w-full">
                       {Array.from(
                         { length: historyTotalPages },
                         (_, i) => i + 1

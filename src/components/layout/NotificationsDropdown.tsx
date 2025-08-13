@@ -157,10 +157,10 @@ export default function NotificationsDropdown() {
       autoConnect: true,
       // Ensure we connect to the backend Socket.IO server (not Vite dev origin)
       serverUrl:
-        (import.meta as unknown as { env?: Record<string, string> }).env?.
-          VITE_WS_URL ||
-        (import.meta as unknown as { env?: Record<string, string> }).env?.
-          VITE_API_URL ||
+        (import.meta as unknown as { env?: Record<string, string> }).env
+          ?.VITE_WS_URL ||
+        (import.meta as unknown as { env?: Record<string, string> }).env
+          ?.VITE_API_URL ||
         "http://localhost:5000",
     }
   );

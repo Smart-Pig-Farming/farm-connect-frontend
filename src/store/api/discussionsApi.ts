@@ -848,6 +848,7 @@ export const discussionsApi = baseApi.injectEndpoints({
         decision?: ModerationDecision;
         page?: number;
         limit?: number;
+        search?: string;
       }
     >({
       query: (params = {}) => ({ url: `/moderation/history`, params }),
