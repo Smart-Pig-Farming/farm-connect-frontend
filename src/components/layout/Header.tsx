@@ -1,8 +1,9 @@
 import { useNavigate } from "react-router-dom";
 import { useState, useEffect, useRef } from "react";
-import { Bell, ChevronDown, LogOut, User } from "lucide-react";
+import { ChevronDown, LogOut, User } from "lucide-react";
 import { toast } from "sonner";
 import { Logo } from "@/components/ui/logo";
+import NotificationsDropdown from "@/components/layout/NotificationsDropdown";
 import { useLogoutMutation, useGetCurrentUserQuery } from "@/store/api/authApi";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { logout, setUser } from "@/store/slices/authSlice";
@@ -156,13 +157,7 @@ export function Header({ sidebarCollapsed, isMobile = false }: HeaderProps) {
         <div className="flex items-center space-x-1 sm:space-x-2">
           {/* Notifications */}
           <div className="relative">
-            <button className="p-2.5 text-gray-500 hover:text-orange-600 hover:bg-white/60 rounded-xl transition-all duration-200 relative backdrop-blur-sm group">
-              <Bell className="h-5 w-5" />
-              <span className="absolute -top-1 -right-1 h-4 w-4 bg-gradient-to-r from-orange-500 to-red-500 rounded-full flex items-center justify-center shadow-lg ring-2 ring-white/50">
-                <span className="text-[10px] text-white font-bold">3</span>
-              </span>
-              <div className="absolute inset-0 rounded-xl bg-orange-500/10 scale-0 group-hover:scale-100 transition-transform duration-200" />
-            </button>
+            <NotificationsDropdown />
           </div>
 
           {/* Profile Dropdown */}

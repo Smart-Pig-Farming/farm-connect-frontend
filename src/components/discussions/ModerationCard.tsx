@@ -21,7 +21,6 @@ import {
   getReasonIcon,
   getPostData,
   truncateText,
-  processModerationAction,
 } from "@/data/moderation";
 
 interface ModerationCardProps {
@@ -29,9 +28,18 @@ interface ModerationCardProps {
   onViewDetails: (postId: string) => void;
   onQuickAction: (
     postId: string,
-    action: "retained" | "deleted" | "warned"
+    action: "retained" | "deleted" | "warned",
+    justification?: string
   ) => void;
   onActionComplete?: () => void; // Optional callback to refresh data
+  postOverride?: {
+    title: string;
+    author: { name: string; location: string };
+    content: string;
+    images: string[];
+    video: string | null;
+    timestamp: Date;
+  };
 }
 
 export function ModerationCard({
@@ -39,6 +47,7 @@ export function ModerationCard({
   onViewDetails,
   onQuickAction,
   onActionComplete,
+  postOverride,
 }: ModerationCardProps) {
   const [isProcessing, setIsProcessing] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -48,8 +57,8 @@ export function ModerationCard({
   >(null);
   const { postId, reports, reportCount, mostCommonReason } = moderationStatus;
 
-  // Get post data from centralized mock data
-  const mockPost = getPostData(postId);
+  // Prefer provided post data from API, fallback to mock data
+  const mockPost = postOverride ?? getPostData(postId);
 
   // Truncate title and content for preview
   const truncatedTitle = truncateText(mockPost.title, 80);
@@ -69,11 +78,8 @@ export function ModerationCard({
   ) => {
     setIsProcessing(true);
     try {
-      // Process the moderation action using the centralized function
-      processModerationAction(postId, action, justification, "Current User");
-
       // Call the original handler to update UI state (if needed)
-      await onQuickAction(postId, action);
+      await onQuickAction(postId, action, justification);
 
       // Call the action complete callback to refresh data
       onActionComplete?.();
@@ -243,7 +249,7 @@ export function ModerationCard({
                         {getReasonIcon(report.reason)} {report.reason}
                       </p>
                       <p className="text-xs text-gray-500">
-                        @{report.reporterName.toLowerCase().replace(" ", "")}
+                        {report.reporterName}
                       </p>
                     </div>
                     {report.details && (

@@ -23,6 +23,7 @@ import "./api/discussionsApi";
 // Import regular slices
 import authSlice from "./slices/authSlice";
 import uiSlice from "./slices/uiSlice";
+import notificationsSlice from "./slices/notificationsSlice";
 
 // Configure persistence for auth slice (token only)
 const authPersistConfig = {
@@ -39,6 +40,7 @@ const rootReducer = combineReducers({
   // Regular slices
   auth: persistReducer(authPersistConfig, authSlice),
   ui: uiSlice,
+  notifications: notificationsSlice,
 });
 
 export const store = configureStore({
@@ -71,3 +73,9 @@ export * from "./api";
 // Export slice actions
 export * from "./slices/authSlice";
 export * from "./slices/uiSlice";
+export {
+  addNotification as addRealtimeNotification,
+  markAsRead as markNotificationAsRead,
+  markAllAsRead as markAllNotificationsAsRead,
+  clearAll as clearAllNotifications,
+} from "./slices/notificationsSlice";

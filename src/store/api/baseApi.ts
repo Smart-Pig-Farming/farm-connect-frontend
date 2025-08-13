@@ -5,7 +5,7 @@ import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
 export const baseApi = createApi({
   reducerPath: "api",
   baseQuery: fetchBaseQuery({
-    baseUrl: "/api",
+    baseUrl: "http://localhost:5000/api",
     credentials: "include", // Include HttpOnly cookies in requests
     prepareHeaders: (headers) => {
       // Authentication is cookie-based (HttpOnly). No bearer token needed.

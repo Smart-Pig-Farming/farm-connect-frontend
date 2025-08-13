@@ -31,8 +31,13 @@ import { usePermissions } from "@/hooks/usePermissions";
 import {
   useApprovePostMutation,
   useRejectPostMutation,
+  useReportPostModerationMutation,
 } from "@/store/api/discussionsApi";
 import { toast } from "sonner";
+import {
+  formatModerationError,
+  formatReportSuccess,
+} from "@/utils/moderationErrors";
 
 interface DiscussionCardProps {
   post: Post;
@@ -140,16 +145,39 @@ export function DiscussionCard({
     onVote?.(post.id, voteType);
   };
 
-  const handleReport = (reason: string, details?: string) => {
-    console.log(
-      "Reporting post:",
-      post.id,
-      "Reason:",
-      reason,
-      "Details:",
-      details
-    );
+  const [reportPostModeration] = useReportPostModerationMutation();
+
+  const handleReport = async (reason: string, details?: string) => {
     setShowReportModal(false);
+
+    // Show loading toast
+    const loadingToast = toast.loading("Submitting report…");
+
+    try {
+      const response = await reportPostModeration({
+        id: post.id,
+        reason,
+        details,
+      }).unwrap();
+      toast.dismiss(loadingToast);
+
+      // Use enhanced success formatting
+      const successInfo = formatReportSuccess(response.data || {});
+      toast.success(successInfo.title, {
+        description: successInfo.description,
+        duration: successInfo.duration,
+      });
+    } catch (error: unknown) {
+      toast.dismiss(loadingToast);
+      console.error("Report submission error:", error);
+
+      // Use enhanced error formatting
+      const errorInfo = formatModerationError(error);
+      toast.error(errorInfo.title, {
+        description: errorInfo.description,
+        duration: errorInfo.duration,
+      });
+    }
   };
 
   const handleContactSeller = (e: React.MouseEvent) => {

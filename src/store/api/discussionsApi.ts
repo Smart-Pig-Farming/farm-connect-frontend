@@ -1,4 +1,5 @@
 import { baseApi } from "./baseApi";
+import type { ReportResponse } from "../../types/moderation";
 
 // Types for the discussions API
 export interface Post {
@@ -39,6 +40,49 @@ export interface Post {
   images: Array<MediaItem>;
   video: MediaItem | null;
   isModeratorApproved: boolean;
+}
+
+// Moderation types
+export type ModerationDecision = "retained" | "deleted" | "warned";
+
+export interface ModerationReportItem {
+  id: string;
+  reason: string;
+  details?: string;
+  reporterId?: string | number;
+  reporterName?: string;
+  createdAt: string;
+}
+
+export interface ModerationPendingItem {
+  postId: string;
+  reportCount: number;
+  mostCommonReason: string;
+  post: Partial<Post>;
+  reports: ModerationReportItem[];
+}
+
+export interface ModerationHistoryItem {
+  postId: string;
+  decision: ModerationDecision | string;
+  moderator: { id: string | number; name?: string };
+  decidedAt: string;
+  count: number;
+  justification?: string;
+  post?: Partial<Post>;
+}
+
+export interface ModerationMetrics {
+  // Flexible metrics bag from backend
+  [key: string]: unknown;
+}
+
+export interface PaginationMeta {
+  page?: number;
+  limit?: number;
+  total?: number;
+  totalPages?: number;
+  hasNextPage?: boolean;
 }
 
 export interface MediaItem {
@@ -717,6 +761,108 @@ export const discussionsApi = baseApi.injectEndpoints({
       invalidatesTags: ["Post"],
     }),
 
+    // Moderation: report a post
+    reportPostModeration: builder.mutation<
+      ReportResponse,
+      { id: string; reason: string; details?: string }
+    >({
+      query: ({ id, reason, details }) => ({
+        url: `/moderation/posts/${id}/report`,
+        method: "POST",
+        body: { reason, details },
+      }),
+      invalidatesTags: [{ type: "Report", id: "PENDING" }],
+    }),
+
+    // Moderation: report a reply
+    reportReplyModeration: builder.mutation<
+      ReportResponse,
+      { id: string; reason: string; details?: string }
+    >({
+      query: ({ id, reason, details }) => ({
+        url: `/moderation/replies/${id}/report`,
+        method: "POST",
+        body: { reason, details },
+      }),
+      invalidatesTags: [{ type: "Report", id: "PENDING" }],
+    }),
+
+    // Moderation: fetch pending queue (pagination supported)
+    getPendingModeration: builder.query<
+      {
+        success: boolean;
+        data: ModerationPendingItem[];
+        pagination?: PaginationMeta;
+      },
+      { search?: string; page?: number; limit?: number }
+    >({
+      query: ({ search, page, limit } = {}) => ({
+        url: `/moderation/pending`,
+        params: {
+          ...(search ? { search } : {}),
+          ...(page ? { page } : {}),
+          ...(limit ? { limit } : {}),
+        },
+      }),
+      providesTags: [{ type: "Report", id: "PENDING" }],
+    }),
+
+    // Moderation: take a decision on a post
+    decideModeration: builder.mutation<
+      {
+        success: boolean;
+        data: {
+          postId: string;
+          decision: "retained" | "deleted" | "warned";
+          reportCount: number;
+        };
+      },
+      {
+        postId: string;
+        decision: "retained" | "deleted" | "warned";
+        justification?: string;
+      }
+    >({
+      query: ({ postId, decision, justification }) => ({
+        url: `/moderation/posts/${postId}/decision`,
+        method: "POST",
+        body: { decision, justification },
+      }),
+      invalidatesTags: [
+        { type: "Report", id: "PENDING" },
+        { type: "Post", id: "LIST" },
+        { type: "Post", id: "MY_POSTS" },
+      ],
+    }),
+
+    // Moderation: history (pagination supported)
+    getModerationHistory: builder.query<
+      {
+        success: boolean;
+        data: ModerationHistoryItem[];
+        pagination?: PaginationMeta;
+      },
+      {
+        from?: string;
+        to?: string;
+        decision?: ModerationDecision;
+        page?: number;
+        limit?: number;
+      }
+    >({
+      query: (params = {}) => ({ url: `/moderation/history`, params }),
+      providesTags: [{ type: "Report", id: "HISTORY" }],
+    }),
+
+    // Moderation: metrics
+    getModerationMetrics: builder.query<
+      { success: boolean; data: ModerationMetrics },
+      void
+    >({
+      query: () => ({ url: `/moderation/metrics` }),
+      providesTags: [{ type: "Report", id: "METRICS" }],
+    }),
+
     // Delete a post (soft delete on server)
     deletePost: builder.mutation<{ success: boolean }, { id: string }>({
       query: ({ id }) => ({
@@ -795,4 +941,10 @@ export const {
   useAddReplyMutation,
   useVoteReplyMutation,
   useUpdatePostMutation,
+  useReportPostModerationMutation,
+  useReportReplyModerationMutation,
+  useGetPendingModerationQuery,
+  useDecideModerationMutation,
+  useGetModerationHistoryQuery,
+  useGetModerationMetricsQuery,
 } = discussionsApi;

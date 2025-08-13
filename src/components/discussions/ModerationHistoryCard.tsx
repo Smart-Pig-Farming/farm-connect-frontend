@@ -11,15 +11,20 @@ import {
 
 interface ModerationHistoryCardProps {
   moderationStatus: PostModerationStatus & { action: ModerationAction };
+  postOverride?: {
+    title: string;
+    author: { name: string; location: string };
+  };
 }
 
 export function ModerationHistoryCard({
   moderationStatus,
+  postOverride,
 }: ModerationHistoryCardProps) {
   const { postId, action, reportCount } = moderationStatus;
 
   // Get post data from centralized mock data
-  const mockPost = getPostData(postId);
+  const mockPost = postOverride ?? getPostData(postId);
 
   const getDecisionColor = (decision: string) => {
     switch (decision) {

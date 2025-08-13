@@ -61,6 +61,13 @@ interface ModerationApprovalData {
   contentId: string;
 }
 
+interface ModerationDecisionData {
+  postId: string;
+  decision: "retained" | "deleted" | "warned";
+  moderatorId?: string | number;
+  justification?: string;
+}
+
 interface NotificationData {
   id: string;
   userId: number;
@@ -70,7 +77,9 @@ interface NotificationData {
     | "reply_vote"
     | "post_approved"
     | "mention"
-    | "post_reported";
+    | "post_reported"
+    | "moderation_decision_reporter"
+    | "moderation_decision_owner";
   title: string;
   message: string;
   data: Record<string, unknown>;
@@ -104,6 +113,7 @@ interface WebSocketEventHandlers {
   onNotification?: (data: NotificationData) => void;
   onModerationReport?: (data: unknown) => void;
   onModerationApproval?: (data: unknown) => void;
+  onModerationDecision?: (data: ModerationDecisionData) => void;
 }
 
 interface UseWebSocketOptions {
@@ -138,11 +148,16 @@ export const useWebSocket = (
   handlers: WebSocketEventHandlers = {},
   options: UseWebSocketOptions = {}
 ): UseWebSocketReturn => {
-  const {
-    autoConnect = true,
-    authToken,
-    serverUrl = process.env.REACT_APP_API_URL || "http://localhost:5000",
-  } = options;
+  const { autoConnect = true, authToken, serverUrl: serverUrlOption } = options;
+
+  // Resolve server URL from options, Vite env, or sensible defaults (no process.env in browser)
+  const resolvedServerUrl: string =
+    serverUrlOption ||
+    import.meta.env.VITE_WS_URL ||
+    import.meta.env.VITE_API_URL ||
+    import.meta.env.VITE_BACKEND_URL ||
+    (typeof window !== "undefined" ? window.location.origin : undefined) ||
+    "http://localhost:5000";
 
   const [isConnected, setIsConnected] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<
@@ -169,11 +184,11 @@ export const useWebSocket = (
     setError(null);
 
     console.log("🔌 Connecting to WebSocket server...", {
-      serverUrl,
+      serverUrl: resolvedServerUrl,
       hasToken: !!authToken,
     });
 
-    socketRef.current = io(serverUrl, {
+    socketRef.current = io(resolvedServerUrl, {
       auth: {
         token: authToken,
       },
@@ -289,6 +304,15 @@ export const useWebSocket = (
     );
 
     socket.on(
+      "moderation:decision",
+      (data: ModerationDecisionData | { postId?: string }) => {
+        const d = data as ModerationDecisionData;
+        console.log("🛡️ Moderation decision:", d.postId, d.decision);
+        handlersRef.current.onModerationDecision?.(d);
+      }
+    );
+
+    socket.on(
       "moderation:content_approved",
       (data: ModerationApprovalData | { contentId?: string }) => {
         const d = data as { contentId?: string };
@@ -316,7 +340,7 @@ export const useWebSocket = (
     });
 
     socket.connect();
-  }, [serverUrl, authToken]);
+  }, [resolvedServerUrl, authToken]);
 
   const disconnect = useCallback(() => {
     if (socketRef.current) {
