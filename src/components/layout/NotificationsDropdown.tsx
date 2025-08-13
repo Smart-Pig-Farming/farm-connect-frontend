@@ -219,9 +219,7 @@ export default function NotificationsDropdown() {
       </button>
 
       {open && (
-        <div
-          className="fixed left-3 right-3 top-14 md:absolute md:right-0 md:left-auto md:top-auto md:mt-3 md:w-80 w-auto max-h-[70vh] md:max-h-[420px] overflow-y-auto bg-white/95 backdrop-blur-xl rounded-2xl shadow-xl border border-white/20 z-[9999] animate-in fade-in slide-in-from-top-2 duration-200"
-        >
+        <div className="fixed left-3 right-3 top-14 md:absolute md:right-0 md:left-auto md:top-auto md:mt-3 md:w-80 w-auto max-h-[70vh] md:max-h-[420px] overflow-y-auto bg-white/95 backdrop-blur-xl rounded-2xl shadow-xl border border-white/20 z-[9999] animate-in fade-in slide-in-from-top-2 duration-200">
           <div className="sticky top-0 bg-white/70 backdrop-blur-xl border-b border-gray-100/50 px-4 py-3 flex items-center justify-between">
             <div className="font-semibold text-gray-800 text-sm">
               Notifications
@@ -249,11 +247,11 @@ export default function NotificationsDropdown() {
               No notifications
             </div>
           ) : (
-    <ul className="divide-y divide-gray-100/60">
+            <ul className="divide-y divide-gray-100/60">
               {allNotifications.map((n) => (
                 <li
                   key={n.id}
-      className="px-4 py-3 hover:bg-orange-50/40 transition-colors"
+                  className="px-4 py-3 hover:bg-orange-50/40 transition-colors"
                 >
                   <div className="flex items-start gap-3">
                     <div
