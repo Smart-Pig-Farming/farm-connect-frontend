@@ -61,7 +61,7 @@ export const moderationApi = createApi({
         method: "POST",
         body: reportData,
       }),
-  invalidatesTags: ["PendingReports"],
+      invalidatesTags: ["PendingReports"],
       transformErrorResponse: (response: { status: number; data: unknown }) => {
         // Handle rate limit errors specifically
         if (response.status === 429) {
@@ -125,7 +125,7 @@ export const moderationApi = createApi({
           justification: decisionData.justification,
         },
       }),
-  invalidatesTags: ["PendingReports", "ModerationHistory"],
+      invalidatesTags: ["PendingReports", "ModerationHistory"],
     }),
 
     // Bulk moderation decisions
@@ -138,7 +138,7 @@ export const moderationApi = createApi({
         method: "POST",
         body: bulkData,
       }),
-  invalidatesTags: ["PendingReports", "ModerationHistory"],
+      invalidatesTags: ["PendingReports", "ModerationHistory"],
     }),
 
     // Get moderation history with snapshots
@@ -174,7 +174,7 @@ export const moderationApi = createApi({
       query: (postId) => `/compare/${postId}`,
     }),
 
-  // Metrics & analytics endpoints removed
+    // Metrics & analytics endpoints removed
 
     // Reopen a closed report (if conditions are met)
     reopenReport: builder.mutation<
@@ -374,11 +374,7 @@ export const handleModerationUpdate = (
 
   switch (type) {
     case "moderation_report_created":
-      dispatch(
-        moderationApi.util.invalidateTags([
-          "PendingReports",
-        ])
-      );
+      dispatch(moderationApi.util.invalidateTags(["PendingReports"]));
       break;
 
     case "moderation_decision_made":

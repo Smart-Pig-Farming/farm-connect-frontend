@@ -852,7 +852,7 @@ export const discussionsApi = baseApi.injectEndpoints({
       providesTags: [{ type: "Report", id: "HISTORY" }],
     }),
 
-  // Metrics endpoint was removed
+    // Metrics endpoint was removed
 
     // Delete a post (soft delete on server)
     deletePost: builder.mutation<{ success: boolean }, { id: string }>({

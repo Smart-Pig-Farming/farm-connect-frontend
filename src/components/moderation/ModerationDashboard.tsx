@@ -49,9 +49,7 @@ export const ModerationDashboard: React.FC<ModerationDashboardProps> = ({
   className = "",
 }) => {
   // State management
-  const [activeTab, setActiveTab] = useState<"pending" | "history">(
-    "pending"
-  );
+  const [activeTab, setActiveTab] = useState<"pending" | "history">("pending");
   const [selectedReports, setSelectedReports] = useState<Set<string>>(
     new Set()
   );
@@ -265,7 +263,7 @@ export const ModerationDashboard: React.FC<ModerationDashboardProps> = ({
         </div>
       </div>
 
-  {/* Metrics removed */}
+      {/* Metrics removed */}
 
       {/* Filters and Search */}
       <Card className="mb-6">
@@ -421,7 +419,7 @@ export const ModerationDashboard: React.FC<ModerationDashboardProps> = ({
             showSnapshots={showSnapshots}
           />
         </TabsContent>
-  {/* Analytics tab removed */}
+        {/* Analytics tab removed */}
       </Tabs>
     </div>
   );

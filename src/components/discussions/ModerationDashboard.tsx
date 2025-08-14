@@ -1,5 +1,11 @@
 import { useMemo, useState, useCallback } from "react";
-import { ArrowLeft, Shield, Search, ChevronLeft, ChevronRight } from "lucide-react";
+import {
+  ArrowLeft,
+  Shield,
+  Search,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -472,7 +478,7 @@ export function ModerationDashboard({
                             opt.key as "all" | "retained" | "deleted" | "warned"
                           )
                         }
-                        className={`px-3 sm:px-4 rounded-lg text-sm font-medium transition-colors duration-200 ${
+                        className={`px-3 sm:px-4 rounded-lg text-sm font-medium transition-colors duration-200 hover:cursor-pointer ${
                           decisionFilter === opt.key
                             ? "bg-orange-600 text-white"
                             : "text-gray-700 hover:bg-gray-100/70"
