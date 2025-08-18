@@ -743,19 +743,35 @@ export const discussionsApi = baseApi.injectEndpoints({
     }),
 
     // Admin moderation
-    approvePost: builder.mutation<ApproveRejectResponse, { id: string }>({
+    approvePost: builder.mutation<
+      ApproveRejectResponse,
+      { id: string; authorId: number }
+    >({
       query: ({ id }) => ({
         url: `/admin/discussions/posts/${id}/approve`,
         method: "PATCH",
       }),
-      invalidatesTags: ["Post"],
+      invalidatesTags: (_r, _e, arg) => [
+        { type: "Post" as const, id: arg.id },
+        { type: "User" as const, id: arg.authorId },
+        { type: "User" as const, id: "LEADERBOARD" },
+        { type: "User" as const, id: "ME_SCORE" }, // safe broad invalidation to refresh own score if needed
+      ],
     }),
-    rejectPost: builder.mutation<ApproveRejectResponse, { id: string }>({
+    rejectPost: builder.mutation<
+      ApproveRejectResponse,
+      { id: string; authorId: number }
+    >({
       query: ({ id }) => ({
         url: `/admin/discussions/posts/${id}/reject`,
         method: "PATCH",
       }),
-      invalidatesTags: ["Post"],
+      invalidatesTags: (_r, _e, arg) => [
+        { type: "Post" as const, id: arg.id },
+        { type: "User" as const, id: arg.authorId },
+        { type: "User" as const, id: "LEADERBOARD" },
+        { type: "User" as const, id: "ME_SCORE" },
+      ],
     }),
 
     // Moderation: report a post

@@ -17,16 +17,18 @@ import {
   Sparkles,
 } from "lucide-react";
 import {
-  mockLeaderboardUsers,
-  mockLeaderboardStats,
-  usersAroundCurrentUser,
-  getCurrentUserRank,
-  getTopUsers,
-  getLevelName,
-  getLevelColor,
+  mockLeaderboardUsers, // fallback only until all data surfaces
   getRankChangeColor,
   type LeaderboardUser,
 } from "../../data/leaderboard";
+import { getLevelName, getLevelColor } from "@/lib/levels";
+import {
+  useGetLeaderboardQuery,
+  useGetLeaderboardPaginatedQuery,
+  useGetMyStatsQuery,
+  useGetLeaderboardAroundQuery,
+} from "../../store/api/scoreApi";
+import { useAppSelector } from "@/store/hooks";
 
 interface LeaderboardProps {
   onBackToDiscussions: () => void;
@@ -35,44 +37,144 @@ interface LeaderboardProps {
 export function Leaderboard({ onBackToDiscussions }: LeaderboardProps) {
   const [showFullRankings, setShowFullRankings] = useState(false);
   const [selectedTimeRange, setSelectedTimeRange] = useState<
-    "week" | "month" | "all"
+    "day" | "week" | "month" | "all"
   >("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState("");
 
-  const currentUser = getCurrentUserRank();
-  const topUsers = getTopUsers(10);
-  const stats = mockLeaderboardStats;
-  const usersNearCurrent = usersAroundCurrentUser;
+  // Map UI selected range to API period parameter
+  const period =
+    selectedTimeRange === "day"
+      ? "daily"
+      : selectedTimeRange === "week"
+      ? "weekly"
+      : selectedTimeRange === "month"
+      ? "monthly"
+      : "all"; // all-time
+
+  // Simple top list (legacy) for top section
+  const {
+    data: liveLeaderboard,
+    isLoading: simpleLoading,
+    isError,
+  } = useGetLeaderboardQuery({ period });
+  // Paginated list for full rankings (search & paging)
+  const { data: paginated, isLoading: paginatedLoading } =
+    useGetLeaderboardPaginatedQuery({
+      period,
+      page: currentPage,
+      limit: 20,
+      search: searchQuery || undefined,
+    });
+  // Current user stats (rank & period points)
+  const { data: myStats } = useGetMyStatsQuery({ period });
+  const currentUserRank = myStats?.rank;
+  const authUserId = useAppSelector((s) => s.auth.user?.id);
+  // Around-user window (only if we know user id)
+  const { data: aroundRows } = useGetLeaderboardAroundQuery(
+    { period, userId: authUserId || 0, radius: 3 },
+    { skip: !authUserId }
+  );
+
+  const mapEntry = (l: {
+    user_id: number;
+    username: string;
+    firstname?: string;
+    lastname?: string;
+    rank: number;
+    points: number;
+    level_id?: number;
+    district?: string | null;
+    province?: string | null;
+    sector?: string | null;
+    location?: string;
+  }): LeaderboardUser => {
+    const firstname = (l.firstname && l.firstname.trim()) || l.username;
+    const lastname = (l.lastname && l.lastname.trim()) || "";
+    const computedLocation =
+      l.location ||
+      [l.sector, l.district, l.province].filter(Boolean).join(", ") ||
+      "—";
+
+    console.log("location: ", l);
+    return {
+      id: String(l.user_id),
+      firstname,
+      lastname,
+      avatar: null,
+      points: l.points,
+      level_id: l.level_id ?? 0,
+      location: computedLocation,
+      rank: l.rank,
+      rankChange: "same",
+      weeklyPoints: 0,
+      achievements: [],
+      joinedDate: "",
+      lastActive: "",
+      isOnline: false,
+    };
+  };
+
+  const baseRows = paginated?.rows || liveLeaderboard || [];
+  const topUsers: LeaderboardUser[] =
+    baseRows.slice(0, 10).map(mapEntry).length >= 3
+      ? baseRows.slice(0, 10).map(mapEntry)
+      : mockLeaderboardUsers.slice(0, 10);
+
+  const totalUsers =
+    paginated?.meta.totalPeriodUsers ||
+    baseRows.length ||
+    mockLeaderboardUsers.length;
+  const percentile =
+    currentUserRank && totalUsers
+      ? Math.max(1, Math.round((currentUserRank / totalUsers) * 100))
+      : undefined;
+  const stats = {
+    totalUsers,
+    yourPercentile: percentile,
+  };
+  const usersNearCurrent: LeaderboardUser[] = aroundRows
+    ? aroundRows.map(mapEntry)
+    : [];
+
+  const currentRaw =
+    baseRows.find((r) => authUserId && r.user_id === authUserId) ||
+    (aroundRows
+      ? aroundRows.find((r) => authUserId && r.user_id === authUserId)
+      : undefined);
+  const currentUser: LeaderboardUser | undefined = currentRaw
+    ? mapEntry(currentRaw)
+    : undefined;
 
   // Get podium users (top 3)
   const podiumUsers = topUsers.slice(0, 3);
   const otherTopUsers = topUsers.slice(3);
 
-  // Pagination for full rankings
-  const USERS_PER_PAGE = 20;
-  const totalPages = Math.ceil(mockLeaderboardUsers.length / USERS_PER_PAGE);
+  // Pagination: backend already pages; just map current page rows
+  const USERS_PER_PAGE = 20; // should match backend limit
+  const totalPages = paginated
+    ? paginated.meta.totalPages
+    : 1;
 
   const getCurrentPageUsers = useMemo(() => {
     if (!showFullRankings) return [];
-
-    const startIndex = (currentPage - 1) * USERS_PER_PAGE;
-    const endIndex = startIndex + USERS_PER_PAGE;
-
-    let filteredUsers = mockLeaderboardUsers;
-
-    if (searchQuery) {
-      filteredUsers = mockLeaderboardUsers.filter(
-        (user) =>
-          `${user.firstname} ${user.lastname}`
-            .toLowerCase()
-            .includes(searchQuery.toLowerCase()) ||
-          user.location.toLowerCase().includes(searchQuery.toLowerCase())
+    const source = paginated
+      ? paginated.rows.map(mapEntry)
+      : liveLeaderboard && liveLeaderboard.length > 0
+      ? liveLeaderboard.map(mapEntry)
+      : mockLeaderboardUsers.slice(0, USERS_PER_PAGE);
+    if (!searchQuery) return source;
+    const q = searchQuery.toLowerCase();
+    return source.filter((user) => {
+      const full = `${user.firstname} ${user.lastname}`.trim().toLowerCase();
+      return (
+        full.includes(q) ||
+        user.firstname.toLowerCase().includes(q) ||
+        user.lastname.toLowerCase().includes(q) ||
+        user.location.toLowerCase().includes(q)
       );
-    }
-
-    return filteredUsers.slice(startIndex, endIndex);
-  }, [currentPage, searchQuery, showFullRankings]);
+    });
+  }, [showFullRankings, paginated, liveLeaderboard, searchQuery]);
 
   const UserCard = ({
     user,
@@ -302,27 +404,7 @@ export function Leaderboard({ onBackToDiscussions }: LeaderboardProps) {
             {getLevelName(user.level_id)}
           </span>
 
-          {/* Quick Stats */}
-          <div className="grid grid-cols-3 gap-4 text-sm text-gray-600 w-full bg-white/60 rounded-xl p-3 backdrop-blur-sm">
-            <div className="text-center">
-              <div className="font-bold text-lg text-gray-800">
-                {user.postsCount}
-              </div>
-              <div className="text-xs">Posts</div>
-            </div>
-            <div className="text-center">
-              <div className="font-bold text-lg text-gray-800">
-                {user.repliesCount}
-              </div>
-              <div className="text-xs">Replies</div>
-            </div>
-            <div className="text-center">
-              <div className="font-bold text-lg text-gray-800">
-                {user.upvotesReceived}
-              </div>
-              <div className="text-xs">Upvotes</div>
-            </div>
-          </div>
+          {/* Quick Stats removed (posts/replies/upvotes not yet supported) */}
         </div>
       </div>
     );
@@ -331,6 +413,16 @@ export function Leaderboard({ onBackToDiscussions }: LeaderboardProps) {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-orange-50/30 p-2 sm:p-4 md:p-6">
       <div className="container mx-auto max-w-6xl">
+        {(simpleLoading || paginatedLoading) && (
+          <div className="mb-4 text-sm text-gray-500">
+            Loading live leaderboard...
+          </div>
+        )}
+        {isError && (
+          <div className="mb-4 text-sm text-red-500">
+            Failed to load live leaderboard, showing mock data.
+          </div>
+        )}
         {/* Header */}
         <div className="overflow-hidden shadow-xl rounded-2xl bg-white/90 backdrop-blur-sm w-full mb-8">
           <div className="bg-gradient-to-br from-amber-500 via-orange-500 to-orange-600 text-white relative overflow-hidden p-6">
@@ -362,21 +454,18 @@ export function Leaderboard({ onBackToDiscussions }: LeaderboardProps) {
                     {stats.totalUsers.toLocaleString()}
                   </span>
                 </div>
-                <div className="bg-white/20 px-4 py-2 rounded-xl backdrop-blur-sm shadow-sm">
-                  <span className="text-white/80">Active This Week: </span>
-                  <span className="text-white font-semibold">
-                    {stats.weeklyActiveUsers}
-                  </span>
-                </div>
+                {/* Active This Week metric removed until backend provides real value */}
                 <div className="bg-white/20 px-4 py-2 rounded-xl backdrop-blur-sm shadow-sm">
                   <span className="text-white/80">Your Rank: </span>
                   <span className="text-white font-semibold">
-                    #{currentUser?.rank}
+                    #{currentUser?.rank || currentUserRank || "?"}
                   </span>
                 </div>
                 <div className="bg-white/20 px-4 py-2 rounded-xl backdrop-blur-sm shadow-sm">
                   <span className="text-white/80">
-                    Top {stats.yourPercentile}%
+                    {stats.yourPercentile
+                      ? `Top ${stats.yourPercentile}%`
+                      : "—"}
                   </span>
                 </div>
               </div>
@@ -427,7 +516,8 @@ export function Leaderboard({ onBackToDiscussions }: LeaderboardProps) {
                     <Users className="h-12 w-12 text-gray-400 mx-auto" />
                     <div>
                       <h3 className="text-lg font-semibold text-gray-700 mb-2">
-                        ... and {stats.totalUsers - 10} more farmers
+                        ... and {Math.max(0, stats.totalUsers - 10)} more
+                        farmers
                       </h3>
                       <p className="text-gray-500 mb-4">
                         Discover where you rank among our growing community
@@ -539,7 +629,7 @@ export function Leaderboard({ onBackToDiscussions }: LeaderboardProps) {
               </div>
 
               <div className="flex gap-2">
-                {(["all", "week", "month"] as const).map((range) => (
+                {(["day", "week", "month", "all"] as const).map((range) => (
                   <Button
                     key={range}
                     onClick={() => setSelectedTimeRange(range)}
@@ -553,11 +643,13 @@ export function Leaderboard({ onBackToDiscussions }: LeaderboardProps) {
                         : ""
                     }`}
                   >
-                    {range === "all"
-                      ? "All Time"
+                    {range === "day"
+                      ? "Today"
                       : range === "week"
                       ? "This Week"
-                      : "This Month"}
+                      : range === "month"
+                      ? "This Month"
+                      : "All Time"}
                   </Button>
                 ))}
               </div>
@@ -575,7 +667,7 @@ export function Leaderboard({ onBackToDiscussions }: LeaderboardProps) {
 
             {/* Pagination */}
             {totalPages > 1 && (
-              <div className="flex items-center justify-center gap-2">
+              <div className="flex items-center justify-center gap-2 flex-wrap">
                 <Button
                   onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
                   disabled={currentPage === 1}
@@ -586,10 +678,28 @@ export function Leaderboard({ onBackToDiscussions }: LeaderboardProps) {
                   Previous
                 </Button>
 
-                <div className="flex gap-1">
-                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                    const page = i + 1;
-                    return (
+                <div className="flex gap-1 items-center">
+                  {/* First page */}
+                  {currentPage > 3 && (
+                    <Button
+                      onClick={() => setCurrentPage(1)}
+                      variant={currentPage === 1 ? "default" : "outline"}
+                      size="sm"
+                      className="rounded-xl"
+                    >
+                      1
+                    </Button>
+                  )}
+                  {currentPage > 4 && (
+                    <span className="px-1 text-xs text-gray-500">…</span>
+                  )}
+                  {/* Window around current */}
+                  {Array.from({ length: 5 }, (_, i) => i - 2) // -2,-1,0,1,2
+                    .map((delta) => currentPage + delta)
+                    .filter(
+                      (p) => p >= 1 && p <= totalPages && Math.abs(p - currentPage) <= 2
+                    )
+                    .map((page) => (
                       <Button
                         key={page}
                         onClick={() => setCurrentPage(page)}
@@ -603,8 +713,20 @@ export function Leaderboard({ onBackToDiscussions }: LeaderboardProps) {
                       >
                         {page}
                       </Button>
-                    );
-                  })}
+                    ))}
+                  {currentPage < totalPages - 3 && (
+                    <span className="px-1 text-xs text-gray-500">…</span>
+                  )}
+                  {currentPage < totalPages - 2 && (
+                    <Button
+                      onClick={() => setCurrentPage(totalPages)}
+                      variant={currentPage === totalPages ? "default" : "outline"}
+                      size="sm"
+                      className="rounded-xl"
+                    >
+                      {totalPages}
+                    </Button>
+                  )}
                 </div>
 
                 <Button

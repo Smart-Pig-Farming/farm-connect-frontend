@@ -10,9 +10,6 @@ export interface LeaderboardUser {
   rank: number;
   rankChange: "up" | "down" | "same" | "new";
   rankChangeAmount?: number;
-  postsCount: number;
-  repliesCount: number;
-  upvotesReceived: number;
   weeklyPoints: number;
   achievements: string[];
   joinedDate: string;
@@ -44,9 +41,6 @@ export const mockLeaderboardUsers: LeaderboardUser[] = [
     rank: 1,
     rankChange: "same",
     rankChangeAmount: 0,
-    postsCount: 45,
-    repliesCount: 128,
-    upvotesReceived: 324,
     weeklyPoints: 145,
     achievements: ["Top Contributor", "Knowledge Sharer", "Community Helper"],
     joinedDate: "2024-01-15",
@@ -64,9 +58,6 @@ export const mockLeaderboardUsers: LeaderboardUser[] = [
     rank: 2,
     rankChange: "up",
     rankChangeAmount: 1,
-    postsCount: 38,
-    repliesCount: 156,
-    upvotesReceived: 298,
     weeklyPoints: 132,
     achievements: ["Market Expert", "Problem Solver"],
     joinedDate: "2024-02-03",
@@ -84,9 +75,6 @@ export const mockLeaderboardUsers: LeaderboardUser[] = [
     rank: 3,
     rankChange: "down",
     rankChangeAmount: 1,
-    postsCount: 52,
-    repliesCount: 89,
-    upvotesReceived: 267,
     weeklyPoints: 98,
     achievements: ["Discussion Starter", "Quality Poster"],
     joinedDate: "2023-11-20",
@@ -104,9 +92,6 @@ export const mockLeaderboardUsers: LeaderboardUser[] = [
     rank: 4,
     rankChange: "up",
     rankChangeAmount: 2,
-    postsCount: 31,
-    repliesCount: 145,
-    upvotesReceived: 234,
     weeklyPoints: 156,
     achievements: ["Rising Star", "Helpful Farmer"],
     joinedDate: "2024-03-10",
@@ -124,9 +109,6 @@ export const mockLeaderboardUsers: LeaderboardUser[] = [
     rank: 5,
     rankChange: "same",
     rankChangeAmount: 0,
-    postsCount: 29,
-    repliesCount: 167,
-    upvotesReceived: 201,
     weeklyPoints: 87,
     achievements: ["Supporter", "Community Builder"],
     joinedDate: "2024-01-28",
@@ -144,9 +126,6 @@ export const mockLeaderboardUsers: LeaderboardUser[] = [
     rank: 6,
     rankChange: "up",
     rankChangeAmount: 3,
-    postsCount: 25,
-    repliesCount: 134,
-    upvotesReceived: 189,
     weeklyPoints: 124,
     achievements: ["Tech Savvy", "Innovation Driver"],
     joinedDate: "2024-04-05",
@@ -164,9 +143,6 @@ export const mockLeaderboardUsers: LeaderboardUser[] = [
     rank: 7,
     rankChange: "down",
     rankChangeAmount: 2,
-    postsCount: 33,
-    repliesCount: 98,
-    upvotesReceived: 176,
     weeklyPoints: 76,
     achievements: ["Consistent Contributor"],
     joinedDate: "2023-12-15",
@@ -184,9 +160,6 @@ export const mockLeaderboardUsers: LeaderboardUser[] = [
     rank: 8,
     rankChange: "same",
     rankChangeAmount: 0,
-    postsCount: 22,
-    repliesCount: 112,
-    upvotesReceived: 145,
     weeklyPoints: 92,
     achievements: ["Market Specialist"],
     joinedDate: "2024-02-20",
@@ -204,9 +177,6 @@ export const mockLeaderboardUsers: LeaderboardUser[] = [
     rank: 9,
     rankChange: "up",
     rankChangeAmount: 1,
-    postsCount: 27,
-    repliesCount: 89,
-    upvotesReceived: 134,
     weeklyPoints: 103,
     achievements: ["Engagement Champion"],
     joinedDate: "2024-03-22",
@@ -224,9 +194,6 @@ export const mockLeaderboardUsers: LeaderboardUser[] = [
     rank: 10,
     rankChange: "down",
     rankChangeAmount: 1,
-    postsCount: 19,
-    repliesCount: 76,
-    upvotesReceived: 112,
     weeklyPoints: 68,
     achievements: ["New Member Star"],
     joinedDate: "2024-05-10",
@@ -245,9 +212,6 @@ export const mockLeaderboardUsers: LeaderboardUser[] = [
     rank: 112,
     rankChange: "up",
     rankChangeAmount: 3,
-    postsCount: 8,
-    repliesCount: 23,
-    upvotesReceived: 45,
     weeklyPoints: 34,
     achievements: ["Getting Started"],
     joinedDate: "2024-06-15",
@@ -278,9 +242,6 @@ const generateUsersAroundRank = (centerRank: number): LeaderboardUser[] => {
       rankChange:
         Math.random() > 0.5 ? "up" : Math.random() > 0.3 ? "down" : "same",
       rankChangeAmount: Math.floor(Math.random() * 3),
-      postsCount: Math.floor(Math.random() * 20) + 1,
-      repliesCount: Math.floor(Math.random() * 50) + 5,
-      upvotesReceived: Math.floor(Math.random() * 80) + 10,
       weeklyPoints: Math.floor(Math.random() * 40) + 5,
       achievements: ["Active Member"],
       joinedDate: "2024-06-01",
@@ -319,27 +280,7 @@ export const getUsersAroundRank = (rank: number): LeaderboardUser[] => {
   return [];
 };
 
-export const getLevelName = (levelId: number): string => {
-  const levels = {
-    1: "Newcomer",
-    2: "Growing Farmer",
-    3: "Skilled Farmer",
-    4: "Expert Farmer",
-    5: "Master Farmer",
-  };
-  return levels[levelId as keyof typeof levels] || "Unknown";
-};
-
-export const getLevelColor = (levelId: number): string => {
-  const colors = {
-    1: "text-gray-600",
-    2: "text-green-600",
-    3: "text-blue-600",
-    4: "text-purple-600",
-    5: "text-orange-600",
-  };
-  return colors[levelId as keyof typeof colors] || "text-gray-600";
-};
+// Deprecated: level-related helpers moved to lib/levels.ts for single source of truth
 
 export const getRankChangeIcon = (change: string): string => {
   switch (change) {

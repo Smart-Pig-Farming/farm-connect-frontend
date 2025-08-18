@@ -5,11 +5,9 @@ import {
   MapPin,
   Mail,
   User as UserIcon,
-  Star,
   Calendar,
   CheckCircle,
   Building2,
-  Crown,
 } from "lucide-react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -25,13 +23,14 @@ import {
 import { setCredentials } from "@/store/slices/authSlice";
 import type { User } from "@/types";
 import { toast } from "sonner";
+// Removed separate MyScoreWidget; unified display inline
+import { useGetMyScoreQuery } from "@/store/api/scoreApi";
+// LevelBadge now rendered inside GamificationPanel
+import GamificationPanel from "../../components/profile/GamificationPanel";
+import StreakCircle from "@/components/score/StreakCircle";
+import { findLevel, levelProgress } from "@/lib/scoringLevels";
 
-// Mock level data - simplified based on actual use case
-const levelData = {
-  1: { name: "Amateur", minPoints: 0, maxPoints: 99 },
-  2: { name: "Knight", minPoints: 100, maxPoints: 199 },
-  3: { name: "Expert", minPoints: 200, maxPoints: Infinity },
-};
+// Using dynamic myScore data now; legacy levelData removed
 
 export function ProfilePage() {
   const { user } = useAppSelector((state) => state.auth);
@@ -47,17 +46,15 @@ export function ProfilePage() {
   const [isEditing, setIsEditing] = useState(false);
   const [showChangePassword, setShowChangePassword] = useState(false);
 
-  const currentLevel =
-    levelData[currentUser.level_id as keyof typeof levelData] || levelData[1];
-  const currentPoints = currentUser.points || 0;
-
-  // Calculate progress percentage for current level
-  const progressPercentage =
-    currentLevel.name === "Expert"
-      ? 100 // Expert is max level
-      : ((currentPoints - currentLevel.minPoints) /
-          (currentLevel.maxPoints - currentLevel.minPoints)) *
-        100;
+  const { data: myScore } = useGetMyScoreQuery();
+  const totalPoints = myScore?.totalPoints ?? currentUser.points ?? 0;
+  const lvl = findLevel(totalPoints);
+  const lp = levelProgress(totalPoints);
+  const nextLevelAt =
+    myScore?.nextLevelAt || (lvl.max != null ? lvl.max + 1 : null);
+  const progressPercentage = lp.percent;
+  const currentStreak = myScore?.streak?.current ?? 0;
+  const bestStreak = myScore?.streak?.best ?? currentStreak;
 
   const handleEditToggle = () => {
     setIsEditing(!isEditing);
@@ -183,6 +180,13 @@ export function ProfilePage() {
             </div>
 
             <div className="relative z-10 flex flex-col lg:flex-row lg:justify-between lg:items-start gap-4 sm:gap-6">
+              <div className="absolute top-4 right-4 hidden sm:block">
+                <StreakCircle
+                  current={currentStreak}
+                  best={bestStreak}
+                  size={84}
+                />
+              </div>
               {/* Avatar and Basic Info */}
               <div className="w-full lg:flex-1 flex flex-col sm:flex-row items-start gap-4 sm:gap-6">
                 <div className="relative flex-shrink-0">
@@ -197,44 +201,26 @@ export function ProfilePage() {
                   )}
                 </div>
                 <div className="flex-1 min-w-0 w-full">
-                  <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold mb-2 drop-shadow-sm break-words">
+                  <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold mb-1 pr-24 drop-shadow-sm break-words">
                     {currentUser.firstname} {currentUser.lastname}
                   </h1>
-                  <p className="text-white/90 font-semibold text-base sm:text-lg mb-3 drop-shadow-sm">
+                  <p className="text-white/90 font-semibold text-base sm:text-lg mb-2 drop-shadow-sm pr-24">
                     {currentUser.role}
                   </p>
 
                   {/* Inline level display with member info */}
-                  <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-                    {/* Compact Level Badge */}
-                    <div
-                      className={`inline-flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1 sm:py-1.5 rounded-full shadow-md text-xs sm:text-sm font-medium ${
-                        currentLevel.name === "Amateur"
-                          ? "bg-slate-400/90"
-                          : currentLevel.name === "Knight"
-                          ? "bg-blue-500/90"
-                          : "bg-yellow-500/90"
-                      } text-white`}
-                    >
-                      {currentLevel.name === "Amateur" && (
-                        <Star className="h-3 w-3" />
-                      )}
-                      {currentLevel.name === "Knight" && (
-                        <Shield className="h-3 w-3" />
-                      )}
-                      {currentLevel.name === "Expert" && (
-                        <Crown className="h-3 w-3" />
-                      )}
-                      <span className="whitespace-nowrap">
-                        {currentLevel.name}
-                      </span>
-                      <span className="bg-white/20 px-1.5 sm:px-2 py-0.5 rounded-full text-xs whitespace-nowrap">
-                        {currentPoints} pts
-                      </span>
-                    </div>
-
+                  <div className="flex flex-wrap items-center gap-3 sm:gap-4">
+                    <GamificationPanel
+                      points={totalPoints}
+                      levelLabel={myScore?.levelLabel || lvl.label}
+                      level={lvl.level}
+                      nextLevelAt={nextLevelAt}
+                      levelProgressPercent={progressPercentage}
+                      prestige={myScore?.prestige || null}
+                      className="w-full pr-24"
+                    />
                     {currentUser.created_at && (
-                      <span className="text-white/80 text-xs sm:text-sm flex items-center gap-1 bg-white/15 px-2 sm:px-3 py-1 sm:py-1.5 rounded-full backdrop-blur-sm shadow-md border border-white/20">
+                      <span className="mt-3 text-white/80 text-xs sm:text-sm inline-flex items-center gap-1 bg-white/15 px-2 sm:px-3 py-1 sm:py-1.5 rounded-full backdrop-blur-sm shadow-md border border-white/20">
                         <Calendar className="h-3 w-3 flex-shrink-0" />
                         <span className="whitespace-nowrap text-xs sm:text-sm">
                           <span className="hidden sm:inline">
@@ -249,51 +235,7 @@ export function ProfilePage() {
                 </div>
               </div>
 
-              {/* Compact Progress Section */}
-              <div className="w-full lg:w-80 xl:w-72 bg-white/15 backdrop-blur-md rounded-xl p-3 sm:p-4 border border-white/20 shadow-lg lg:flex-shrink-0">
-                {currentLevel.name !== "Expert" ? (
-                  <div className="space-y-2">
-                    <div className="text-center">
-                      <div className="text-white/90 text-xs lg:text-sm font-medium mb-1">
-                        <span className="hidden sm:inline">Progress to </span>
-                        <span className="sm:hidden">To </span>
-                        {
-                          levelData[
-                            Math.min(
-                              currentUser.level_id! + 1,
-                              3
-                            ) as keyof typeof levelData
-                          ]?.name
-                        }
-                      </div>
-                      <div className="text-white font-bold text-xs sm:text-sm lg:text-base">
-                        {currentLevel.maxPoints - currentPoints + 1}
-                        <span className="hidden sm:inline"> points to go</span>
-                        <span className="sm:hidden"> pts to go</span>
-                      </div>
-                    </div>
-                    <div className="h-2 lg:h-3 bg-white/20 rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-gradient-to-r from-green-400 to-emerald-500 rounded-full transition-all duration-500"
-                        style={{ width: `${Math.max(progressPercentage, 8)}%` }}
-                      />
-                    </div>
-                    <div className="flex justify-between text-xs lg:text-sm text-white/60">
-                      <span>{currentLevel.minPoints}</span>
-                      <span>{currentLevel.maxPoints}</span>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="text-center">
-                    <div className="text-yellow-200 text-sm lg:text-base font-bold mb-1">
-                      Expert Level
-                    </div>
-                    <div className="text-white/80 text-xs lg:text-sm">
-                      Maximum level achieved!
-                    </div>
-                  </div>
-                )}
-              </div>
+              {/* Removed old side progress panel (merged into GamificationPanel) */}
             </div>
           </CardHeader>
 
@@ -387,105 +329,79 @@ export function ProfilePage() {
                   </div>
                 </div>
 
-                {/* Points earning guide */}
-                <div className="mt-6 sm:mt-8 p-3 sm:p-4 bg-gradient-to-r from-orange-50 to-orange-100 rounded-xl border border-orange-200">
-                  <h3 className="text-xs sm:text-sm font-medium text-orange-800 mb-3 flex items-center gap-2">
-                    <Star className="h-3 w-3 sm:h-4 sm:w-4" />
-                    How to Earn Points
-                  </h3>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 text-xs">
-                    <div className="text-center p-2 bg-white/60 rounded-lg">
-                      <div className="text-green-600 font-bold text-sm">+2</div>
-                      <div className="text-gray-700 text-xs">New Post</div>
-                    </div>
-                    <div className="text-center p-2 bg-white/60 rounded-lg">
-                      <div className="text-blue-600 font-bold text-sm">+1</div>
-                      <div className="text-gray-700 text-xs">Reply</div>
-                    </div>
-                    <div className="text-center p-2 bg-white/60 rounded-lg">
-                      <div className="text-yellow-600 font-bold text-sm">
-                        +1
-                      </div>
-                      <div className="text-gray-700 text-xs">Per Upvote</div>
-                    </div>
-                    <div className="text-center p-2 bg-white/60 rounded-lg">
-                      <div className="text-purple-600 font-bold text-sm">
-                        +15
-                      </div>
-                      <div className="text-gray-700 text-xs">Mod Approved</div>
-                    </div>
-                  </div>
-                </div>
+                {/* Removed points earning guide to reduce repetition */}
               </div>
 
-              {/* Compact Security Section */}
+              {/* Right Column: Security & Account */}
               <div className="xl:col-span-1">
-                <div className="space-y-3 sm:space-y-4">
-                  <h2 className="text-base sm:text-lg font-bold text-gray-800 flex items-center gap-2">
-                    <div className="bg-blue-500 p-1.5 sm:p-2 rounded-lg">
-                      <Shield className="h-3 w-3 sm:h-4 sm:w-4 text-white" />
-                    </div>
-                    <span className="text-base sm:text-lg">Security</span>
-                  </h2>
+                <div className="space-y-4">
+                  <div className="space-y-3 sm:space-y-4">
+                    <h2 className="text-base sm:text-lg font-bold text-gray-800 flex items-center gap-2">
+                      <div className="bg-blue-500 p-1.5 sm:p-2 rounded-lg">
+                        <Shield className="h-3 w-3 sm:h-4 sm:w-4 text-white" />
+                      </div>
+                      <span className="text-base sm:text-lg">Security</span>
+                    </h2>
 
-                  <div className="space-y-3">
-                    <div className="bg-blue-50 p-3 sm:p-4 rounded-xl border border-blue-100">
-                      <h3 className="font-medium text-blue-800 mb-2 text-xs sm:text-sm">
-                        Password
-                      </h3>
-                      <Button
-                        onClick={() => setShowChangePassword(true)}
-                        className="w-full bg-blue-500 hover:bg-blue-600 text-white text-xs sm:text-sm"
-                        size="sm"
-                      >
-                        Change Password
-                      </Button>
-                    </div>
+                    <div className="space-y-3">
+                      <div className="bg-blue-50 p-3 sm:p-4 rounded-xl border border-blue-100">
+                        <h3 className="font-medium text-blue-800 mb-2 text-xs sm:text-sm">
+                          Password
+                        </h3>
+                        <Button
+                          onClick={() => setShowChangePassword(true)}
+                          className="w-full bg-blue-500 hover:bg-blue-600 text-white text-xs sm:text-sm"
+                          size="sm"
+                        >
+                          Change Password
+                        </Button>
+                      </div>
 
-                    <div className="bg-slate-50 p-3 sm:p-4 rounded-xl border border-slate-100">
-                      <h3 className="font-medium text-slate-800 mb-3 text-xs sm:text-sm">
-                        Account Status
-                      </h3>
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-2 text-xs sm:text-sm">
-                          <div
-                            className={`w-2 h-2 rounded-full flex-shrink-0 ${
-                              currentUser.is_verified
-                                ? "bg-green-500"
-                                : "bg-red-500"
-                            }`}
-                          />
-                          <span
-                            className={`break-words ${
-                              currentUser.is_verified
-                                ? "text-green-700"
-                                : "text-red-600"
-                            }`}
-                          >
-                            Email{" "}
-                            {currentUser.is_verified
-                              ? "verified"
-                              : "not verified"}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2 text-xs sm:text-sm">
-                          <div
-                            className={`w-2 h-2 rounded-full flex-shrink-0 ${
-                              !currentUser.is_locked
-                                ? "bg-green-500"
-                                : "bg-red-500"
-                            }`}
-                          />
-                          <span
-                            className={`break-words ${
-                              !currentUser.is_locked
-                                ? "text-green-700"
-                                : "text-red-600"
-                            }`}
-                          >
-                            Account{" "}
-                            {currentUser.is_locked ? "locked" : "active"}
-                          </span>
+                      <div className="bg-slate-50 p-3 sm:p-4 rounded-xl border border-slate-100">
+                        <h3 className="font-medium text-slate-800 mb-3 text-xs sm:text-sm">
+                          Account Status
+                        </h3>
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2 text-xs sm:text-sm">
+                            <div
+                              className={`w-2 h-2 rounded-full flex-shrink-0 ${
+                                currentUser.is_verified
+                                  ? "bg-green-500"
+                                  : "bg-red-500"
+                              }`}
+                            />
+                            <span
+                              className={`break-words ${
+                                currentUser.is_verified
+                                  ? "text-green-700"
+                                  : "text-red-600"
+                              }`}
+                            >
+                              Email{" "}
+                              {currentUser.is_verified
+                                ? "verified"
+                                : "not verified"}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2 text-xs sm:text-sm">
+                            <div
+                              className={`w-2 h-2 rounded-full flex-shrink-0 ${
+                                !currentUser.is_locked
+                                  ? "bg-green-500"
+                                  : "bg-red-500"
+                              }`}
+                            />
+                            <span
+                              className={`break-words ${
+                                !currentUser.is_locked
+                                  ? "text-green-700"
+                                  : "text-red-600"
+                              }`}
+                            >
+                              Account{" "}
+                              {currentUser.is_locked ? "locked" : "active"}
+                            </span>
+                          </div>
                         </div>
                       </div>
                     </div>

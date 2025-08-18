@@ -7,6 +7,7 @@ import NotificationsDropdown from "@/components/layout/NotificationsDropdown";
 import { useLogoutMutation, useGetCurrentUserQuery } from "@/store/api/authApi";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { logout, setUser } from "@/store/slices/authSlice";
+import { useDailyStreakToast } from "@/hooks/useDailyStreakToast";
 
 interface HeaderProps {
   sidebarCollapsed: boolean;
@@ -40,6 +41,8 @@ export function Header({ sidebarCollapsed, isMobile = false }: HeaderProps) {
 
   // Use current user data, fallback to auth user, then to defaults
   const user = currentUser || authUser;
+  // Trigger daily streak toast once user info is available
+  useDailyStreakToast(user?.id);
 
   // Function to get display role name
   const getRoleDisplayName = (role: string): string => {

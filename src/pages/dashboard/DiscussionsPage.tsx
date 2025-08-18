@@ -28,6 +28,7 @@ import { type PostToEdit } from "../../components/discussions/EditPostModal";
 import { ModerationDashboard } from "../../components/discussions/ModerationDashboard";
 import { TagFilter } from "../../components/discussions/TagFilter";
 import { mockStats, type Post } from "../../data/posts";
+import { useGetMyStatsQuery } from "../../store/api/scoreApi";
 import { POSTS_PER_LOAD_MORE, LOADING_DEBOUNCE_DELAY } from "../../utils/posts";
 import {
   useGetPostsStatsQuery,
@@ -137,6 +138,8 @@ export function DiscussionsPage() {
   const { hasPermission } = usePermissions();
   const canModerateReports = hasPermission("MODERATE:REPORTS");
   const canModeratePosts = hasPermission("MODERATE:POSTS");
+  // Daily stats (rank, points today, posts today, market opportunities) from backend
+  const { data: myDailyScoreStats } = useGetMyStatsQuery({ period: "daily" });
   const [showCreatePost, setShowCreatePost] = useState(false);
   const [showMyPostsView, setShowMyPostsView] = useState(false);
   const [showEditPost, setShowEditPost] = useState(false);
@@ -839,9 +842,10 @@ export function DiscussionsPage() {
                   <CardContent className="pt-0">
                     <div className="space-y-3 text-sm">
                       <div className="flex justify-between">
-                        <span className="text-gray-600">Posts Today</span>
+                        <span className="text-gray-600">My Posts Today</span>
                         <span className="font-semibold text-orange-600">
-                          {mockStats.postsToday}
+                          {myDailyScoreStats?.postsToday ??
+                            mockStats.postsToday}
                         </span>
                       </div>
                       <div className="flex justify-between">
@@ -849,13 +853,14 @@ export function DiscussionsPage() {
                           Market Opportunities
                         </span>
                         <span className="font-semibold text-green-600">
-                          {mockStats.marketOpportunitiesToday}
+                          {myDailyScoreStats?.marketOpportunities ??
+                            mockStats.marketOpportunitiesToday}
                         </span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-600">Points Today</span>
                         <span className="font-semibold text-blue-600">
-                          +{mockStats.pointsToday}
+                          +{myDailyScoreStats?.points ?? mockStats.pointsToday}
                         </span>
                       </div>
                       <div className="flex justify-between">
@@ -871,7 +876,7 @@ export function DiscussionsPage() {
                             <Minus className="h-3 w-3 text-gray-400" />
                           )}
                           <span className="font-semibold text-purple-600">
-                            #{mockStats.currentRank}
+                            #{myDailyScoreStats?.rank ?? mockStats.currentRank}
                           </span>
                         </div>
                       </div>

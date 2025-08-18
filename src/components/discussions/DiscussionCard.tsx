@@ -6,9 +6,6 @@ import {
   AlertTriangle,
   MapPin,
   Clock,
-  Star,
-  Shield,
-  Crown,
   Award,
   ShoppingBag,
   MoreVertical,
@@ -17,6 +14,7 @@ import {
   X,
   Edit,
 } from "lucide-react";
+import { getLevelBadgeStyle, getLevelIcon, getLevelName } from "@/lib/levels";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -85,6 +83,16 @@ export function DiscussionCard({
   const [flashDown, setFlashDown] = useState(false);
   const [upDelta, setUpDelta] = useState<number | null>(null);
   const [downDelta, setDownDelta] = useState<number | null>(null);
+  // Optimistic author points when moderator approval adds +15
+  const [displayPoints, setDisplayPoints] = useState(post.author.points);
+  const [approvalFlash, setApprovalFlash] = useState<null | "+15" | "-15">(
+    null
+  );
+
+  useEffect(() => {
+    // Sync if upstream changes (e.g., refetch after invalidation)
+    setDisplayPoints(post.author.points);
+  }, [post.author.points]);
 
   const [approvePost, { isLoading: isApproving }] = useApprovePostMutation();
   const [rejectPost, { isLoading: isRejecting }] = useRejectPostMutation();
@@ -217,11 +225,21 @@ export function DiscussionCard({
     if (isApproving) return;
     const prev = localApproved;
     setLocalApproved(true);
+    const prevPoints = displayPoints;
+    // Optimistic +15 (MOD_APPROVED_BONUS)
+    setDisplayPoints(prevPoints + 15);
+    setApprovalFlash("+15");
+    setTimeout(() => setApprovalFlash(null), 1200);
     try {
-      await approvePost({ id: post.id }).unwrap();
+      await approvePost({
+        id: post.id,
+        authorId: Number(post.author.id),
+      }).unwrap();
       toast.success("Post approved");
     } catch {
       setLocalApproved((prev ?? post.isModeratorApproved ?? false) as boolean);
+      // Revert optimistic points
+      setDisplayPoints(prevPoints);
       toast.error("Failed to approve post");
     }
   };
@@ -232,11 +250,19 @@ export function DiscussionCard({
     if (isRejecting) return;
     const prev = localApproved;
     setLocalApproved(false);
+    const prevPoints = displayPoints;
+    setDisplayPoints(Math.max(0, prevPoints - 15));
+    setApprovalFlash("-15");
+    setTimeout(() => setApprovalFlash(null), 1200);
     try {
-      await rejectPost({ id: post.id }).unwrap();
+      await rejectPost({
+        id: post.id,
+        authorId: Number(post.author.id),
+      }).unwrap();
       toast.success("Approval removed");
     } catch {
       setLocalApproved((prev ?? post.isModeratorApproved ?? false) as boolean);
+      setDisplayPoints(prevPoints);
       toast.error("Failed to remove approval");
     }
   };
@@ -246,52 +272,7 @@ export function DiscussionCard({
     setShowDropdown(!showDropdown);
   };
 
-  const getLevelIcon = (levelId: number) => {
-    switch (levelId) {
-      case 1:
-        return (
-          <Star className="h-3.5 w-3.5 text-amber-500" fill="currentColor" />
-        );
-      case 2:
-        return (
-          <Shield className="h-3.5 w-3.5 text-blue-500" fill="currentColor" />
-        );
-      case 3:
-        return (
-          <Crown className="h-3.5 w-3.5 text-yellow-500" fill="currentColor" />
-        );
-      default:
-        return (
-          <Star className="h-3.5 w-3.5 text-amber-500" fill="currentColor" />
-        );
-    }
-  };
-
-  const getLevelName = (levelId: number) => {
-    switch (levelId) {
-      case 1:
-        return "Amateur";
-      case 2:
-        return "Knight";
-      case 3:
-        return "Expert";
-      default:
-        return "Amateur";
-    }
-  };
-
-  const getLevelBadgeStyle = (levelId: number) => {
-    switch (levelId) {
-      case 1:
-        return "bg-gradient-to-r from-amber-50 to-orange-50 border-amber-200 text-amber-700";
-      case 2:
-        return "bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200 text-blue-700";
-      case 3:
-        return "bg-gradient-to-r from-yellow-50 to-amber-50 border-yellow-200 text-yellow-700";
-      default:
-        return "bg-gradient-to-r from-amber-50 to-orange-50 border-amber-200 text-amber-700";
-    }
-  };
+  // Level helpers now centralized in lib/levels.ts
 
   const getTagColor = (tag: string) => {
     switch (tag.toLowerCase()) {
@@ -436,12 +417,28 @@ export function DiscussionCard({
                       post.author.level_id
                     )}`}
                   >
-                    {getLevelIcon(post.author.level_id)}
+                    {(() => {
+                      const Icon = getLevelIcon(post.author.level_id);
+                      return (
+                        <Icon className="h-3.5 w-3.5" />
+                      );
+                    })()}
                     <span className="text-xs font-semibold">
                       {getLevelName(post.author.level_id)}
                     </span>
                     <span className="text-xs opacity-75 font-medium">
-                      {post.author.points}
+                      {displayPoints}
+                      {approvalFlash && (
+                        <span
+                          className={`ml-1 font-extrabold text-[10px] sm:text-xs animate-pulse select-none ${
+                            approvalFlash === "+15"
+                              ? "text-emerald-600"
+                              : "text-red-600"
+                          }`}
+                        >
+                          {approvalFlash}
+                        </span>
+                      )}
                     </span>
                   </div>
                 </div>
