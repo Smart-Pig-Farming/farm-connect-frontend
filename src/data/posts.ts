@@ -894,15 +894,7 @@ export const allMockPosts: Post[] = [
   },
 ];
 
-// Mock statistics
-export const mockStats = {
-  totalDiscussions: 27, // Updated to reflect new total
-  postsToday: 2,
-  marketOpportunitiesToday: 3,
-  pointsToday: 12,
-  currentRank: 15,
-  rankChange: "up" as "up" | "down" | "same",
-};
+// Deprecated mock statistics removed for production.
 
 // Mock data for user post management
 export const myPostsStats = {

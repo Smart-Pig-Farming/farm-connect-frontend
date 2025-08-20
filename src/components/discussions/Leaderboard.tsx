@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { Button } from "../ui/button";
 import {
   Trophy,
@@ -17,7 +17,6 @@ import {
   Sparkles,
 } from "lucide-react";
 import {
-  mockLeaderboardUsers, // fallback only until all data surfaces
   getRankChangeColor,
   type LeaderboardUser,
 } from "../../data/leaderboard";
@@ -116,15 +115,11 @@ export function Leaderboard({ onBackToDiscussions }: LeaderboardProps) {
   };
 
   const baseRows = paginated?.rows || liveLeaderboard || [];
-  const topUsers: LeaderboardUser[] =
-    baseRows.slice(0, 10).map(mapEntry).length >= 3
-      ? baseRows.slice(0, 10).map(mapEntry)
-      : mockLeaderboardUsers.slice(0, 10);
+  // Pure live data only – no mock fallback. If fewer than 3 results we simply show an empty state.
+  const topUsers: LeaderboardUser[] = baseRows.slice(0, 10).map(mapEntry);
+  const hasMinimumTop = topUsers.length >= 3;
 
-  const totalUsers =
-    paginated?.meta.totalPeriodUsers ||
-    baseRows.length ||
-    mockLeaderboardUsers.length;
+  const totalUsers = paginated?.meta.totalPeriodUsers ?? baseRows.length;
   const percentile =
     currentUserRank && totalUsers
       ? Math.max(1, Math.round((currentUserRank / totalUsers) * 100))
@@ -150,8 +145,79 @@ export function Leaderboard({ onBackToDiscussions }: LeaderboardProps) {
   const podiumUsers = topUsers.slice(0, 3);
   const otherTopUsers = topUsers.slice(3);
 
+  // --- Podium meta calculations (leader margins & climb requirements) ---
+  const leaderLead =
+    podiumUsers.length >= 2
+      ? Math.max(0, podiumUsers[0].points - podiumUsers[1].points)
+      : 0;
+  const secondNeeds =
+    podiumUsers.length >= 2
+      ? Math.max(0, podiumUsers[0].points - podiumUsers[1].points + 1)
+      : 0;
+  const thirdNeeds =
+    podiumUsers.length >= 3
+      ? Math.max(0, podiumUsers[1].points - podiumUsers[2].points + 1)
+      : 0;
+
+  const timeRangeLabel = (range: "day" | "week" | "month" | "all"): string =>
+    range === "day"
+      ? "Today"
+      : range === "week"
+      ? "This Week"
+      : range === "month"
+      ? "This Month"
+      : "All Time";
+
+  // Lightweight count-up hook (no extra lib) with reduced motion respect
+  const useCountUp = (value: number, duration = 800) => {
+    const [display, setDisplay] = useState(value);
+    const startValueRef = useRef(value);
+    const lastValueRef = useRef(value);
+    useEffect(() => {
+      // If value decreased or first render, reset baseline
+      if (value < lastValueRef.current) startValueRef.current = value;
+      const prefersReduced =
+        typeof window !== "undefined" &&
+        window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+      if (prefersReduced || value === lastValueRef.current) {
+        setDisplay(value);
+        lastValueRef.current = value;
+        return;
+      }
+      const initial = lastValueRef.current;
+      const delta = value - initial;
+      const start = performance.now();
+      let raf: number;
+      const tick = (t: number) => {
+        const elapsed = t - start;
+        const progress = Math.min(1, elapsed / duration);
+        const eased = 1 - Math.pow(1 - progress, 3); // easeOutCubic
+        setDisplay(Math.round(initial + delta * eased));
+        if (progress < 1) raf = requestAnimationFrame(tick);
+      };
+      raf = requestAnimationFrame(tick);
+      lastValueRef.current = value;
+      return () => cancelAnimationFrame(raf);
+    }, [value, duration]);
+    return display;
+  };
+
+  // Dynamic podium heading copy variants per requirement
+  const podiumHeading = useMemo(() => {
+    switch (selectedTimeRange) {
+      case "week":
+        return "🏆 Weekly Champions"; // emoji only for weekly variant
+      case "day":
+        return "Today's Top Farmers";
+      case "month":
+        return "Monthly Champions";
+      case "all":
+      default:
+        return "Top Farmers (All Time)";
+    }
+  }, [selectedTimeRange]);
+
   // Pagination: backend already pages; just map current page rows
-  const USERS_PER_PAGE = 20; // should match backend limit
   const totalPages = paginated ? paginated.meta.totalPages : 1;
 
   const getCurrentPageUsers = useMemo(() => {
@@ -160,7 +226,7 @@ export function Leaderboard({ onBackToDiscussions }: LeaderboardProps) {
       ? paginated.rows.map(mapEntry)
       : liveLeaderboard && liveLeaderboard.length > 0
       ? liveLeaderboard.map(mapEntry)
-      : mockLeaderboardUsers.slice(0, USERS_PER_PAGE);
+      : [];
     if (!searchQuery) return source;
     const q = searchQuery.toLowerCase();
     return source.filter((user) => {
@@ -316,9 +382,11 @@ export function Leaderboard({ onBackToDiscussions }: LeaderboardProps) {
   const PodiumCard = ({
     user,
     position,
+    context,
   }: {
     user: LeaderboardUser;
     position: 1 | 2 | 3;
+    context?: { leadMargin?: number; pointsToNext?: number };
   }) => {
     const colors = {
       1: {
@@ -355,6 +423,27 @@ export function Leaderboard({ onBackToDiscussions }: LeaderboardProps) {
         : "scale-100";
     const raise =
       position === 1 ? "md:-mt-4" : position === 2 ? "md:mt-2" : "md:mt-4"; // Subtle pedestal effect
+
+    const subtitle =
+      position === 1
+        ? "Overall Leader"
+        : position === 2
+        ? "Runner-Up"
+        : "Third Place";
+
+    const animatedPoints = useCountUp(user.points);
+    const periodText = timeRangeLabel(selectedTimeRange).toLowerCase();
+    const deltaLine = (() => {
+      if (position === 1) {
+        if (context?.leadMargin && context.leadMargin > 0)
+          return `Leading by ${context.leadMargin} pts`;
+        return "Tied for 1st";
+      }
+      if (context?.pointsToNext === 0) return "Tied";
+      if (context?.pointsToNext && context.pointsToNext > 0)
+        return `Needs ${context.pointsToNext} pts to overtake`;
+      return null;
+    })();
 
     return (
       <div
@@ -410,9 +499,12 @@ export function Leaderboard({ onBackToDiscussions }: LeaderboardProps) {
           </div>
 
           {/* User Info */}
-          <h3 className="text-xl font-bold text-gray-900 mb-2">
+          <h3 className="text-xl font-bold text-gray-900 mb-1">
             {user.firstname} {user.lastname}
           </h3>
+          <p className="text-xs font-medium text-gray-500 mb-3 tracking-wide uppercase">
+            {subtitle}
+          </p>
 
           <p className="text-sm text-gray-600 mb-4 flex items-center gap-1 justify-center">
             <MapPin className="w-4 h-4" />
@@ -421,10 +513,17 @@ export function Leaderboard({ onBackToDiscussions }: LeaderboardProps) {
 
           {/* Stats */}
           <div className="text-center mb-4">
-            <div className="text-3xl font-bold text-gray-900 mb-1">
-              {user.points.toLocaleString()}
+            <div className="text-3xl font-bold text-gray-900 mb-1 transition-colors">
+              {animatedPoints.toLocaleString()}
             </div>
-            <div className="text-sm text-gray-500">points</div>
+            <div className="text-sm text-gray-500">
+              pts {periodText !== "all time" ? periodText : "(all time)"}
+            </div>
+            {deltaLine && (
+              <div className="mt-2 text-xs font-medium text-orange-600">
+                {deltaLine}
+              </div>
+            )}
           </div>
 
           {/* Level Badge */}
@@ -458,7 +557,7 @@ export function Leaderboard({ onBackToDiscussions }: LeaderboardProps) {
         )}
         {isError && (
           <div className="mb-4 text-sm text-red-500">
-            Failed to load live leaderboard, showing mock data.
+            Failed to load leaderboard data.
           </div>
         )}
         {/* Header */}
@@ -513,38 +612,66 @@ export function Leaderboard({ onBackToDiscussions }: LeaderboardProps) {
 
         {!showFullRankings ? (
           <>
-            {/* Podium Section - Top 3 */}
-            <div className="mb-8 bg-white/95 backdrop-blur-sm rounded-2xl shadow-xl p-6">
-              <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2 mb-6">
-                <Trophy className="h-5 w-5 text-amber-500" />
-                Top Performers
-              </h2>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
-                {/* DOM order matches logical rank for accessibility; layout uses order utilities */}
-                <div className="order-1 md:order-2">
-                  <PodiumCard user={podiumUsers[0]} position={1} />
-                </div>
-                <div className="order-2 md:order-1">
-                  <PodiumCard user={podiumUsers[1]} position={2} />
-                </div>
-                <div className="order-3 md:order-3">
-                  <PodiumCard user={podiumUsers[2]} position={3} />
+            {/* Podium Section - Top 3 (only render when we have at least 3 live users) */}
+            {hasMinimumTop ? (
+              <div className="mb-8 bg-white/95 backdrop-blur-sm rounded-2xl shadow-xl p-6">
+                <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2 mb-2">
+                  <Trophy className="h-5 w-5 text-amber-500" />
+                  {podiumHeading}
+                </h2>
+                <p className="text-sm text-gray-500 mb-6">
+                  Recognizing the most helpful contributors
+                </p>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
+                  <div className="order-1 md:order-2">
+                    <PodiumCard
+                      user={podiumUsers[0]}
+                      position={1}
+                      context={{ leadMargin: leaderLead }}
+                    />
+                  </div>
+                  <div className="order-2 md:order-1">
+                    <PodiumCard
+                      user={podiumUsers[1]}
+                      position={2}
+                      context={{ pointsToNext: secondNeeds }}
+                    />
+                  </div>
+                  <div className="order-3 md:order-3">
+                    <PodiumCard
+                      user={podiumUsers[2]}
+                      position={3}
+                      context={{ pointsToNext: thirdNeeds }}
+                    />
+                  </div>
                 </div>
               </div>
-            </div>
+            ) : (
+              <div className="mb-8 bg-white/95 backdrop-blur-sm rounded-2xl shadow-xl p-6">
+                <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2 mb-2">
+                  <Trophy className="h-5 w-5 text-amber-500" />
+                  {podiumHeading}
+                </h2>
+                <p className="text-sm text-gray-500">
+                  Not enough leaderboard data to display the podium yet.
+                </p>
+              </div>
+            )}
 
-            {/* Top 10 Section */}
-            <div className="mb-8 bg-white/95 backdrop-blur-sm rounded-2xl shadow-xl p-6">
-              <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2 mb-6">
-                <Star className="h-5 w-5 text-orange-500" />
-                Top 10 Rankings
-              </h2>
-              <div className="space-y-4">
-                {otherTopUsers.map((user) => (
-                  <UserCard key={user.id} user={user} />
-                ))}
+            {/* Top 10 Section (only if we have data beyond podium) */}
+            {otherTopUsers.length > 0 && (
+              <div className="mb-8 bg-white/95 backdrop-blur-sm rounded-2xl shadow-xl p-6">
+                <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2 mb-6">
+                  <Star className="h-5 w-5 text-orange-500" />
+                  Top 10 Rankings
+                </h2>
+                <div className="space-y-4">
+                  {otherTopUsers.map((user) => (
+                    <UserCard key={user.id} user={user} />
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Compressed Middle Section */}
             <div className="mb-8 bg-white/95 backdrop-blur-sm rounded-2xl shadow-xl p-8">
@@ -555,8 +682,12 @@ export function Leaderboard({ onBackToDiscussions }: LeaderboardProps) {
                     <Users className="h-12 w-12 text-gray-400 mx-auto" />
                     <div>
                       <h3 className="text-lg font-semibold text-gray-700 mb-2">
-                        ... and {Math.max(0, stats.totalUsers - 10)} more
-                        farmers
+                        {stats.totalUsers > 10
+                          ? `... and ${Math.max(
+                              0,
+                              stats.totalUsers - 10
+                            )} more farmers`
+                          : "Leaderboard still populating"}
                       </h3>
                       <p className="text-gray-500 mb-4">
                         Discover where you rank among our growing community
@@ -695,6 +826,29 @@ export function Leaderboard({ onBackToDiscussions }: LeaderboardProps) {
             </div>
 
             <div className="space-y-4 mb-6">
+              {getCurrentPageUsers.length === 0 &&
+                !paginatedLoading &&
+                !simpleLoading && (
+                  <div className="p-8 text-center rounded-xl border border-dashed border-gray-200 bg-white/60 backdrop-blur-sm">
+                    <p className="text-gray-600 font-medium mb-2">
+                      No rankings to display
+                    </p>
+                    <p className="text-xs text-gray-500 mb-4">
+                      Try a different time range or clear your search.
+                    </p>
+                  </div>
+                )}
+              {getCurrentPageUsers.length === 0 &&
+                (paginatedLoading || simpleLoading) && (
+                  <div className="space-y-3" aria-label="Loading leaderboard">
+                    {Array.from({ length: 5 }).map((_, i) => (
+                      <div
+                        key={i}
+                        className="h-16 rounded-xl bg-gradient-to-r from-gray-100 via-gray-50 to-gray-100 animate-pulse"
+                      />
+                    ))}
+                  </div>
+                )}
               {getCurrentPageUsers.map((user) => (
                 <UserCard
                   key={user.id}

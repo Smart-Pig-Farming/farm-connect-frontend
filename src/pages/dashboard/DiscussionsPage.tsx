@@ -13,9 +13,6 @@ import {
   Settings,
   Shield,
   Trophy,
-  TrendingUp,
-  TrendingDown,
-  Minus,
 } from "lucide-react";
 import { DiscussionCard } from "../../components/discussions/DiscussionCard";
 import {
@@ -27,7 +24,7 @@ import {
 import { type PostToEdit } from "../../components/discussions/EditPostModal";
 import { ModerationDashboard } from "../../components/discussions/ModerationDashboard";
 import { TagFilter } from "../../components/discussions/TagFilter";
-import { mockStats, type Post } from "../../data/posts";
+import { type Post } from "../../data/posts";
 import { useGetMyStatsQuery } from "../../store/api/scoreApi";
 import { POSTS_PER_LOAD_MORE, LOADING_DEBOUNCE_DELAY } from "../../utils/posts";
 import {
@@ -844,8 +841,7 @@ export function DiscussionsPage() {
                       <div className="flex justify-between">
                         <span className="text-gray-600">My Posts Today</span>
                         <span className="font-semibold text-orange-600">
-                          {myDailyScoreStats?.postsToday ??
-                            mockStats.postsToday}
+                          {myDailyScoreStats?.postsToday ?? 0}
                         </span>
                       </div>
                       <div className="flex justify-between">
@@ -853,30 +849,20 @@ export function DiscussionsPage() {
                           Market Opportunities
                         </span>
                         <span className="font-semibold text-green-600">
-                          {myDailyScoreStats?.marketOpportunities ??
-                            mockStats.marketOpportunitiesToday}
+                          {myDailyScoreStats?.marketOpportunities ?? 0}
                         </span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-600">Points Today</span>
                         <span className="font-semibold text-blue-600">
-                          +{myDailyScoreStats?.points ?? mockStats.pointsToday}
+                          +{myDailyScoreStats?.points ?? 0}
                         </span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-600">Rank Today</span>
                         <div className="flex items-center gap-1">
-                          {mockStats.rankChange === "up" && (
-                            <TrendingUp className="h-3 w-3 text-green-500" />
-                          )}
-                          {mockStats.rankChange === "down" && (
-                            <TrendingDown className="h-3 w-3 text-red-500" />
-                          )}
-                          {mockStats.rankChange === "same" && (
-                            <Minus className="h-3 w-3 text-gray-400" />
-                          )}
                           <span className="font-semibold text-purple-600">
-                            #{myDailyScoreStats?.rank ?? mockStats.currentRank}
+                            #{myDailyScoreStats?.rank ?? "?"}
                           </span>
                         </div>
                       </div>

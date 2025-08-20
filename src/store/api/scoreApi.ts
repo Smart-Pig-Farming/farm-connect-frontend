@@ -12,6 +12,9 @@ export interface LeaderboardEntry {
   sector?: string | null;
   location?: string; // derived client-side convenience
   points: number; // normalized
+  // Optional dynamic movement fields (computed if backend supplies previous rank or delta)
+  rankChange?: "up" | "down" | "same" | "new";
+  rankChangeAmount?: number;
 }
 
 export interface MyScore {
@@ -53,6 +56,11 @@ interface LeaderboardRowApi {
   province?: string | null;
   sector?: string | null;
   points: number;
+  // Optional backend fields for movement; any may be present
+  previous_rank?: number;
+  prev_rank?: number;
+  rank_change?: number; // positive or negative delta
+  rankChange?: number; // camelCase variant
 }
 
 interface LeaderboardApiResponse {
@@ -92,21 +100,44 @@ export const scoreApi = baseApi.injectEndpoints({
       query: ({ period }) => `/score/leaderboard?period=${period}`,
       transformResponse: (resp: LeaderboardApiResponse) => {
         if (!resp || !resp.success) return [];
-        return resp.data.map((r: LeaderboardRowApi) => ({
-          rank: r.rank,
-          user_id: r.user_id,
-          username: r.username,
-          firstname: r.firstname,
-          lastname: r.lastname,
-          level_id: r.level_id,
-          district: r.district,
-          province: r.province,
-          sector: r.sector,
-          location:
-            [r.sector, r.district, r.province].filter(Boolean).join(", ") ||
-            undefined,
-          points: normalizePoints(r.points),
-        }));
+        return resp.data.map((r: LeaderboardRowApi) => {
+          const prevRank =
+            (r.previous_rank ?? r.prev_rank) !== undefined
+              ? Number(r.previous_rank ?? r.prev_rank)
+              : undefined;
+          // rank_change may be defined directly (positive = positions gained? we infer direction relative to sign)
+          // If we have previous rank we compute delta = prevRank - currentRank (positive means moved up)
+          let delta: number | undefined = undefined;
+          if (prevRank !== undefined) delta = prevRank - Number(r.rank);
+          else if (r.rank_change !== undefined) delta = Number(r.rank_change);
+          else {
+            const dyn = r as unknown as Record<string, unknown>;
+            if (dyn.rankChange !== undefined) delta = Number(dyn.rankChange);
+          }
+          let rankChange: LeaderboardEntry["rankChange"] = "same";
+          let rankChangeAmount: number | undefined;
+          if (delta !== undefined && delta !== 0) {
+            rankChange = delta > 0 ? "up" : "down";
+            rankChangeAmount = Math.abs(delta);
+          }
+          return {
+            rank: r.rank,
+            user_id: r.user_id,
+            username: r.username,
+            firstname: r.firstname,
+            lastname: r.lastname,
+            level_id: r.level_id,
+            district: r.district,
+            province: r.province,
+            sector: r.sector,
+            location:
+              [r.sector, r.district, r.province].filter(Boolean).join(", ") ||
+              undefined,
+            points: normalizePoints(r.points),
+            rankChange,
+            rankChangeAmount,
+          } as LeaderboardEntry;
+        });
       },
       providesTags: (result) =>
         result
@@ -139,21 +170,42 @@ export const scoreApi = baseApi.injectEndpoints({
         }`,
       transformResponse: (resp: LeaderboardPaginatedApiResponse) => {
         const rows: LeaderboardEntry[] = (resp.data || []).map(
-          (r: LeaderboardRowApi) => ({
-            rank: Number(r.rank),
-            user_id: Number(r.user_id),
-            username: r.username,
-            firstname: r.firstname,
-            lastname: r.lastname,
-            level_id: r.level_id,
-            district: r.district,
-            province: r.province,
-            sector: r.sector,
-            location:
-              [r.sector, r.district, r.province].filter(Boolean).join(", ") ||
-              undefined,
-            points: normalizePoints(Number(r.points)),
-          })
+          (r: LeaderboardRowApi) => {
+            const prevRank =
+              (r.previous_rank ?? r.prev_rank) !== undefined
+                ? Number(r.previous_rank ?? r.prev_rank)
+                : undefined;
+            let delta: number | undefined = undefined;
+            if (prevRank !== undefined) delta = prevRank - Number(r.rank);
+            else if (r.rank_change !== undefined) delta = Number(r.rank_change);
+            else {
+              const dyn = r as unknown as Record<string, unknown>;
+              if (dyn.rankChange !== undefined) delta = Number(dyn.rankChange);
+            }
+            let rankChange: LeaderboardEntry["rankChange"] = "same";
+            let rankChangeAmount: number | undefined;
+            if (delta !== undefined && delta !== 0) {
+              rankChange = delta > 0 ? "up" : "down";
+              rankChangeAmount = Math.abs(delta);
+            }
+            return {
+              rank: Number(r.rank),
+              user_id: Number(r.user_id),
+              username: r.username,
+              firstname: r.firstname,
+              lastname: r.lastname,
+              level_id: r.level_id,
+              district: r.district,
+              province: r.province,
+              sector: r.sector,
+              location:
+                [r.sector, r.district, r.province].filter(Boolean).join(", ") ||
+                undefined,
+              points: normalizePoints(Number(r.points)),
+              rankChange,
+              rankChangeAmount,
+            } as LeaderboardEntry;
+          }
         );
         return { rows, meta: resp.meta };
       },
@@ -179,21 +231,42 @@ export const scoreApi = baseApi.injectEndpoints({
       query: ({ period, userId, radius = 3 }) =>
         `/score/leaderboard?period=${period}&aroundUserId=${userId}&radius=${radius}`,
       transformResponse: (resp: LeaderboardAroundApiResponse) =>
-        (resp.data || []).map((r: LeaderboardRowApi) => ({
-          rank: Number(r.rank),
-          user_id: Number(r.user_id),
-          username: r.username,
-          firstname: r.firstname,
-          lastname: r.lastname,
-          level_id: r.level_id,
-          district: r.district,
-          province: r.province,
-          sector: r.sector,
-          location:
-            [r.sector, r.district, r.province].filter(Boolean).join(", ") ||
-            undefined,
-          points: normalizePoints(Number(r.points)),
-        })),
+        (resp.data || []).map((r: LeaderboardRowApi) => {
+          const prevRank =
+            (r.previous_rank ?? r.prev_rank) !== undefined
+              ? Number(r.previous_rank ?? r.prev_rank)
+              : undefined;
+          let delta: number | undefined = undefined;
+          if (prevRank !== undefined) delta = prevRank - Number(r.rank);
+          else if (r.rank_change !== undefined) delta = Number(r.rank_change);
+          else {
+            const dyn = r as unknown as Record<string, unknown>;
+            if (dyn.rankChange !== undefined) delta = Number(dyn.rankChange);
+          }
+          let rankChange: LeaderboardEntry["rankChange"] = "same";
+          let rankChangeAmount: number | undefined;
+          if (delta !== undefined && delta !== 0) {
+            rankChange = delta > 0 ? "up" : "down";
+            rankChangeAmount = Math.abs(delta);
+          }
+          return {
+            rank: Number(r.rank),
+            user_id: Number(r.user_id),
+            username: r.username,
+            firstname: r.firstname,
+            lastname: r.lastname,
+            level_id: r.level_id,
+            district: r.district,
+            province: r.province,
+            sector: r.sector,
+            location:
+              [r.sector, r.district, r.province].filter(Boolean).join(", ") ||
+              undefined,
+            points: normalizePoints(Number(r.points)),
+            rankChange,
+            rankChangeAmount,
+          } as LeaderboardEntry;
+        }),
       providesTags: (result) =>
         result
           ? [
