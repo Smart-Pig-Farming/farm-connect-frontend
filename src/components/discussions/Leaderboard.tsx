@@ -345,11 +345,37 @@ export function Leaderboard({ onBackToDiscussions }: LeaderboardProps) {
     };
 
     const { bg, icon: Icon, shadow, cardBg } = colors[position];
+    const rankLabel = position === 1 ? "1st" : position === 2 ? "2nd" : "3rd";
+    // Emphasize first place visually
+    const scale =
+      position === 1
+        ? "scale-105 md:scale-110"
+        : position === 2
+        ? "scale-100"
+        : "scale-100";
+    const raise =
+      position === 1 ? "md:-mt-4" : position === 2 ? "md:mt-2" : "md:mt-4"; // Subtle pedestal effect
 
     return (
       <div
-        className={`p-6 text-center ${cardBg} backdrop-blur-sm rounded-2xl ${shadow} hover:scale-105 hover:-translate-y-2 transition-all duration-500`}
+        className={`relative p-6 text-center ${cardBg} backdrop-blur-sm rounded-2xl ${shadow} ${scale} ${raise} hover:scale-105 hover:-translate-y-2 transition-all duration-500`}
+        aria-label={`${rankLabel} place: ${user.firstname} ${user.lastname}`}
       >
+        {/* Rank badge */}
+        <div className="absolute left-3 top-3">
+          <div
+            className={`px-3 py-1 rounded-full text-xs font-bold tracking-wide flex items-center gap-1 shadow-md backdrop-blur-sm
+            ${
+              position === 1
+                ? "bg-yellow-500/90 text-white ring-2 ring-yellow-300/70"
+                : position === 2
+                ? "bg-gray-500/90 text-white ring-2 ring-gray-300/60"
+                : "bg-amber-600/90 text-white ring-2 ring-amber-300/60"
+            }`}
+          >
+            <span>{rankLabel}</span>
+          </div>
+        </div>
         <div className="flex flex-col items-center">
           {/* Position Icon */}
           <div
@@ -365,8 +391,16 @@ export function Leaderboard({ onBackToDiscussions }: LeaderboardProps) {
           </div>
 
           {/* Avatar */}
-          <div className="relative w-20 h-20 mb-4">
-            <div className="w-20 h-20 rounded-full bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center text-white font-bold text-xl shadow-xl shadow-orange-300/40">
+          <div
+            className={`relative ${
+              position === 1 ? "w-24 h-24" : "w-20 h-20"
+            } mb-4`}
+          >
+            <div
+              className={`rounded-full bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center text-white font-bold shadow-xl shadow-orange-300/40 ${
+                position === 1 ? "w-24 h-24 text-2xl" : "w-20 h-20 text-xl"
+              }`}
+            >
               {user.firstname[0]}
               {user.lastname[0]}
             </div>
@@ -404,6 +438,12 @@ export function Leaderboard({ onBackToDiscussions }: LeaderboardProps) {
 
           {/* Quick Stats removed (posts/replies/upvotes not yet supported) */}
         </div>
+        {/* Pedestal bar (purely decorative) */}
+        <div
+          className={`mt-6 mx-auto rounded-b-xl rounded-t-sm w-10 bg-gradient-to-t from-gray-200 to-white/50 shadow-inner
+          ${position === 1 ? "h-8" : position === 2 ? "h-6" : "h-5"}`}
+          aria-hidden="true"
+        />
       </div>
     );
   };
@@ -479,14 +519,15 @@ export function Leaderboard({ onBackToDiscussions }: LeaderboardProps) {
                 <Trophy className="h-5 w-5 text-amber-500" />
                 Top Performers
               </h2>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="md:order-1">
-                  <PodiumCard user={podiumUsers[1]} position={2} />
-                </div>
-                <div className="md:order-2">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
+                {/* DOM order matches logical rank for accessibility; layout uses order utilities */}
+                <div className="order-1 md:order-2">
                   <PodiumCard user={podiumUsers[0]} position={1} />
                 </div>
-                <div className="md:order-3">
+                <div className="order-2 md:order-1">
+                  <PodiumCard user={podiumUsers[1]} position={2} />
+                </div>
+                <div className="order-3 md:order-3">
                   <PodiumCard user={podiumUsers[2]} position={3} />
                 </div>
               </div>

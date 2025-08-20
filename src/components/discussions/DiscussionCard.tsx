@@ -24,7 +24,7 @@ import { ContactModal } from "@/components/discussions/ContactModal";
 import { RepliesSection } from "@/components/discussions/RepliesSection";
 import { SocialVideoPlayer } from "@/components/ui/social-video-player";
 import { ImageGrid } from "@/components/ui/image-grid";
-import type { Post } from "../../data/posts";
+import type { Post as BasePost } from "../../data/posts";
 import { usePermissions } from "@/hooks/usePermissions";
 import {
   useApprovePostMutation,
@@ -36,6 +36,11 @@ import {
   formatModerationError,
   formatReportSuccess,
 } from "@/utils/moderationErrors";
+
+// Extend Post with optional transient delta field coming from cache patch
+interface Post extends BasePost {
+  __lastAuthorPointsDelta?: number;
+}
 
 interface DiscussionCardProps {
   post: Post;
@@ -92,9 +97,20 @@ export function DiscussionCard({
   const [votePointFlash, setVotePointFlash] = useState<string | null>(null);
 
   useEffect(() => {
-    // Sync if upstream changes (e.g., refetch after invalidation)
-    setDisplayPoints(post.author.points);
-  }, [post.author.points]);
+    const backendPoints = post.author.points;
+    const flashing = votePointFlash !== null;
+    // If we're not flashing, or our local value drifted from backend by more than the last optimistic change, resync.
+    if (!flashing && displayPoints !== backendPoints) {
+      setDisplayPoints(backendPoints);
+    }
+    if (typeof post.__lastAuthorPointsDelta === "number") {
+      const d = post.__lastAuthorPointsDelta;
+      setVotePointFlash((d > 0 ? "+" : "") + d.toString());
+      setTimeout(() => setVotePointFlash(null), 1200);
+      // Mutate transient prop to prevent re-flash (safe local mutation since it's cache object reference)
+      delete post.__lastAuthorPointsDelta;
+    }
+  }, [post, displayPoints, votePointFlash]);
 
   const [approvePost, { isLoading: isApproving }] = useApprovePostMutation();
   const [rejectPost, { isLoading: isRejecting }] = useRejectPostMutation();
@@ -133,23 +149,25 @@ export function DiscussionCard({
     // Compute author point net effect BEFORE mutating local vote state.
     // Rules mirror backend scoring:
     // none->up: +1, none->down: -1, up->none: -1, down->none: +1, up->down: -2, down->up: +2
-    const prev = currentVote; // currentVote reflects localUserVote fallback
-    let delta = 0;
-    if (prev === null) {
-      delta = voteType === "up" ? 1 : -1;
-    } else if (prev === "up" && voteType === "up") {
-      delta = -1; // removing upvote
-    } else if (prev === "down" && voteType === "down") {
-      delta = 1; // removing downvote
-    } else if (prev === "up" && voteType === "down") {
-      delta = -2; // switch
-    } else if (prev === "down" && voteType === "up") {
-      delta = 2; // switch
+    // Compute optimistic delta for author points (does not include engagement bonuses which don't affect author)
+    const prevVote = currentVote; // state before this click
+    let optimisticDelta = 0;
+    if (prevVote === null) {
+      optimisticDelta = voteType === "up" ? 1 : -1; // new vote
+    } else if (prevVote === "up" && voteType === "up") {
+      optimisticDelta = -1; // removing upvote
+    } else if (prevVote === "down" && voteType === "down") {
+      optimisticDelta = 1; // removing downvote
+    } else if (prevVote === "up" && voteType === "down") {
+      optimisticDelta = -2; // switch up->down
+    } else if (prevVote === "down" && voteType === "up") {
+      optimisticDelta = 2; // switch down->up
     }
-    if (delta !== 0) {
-      // Optimistically show flash (do not permanently adjust displayPoints; backend will update)
-      setVotePointFlash((delta > 0 ? "+" : "") + delta.toString());
-      setTimeout(() => setVotePointFlash(null), 1200);
+    if (optimisticDelta !== 0) {
+      // Optimistically reflect points so user sees immediate feedback
+      setDisplayPoints((p) => p + optimisticDelta);
+      setVotePointFlash((optimisticDelta > 0 ? "+" : "") + optimisticDelta);
+      setTimeout(() => setVotePointFlash(null), 1100);
     }
     // Determine if this action adds or removes a vote based on current state
     if (voteType === "up") {

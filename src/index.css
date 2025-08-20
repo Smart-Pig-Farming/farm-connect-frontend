@@ -200,9 +200,18 @@
 }
 
 @keyframes fade-slide-up {
-  0% { opacity: 0; transform: translateY(4px) scale(0.95); }
-  30% { opacity: 1; transform: translateY(0) scale(1); }
-  100% { opacity: 0; transform: translateY(-4px) scale(1); }
+  0% {
+    opacity: 0;
+    transform: translateY(4px) scale(0.95);
+  }
+  30% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-4px) scale(1);
+  }
 }
 
 @layer utilities {

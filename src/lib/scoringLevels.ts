@@ -50,7 +50,7 @@ export function levelProgress(totalPoints: number) {
       ceil: totalPoints,
     };
   const span = lvl.max - lvl.min;
-  const pct =
-    span <= 0 ? 100 : Math.min(100, ((totalPoints - lvl.min) / span) * 100);
+  const raw = span <= 0 ? 100 : ((totalPoints - lvl.min) / span) * 100;
+  const pct = Math.min(100, Math.max(0, raw));
   return { percent: pct, current: totalPoints, floor: lvl.min, ceil: lvl.max };
 }

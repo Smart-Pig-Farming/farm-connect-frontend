@@ -40,6 +40,8 @@ export interface Post {
   images: Array<MediaItem>;
   video: MediaItem | null;
   isModeratorApproved: boolean;
+  // Internal transient field for UI flash of author points delta after a vote
+  __lastAuthorPointsDelta?: number;
 }
 
 // Moderation types
@@ -181,8 +183,9 @@ export interface VoteResponse {
     upvotes: number;
     downvotes: number;
     userVote: "upvote" | "downvote" | null;
-  authorPoints?: number; // newly returned total author points after vote
-  authorLevel?: number; // optional updated level after vote
+    authorPoints?: number; // newly returned total author points after vote
+    authorLevel?: number; // optional updated level after vote
+    authorPointsDelta?: number; // net change applied to author points
   };
 }
 
@@ -624,14 +627,20 @@ export const discussionsApi = baseApi.injectEndpoints({
           if (data?.data?.authorPoints !== undefined) {
             const newAuthorPoints = data.data.authorPoints;
             const newAuthorLevel = data.data.authorLevel;
+            const authorPointsDelta = data.data.authorPointsDelta;
             // Update getPosts
             dispatch(
               discussionsApi.util.updateQueryData("getPosts", {}, (draft) => {
-                const post = draft.data?.posts.find((p: Post) => p.id === postId);
+                const post = draft.data?.posts.find(
+                  (p: Post) => p.id === postId
+                );
                 if (post) {
                   post.author.points = newAuthorPoints;
                   if (typeof newAuthorLevel === "number") {
                     post.author.level_id = newAuthorLevel;
+                  }
+                  if (typeof authorPointsDelta === "number") {
+                    post.__lastAuthorPointsDelta = authorPointsDelta;
                   }
                 }
               })
@@ -642,11 +651,16 @@ export const discussionsApi = baseApi.injectEndpoints({
                 "getMyPosts",
                 {},
                 (draft: PostsResponse) => {
-                  const post = draft.data?.posts.find((p: Post) => p.id === postId);
+                  const post = draft.data?.posts.find(
+                    (p: Post) => p.id === postId
+                  );
                   if (post) {
                     post.author.points = newAuthorPoints;
                     if (typeof newAuthorLevel === "number") {
                       post.author.level_id = newAuthorLevel;
+                    }
+                    if (typeof authorPointsDelta === "number") {
+                      post.__lastAuthorPointsDelta = authorPointsDelta;
                     }
                   }
                 }
