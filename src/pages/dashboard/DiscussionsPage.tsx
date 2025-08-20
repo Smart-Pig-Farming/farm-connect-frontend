@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { Card, CardContent, CardHeader } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
@@ -25,7 +25,12 @@ import { type PostToEdit } from "../../components/discussions/EditPostModal";
 import { ModerationDashboard } from "../../components/discussions/ModerationDashboard";
 import { TagFilter } from "../../components/discussions/TagFilter";
 import { type Post } from "../../data/posts";
-import { useGetMyStatsQuery } from "../../store/api/scoreApi";
+import {
+  useGetMyStatsQuery,
+  scoreApi,
+  type MyStats,
+} from "../../store/api/scoreApi";
+import { useAppSelector } from "@/store/hooks";
 import { POSTS_PER_LOAD_MORE, LOADING_DEBOUNCE_DELAY } from "../../utils/posts";
 import {
   useGetPostsStatsQuery,
@@ -137,6 +142,27 @@ export function DiscussionsPage() {
   const canModeratePosts = hasPermission("MODERATE:POSTS");
   // Daily stats (rank, points today, posts today, market opportunities) from backend
   const { data: myDailyScoreStats } = useGetMyStatsQuery({ period: "daily" });
+  const authUserId = useAppSelector((s) => s.auth.user?.id);
+  // Local transient state for points-today flash animation
+  const [pointsTodayFlash, setPointsTodayFlash] = useState<null | number>(null);
+  const lastConsumedPointsFlash = useRef<number | null>(null);
+  useEffect(() => {
+    // If API cache layer injected a flash delta, show it briefly
+    const statsAny = myDailyScoreStats as typeof myDailyScoreStats & {
+      __pointsFlashDelta?: number;
+    };
+    if (
+      statsAny &&
+      typeof statsAny.__pointsFlashDelta === "number" &&
+      statsAny.__pointsFlashDelta !== lastConsumedPointsFlash.current
+    ) {
+      const d = statsAny.__pointsFlashDelta;
+      lastConsumedPointsFlash.current = d;
+      setPointsTodayFlash(d);
+      const t = setTimeout(() => setPointsTodayFlash(null), 1200);
+      return () => clearTimeout(t);
+    }
+  }, [myDailyScoreStats]);
   const [showCreatePost, setShowCreatePost] = useState(false);
   const [showMyPostsView, setShowMyPostsView] = useState(false);
   const [showEditPost, setShowEditPost] = useState(false);
@@ -209,6 +235,32 @@ export function DiscussionsPage() {
           ui.coverThumb = overlay.coverThumb ?? ui.coverThumb;
           ui.videoThumbnail = overlay.videoThumbnail ?? ui.videoThumbnail;
         }
+        // Hydrate vote highlight from sessionStorage if API hasn't returned it yet
+        try {
+          if (ui.userVote == null) {
+            const raw = sessionStorage.getItem("fc_recent_votes");
+            if (raw) {
+              const store: Record<string, { vote: "up" | "down"; ts: number }> =
+                JSON.parse(raw);
+              const rec = store[ui.id];
+              if (rec) {
+                const TEN_MIN = 10 * 60 * 1000;
+                if (Date.now() - rec.ts < TEN_MIN) {
+                  ui.userVote = rec.vote;
+                } else {
+                  // stale -> cleanup lazily
+                  delete store[ui.id];
+                  sessionStorage.setItem(
+                    "fc_recent_votes",
+                    JSON.stringify(store)
+                  );
+                }
+              }
+            }
+          }
+        } catch {
+          /* ignore */
+        }
         return ui;
       });
     console.log("🎯 DiscussionsPage mapping posts:", {
@@ -267,8 +319,12 @@ export function DiscussionsPage() {
   useWebSocket(
     {
       onPostCreate: (data: unknown) => {
-        // Compute thumbnails from WS payload when available
-        const ws = data as PostMediaLike;
+        // Compute thumbnails from WS payload when available & patch points if provided
+        const ws = data as PostMediaLike & {
+          author_points?: number;
+          author_level?: number;
+          author_points_delta?: number;
+        };
         const cover = getPostCoverThumbnail(ws);
         const videoTn = getVideoThumbnail(ws);
         if (cover || videoTn) {
@@ -283,7 +339,41 @@ export function DiscussionsPage() {
             }));
           }
         }
-        // Also refresh list for non-My Posts view to bring in the new item
+        // If scoring snapshot present, patch existing caches (post may appear after refetch)
+        if (ws?.id && ws.author_points !== undefined) {
+          const patchFn = (draft: { data?: { posts?: ApiPost[] } }) => {
+            const post = draft?.data?.posts?.find(
+              (p: ApiPost) => p.id === ws.id
+            );
+            if (post) {
+              post.author.points = ws.author_points ?? post.author.points;
+              if (typeof ws.author_level === "number") {
+                // level_id exists on author
+                (post.author as { level_id: number }).level_id =
+                  ws.author_level;
+              }
+              // transient flash delta field (declare optional index signature)
+              (
+                post as unknown as { __lastAuthorPointsDelta?: number }
+              ).__lastAuthorPointsDelta = ws.author_points_delta ?? 0;
+            }
+          };
+          dispatch(
+            discussionsApi.util.updateQueryData(
+              "getPosts",
+              communityQueryArgs,
+              patchFn
+            )
+          );
+          dispatch(
+            discussionsApi.util.updateQueryData(
+              "getMyPosts",
+              myPostsQueryArgs,
+              patchFn
+            )
+          );
+        }
+        // Refresh list to include the new post (keep existing behavior)
         if (!showMyPostsView) refresh();
       },
       onPostUpdate: (data: unknown) => {
@@ -347,10 +437,42 @@ export function DiscussionsPage() {
         postId: string;
         upvotes: number;
         downvotes: number;
+        userId?: number;
+        voteType?: "upvote" | "downvote" | null;
         userVote?: "upvote" | "downvote" | null;
+        author_points?: number; // new
+        author_points_delta?: number;
+        author_level?: number;
+        actor_points?: number;
+        actor_points_delta?: number;
       }) => {
         // Surgically update vote counts from WebSocket without overriding optimistic state
         if (data?.postId) {
+          // Helper to apply a delta to daily stats & accumulate flash delta
+          const applyDailyDelta = (delta?: number) => {
+            if (typeof delta !== "number" || delta === 0) return;
+            try {
+              dispatch(
+                scoreApi.util.updateQueryData(
+                  "getMyStats",
+                  { period: "daily" },
+                  (
+                    draft:
+                      | (MyStats & { __pointsFlashDelta?: number })
+                      | undefined
+                  ) => {
+                    if (draft) {
+                      draft.points += delta;
+                      draft.__pointsFlashDelta =
+                        (draft.__pointsFlashDelta || 0) + delta;
+                    }
+                  }
+                )
+              );
+            } catch {
+              /* ignore */
+            }
+          };
           const patchFn = (draft: { data?: { posts?: ApiPost[] } }) => {
             const post = draft?.data?.posts?.find((p) => p.id === data.postId);
             if (post) {
@@ -364,6 +486,34 @@ export function DiscussionsPage() {
                     : data.userVote === "downvote"
                     ? "downvote"
                     : null;
+              }
+              // Apply author points enrichment + flash
+              if (typeof data.author_points === "number") {
+                const prev = post.author.points;
+                post.author.points = data.author_points;
+                if (
+                  typeof data.author_points_delta === "number" &&
+                  data.author_points_delta !== 0 &&
+                  prev !== data.author_points
+                ) {
+                  (
+                    post as unknown as { __lastAuthorPointsDelta?: number }
+                  ).__lastAuthorPointsDelta = data.author_points_delta;
+                }
+                if (
+                  typeof data.author_level === "number" &&
+                  data.author_level !== post.author.level_id
+                ) {
+                  post.author.level_id = data.author_level;
+                }
+                // If this client user is the author, reflect author's delta in daily stats.
+                if (
+                  authUserId &&
+                  Number(post.author.id) === Number(authUserId) &&
+                  typeof data.author_points_delta === "number"
+                ) {
+                  applyDailyDelta(data.author_points_delta);
+                }
               }
             }
           };
@@ -381,6 +531,39 @@ export function DiscussionsPage() {
               patchFn
             )
           );
+          // Actor (the voter) daily delta if this client performed the vote (includes engagement +1 and any future variants)
+          if (authUserId && Number(data.userId) === Number(authUserId)) {
+            applyDailyDelta(data.actor_points_delta);
+          }
+          // SessionStorage cleanup: reconcile stored vote with server-provided userVote (if included)
+          if (data.userVote !== undefined) {
+            try {
+              const key = "fc_recent_votes";
+              const raw = sessionStorage.getItem(key);
+              if (raw) {
+                const store: Record<
+                  string,
+                  { vote: "up" | "down"; ts: number }
+                > = JSON.parse(raw);
+                const rec = store[data.postId];
+                const serverVote = data.userVote
+                  ? data.userVote === "upvote"
+                    ? "up"
+                    : "down"
+                  : null;
+                if (!serverVote && rec) {
+                  delete store[data.postId];
+                  sessionStorage.setItem(key, JSON.stringify(store));
+                } else if (serverVote && rec && rec.vote !== serverVote) {
+                  // Update with authoritative vote
+                  store[data.postId] = { vote: serverVote, ts: Date.now() };
+                  sessionStorage.setItem(key, JSON.stringify(store));
+                }
+              }
+            } catch {
+              /* ignore */
+            }
+          }
         }
       },
       onPostDelete: (data: { postId: string }) => {
@@ -852,10 +1035,26 @@ export function DiscussionsPage() {
                           {myDailyScoreStats?.marketOpportunities ?? 0}
                         </span>
                       </div>
-                      <div className="flex justify-between">
+                      <div className="flex justify-between items-center">
                         <span className="text-gray-600">Points Today</span>
-                        <span className="font-semibold text-blue-600">
+                        <span className="font-semibold text-blue-600 relative inline-flex items-center">
                           +{myDailyScoreStats?.points ?? 0}
+                          {pointsTodayFlash !== null && (
+                            <span
+                              className={`absolute -right-6 text-sm font-bold transition-all duration-700 origin-right animate-fade-slide-up pointer-events-none select-none ${
+                                pointsTodayFlash > 0
+                                  ? "text-green-500"
+                                  : "text-red-500"
+                              }`}
+                              style={{
+                                animation: "pointsFlash 1.1s ease-out forwards",
+                              }}
+                            >
+                              {pointsTodayFlash > 0
+                                ? `+${pointsTodayFlash}`
+                                : pointsTodayFlash}
+                            </span>
+                          )}
                         </span>
                       </div>
                       <div className="flex justify-between">

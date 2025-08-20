@@ -17,6 +17,9 @@ interface PostCreateData {
   downvotes: number;
   replies_count: number;
   created_at: string;
+  author_points?: number;
+  author_level?: number;
+  author_points_delta?: number;
 }
 
 interface PostVoteData {
@@ -25,6 +28,13 @@ interface PostVoteData {
   voteType: "upvote" | "downvote" | null;
   upvotes: number;
   downvotes: number;
+  previous_vote?: "upvote" | "downvote" | null;
+  is_switch?: boolean;
+  author_points?: number;
+  author_points_delta?: number;
+  author_level?: number;
+  actor_points?: number;
+  actor_points_delta?: number;
 }
 
 interface ReplyCreateData {
@@ -50,6 +60,19 @@ interface ReplyVoteData {
   voteType: "upvote" | "downvote" | null;
   upvotes: number;
   downvotes: number;
+  previous_vote?: "upvote" | "downvote" | null;
+  is_switch?: boolean;
+  reply_author_points?: number;
+  reply_author_points_delta?: number;
+  actor_points?: number;
+  actor_points_delta?: number;
+  trickle?: Array<{ userId: number; delta: number }>;
+  reply_classification?: "supportive" | "contradictory" | null;
+  trickle_roles?: {
+    parent?: { userId: number; delta: number };
+    grandparent?: { userId: number; delta: number };
+    root?: { userId: number; delta: number };
+  };
 }
 
 // Generic moderation event payloads

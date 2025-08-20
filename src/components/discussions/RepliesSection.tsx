@@ -36,17 +36,14 @@ interface RepliesSectionProps {
   ) => void;
   onVoteReply?: (replyId: string, voteType: "up" | "down") => void;
   onLoadMore?: () => void;
-  hasMore?: boolean;
 }
 
 export function RepliesSection({
   postId,
   replies,
   totalReplies,
-  // onAddReply is now handled internally via API
   onVoteReply,
   onLoadMore,
-  hasMore = false,
 }: RepliesSectionProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -56,7 +53,10 @@ export function RepliesSection({
   const [limit] = useState(20);
   const [loadedPages, setLoadedPages] = useState<Set<number>>(new Set());
   const [activeReplyId, setActiveReplyId] = useState<string | null>(null);
+  const hasUserExpandedRef = useRef(false); // track if user explicitly expanded
+  // Main (root-level) reply textarea
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  // Single (root-level) reply entry only – inline form removed to avoid focus issues
   const [draftText, setDraftText] = useState("");
   const [addReply] = useAddReplyMutation();
   const [voteReply] = useVoteReplyMutation();
@@ -81,7 +81,6 @@ export function RepliesSection({
     return out;
   }, []);
 
-  // Normalize API replies into UI Reply type
   const mapApiReply = useCallback((r: ApiReply): Reply => {
     const child = (r.childReplies || []).map(mapApiReply);
     const userVote: "up" | "down" | null =
@@ -106,14 +105,10 @@ export function RepliesSection({
     };
   }, []);
 
-  // Merge fetched page into localReplies
   useEffect(() => {
     if (!isExpanded || !fetched?.data?.replies) return;
     const converted = fetched.data.replies.map(mapApiReply);
-
-    // For page 1, always merge fresh data so new replies from refetch appear immediately
     if (page === 1) {
-      // Backend sorts newest first, so prefer API order first
       setLocalReplies((prev) => {
         const merged = dedupeById([...converted, ...prev]);
         if (merged.length === prev.length) {
@@ -124,18 +119,15 @@ export function RepliesSection({
               break;
             }
           }
-          if (identical) return prev; // no real change
+          if (identical) return prev;
         }
         return merged;
       });
       const total =
         fetched.data.pagination?.total ?? dedupeById(converted).length;
       setLocalTotalReplies((prevTotal) => Math.max(total, prevTotal));
-      // Do NOT mutate loadedPages for page 1 to keep this merge idempotent
       return;
     }
-
-    // For subsequent pages, avoid re-merging the same page repeatedly
     if (loadedPages.has(page)) return;
     setLocalReplies((prev) => dedupeById([...prev, ...converted]));
     const total =
@@ -149,14 +141,10 @@ export function RepliesSection({
     });
   }, [fetched, isExpanded, page, loadedPages, mapApiReply, dedupeById]);
 
-  // Show errors
   useEffect(() => {
-    if (fetchError && isExpanded) {
-      toast.error("Failed to load replies");
-    }
+    if (fetchError && isExpanded) toast.error("Failed to load replies");
   }, [fetchError, isExpanded]);
 
-  // Map WS reply payload to UI Reply
   const mapWsReply = useCallback(
     (d: {
       id: string | number;
@@ -189,7 +177,7 @@ export function RepliesSection({
     []
   );
 
-  // Insert WS reply into local state
+  // Type for WebSocket reply:create payload
   type WsReplyPayload = {
     id: string | number;
     content: string;
@@ -202,17 +190,16 @@ export function RepliesSection({
     created_at: string;
   };
 
+  // Insert a created reply into local state
   const applyWsReply = useCallback(
     (payload: WsReplyPayload) => {
-      if (!payload) return;
-      if (String(payload.postId) !== String(postId)) return;
+      if (!payload || String(payload.postId) !== String(postId)) return;
       const wsReply = mapWsReply(payload);
       const parentId = payload?.parentReplyId
         ? String(payload.parentReplyId)
         : null;
       const depth = Number(payload?.depth ?? 1);
       if (depth > 3) return;
-
       const insertChild = (
         arr: Reply[]
       ): { updated: boolean; next: Reply[] } => {
@@ -223,7 +210,7 @@ export function RepliesSection({
             const children = r.replies ? [...r.replies, wsReply] : [wsReply];
             return { ...r, replies: children };
           }
-          if (r.replies && r.replies.length) {
+          if (r.replies?.length) {
             const nested = insertChild(r.replies);
             if (nested.updated) {
               didUpdate = true;
@@ -234,20 +221,76 @@ export function RepliesSection({
         });
         return { updated: didUpdate, next };
       };
-
       setLocalReplies((prev) => {
         if (parentId) {
           const { updated, next } = insertChild(prev);
-          // If parent not found (due to pagination), prepend top-level as fallback
-          return updated ? dedupeById(next) : dedupeById([wsReply, ...prev]);
+          if (updated) return dedupeById(next);
+          // Parent not yet loaded (pagination) – keep as temporary top-level with parent reference
+          interface OrphanReply extends Reply {
+            __parentReplyId: string;
+          }
+          const orphan: OrphanReply = {
+            ...(wsReply as Reply),
+            __parentReplyId: parentId,
+          };
+          return dedupeById([orphan, ...prev]);
         }
-        // Top-level reply: prepend
         return dedupeById([wsReply, ...prev]);
       });
       setLocalTotalReplies((n) => n + 1);
     },
     [postId, mapWsReply, dedupeById]
   );
+
+  // Reconcile orphan replies (those with __parentReplyId) when their parent later appears
+  const reconcileOrphans = useCallback((list: Reply[]): Reply[] => {
+    interface OrphanReply extends Reply {
+      __parentReplyId: string;
+    }
+    // Build id map
+    const idMap = new Map<string, Reply>();
+    const collect = (arr: Reply[]) => {
+      arr.forEach((r) => {
+        idMap.set(r.id, r);
+        if (r.replies?.length) collect(r.replies);
+      });
+    };
+    collect(list);
+
+    const topLevel: Reply[] = [];
+    let changed = false;
+    const moves: { reply: OrphanReply; parent: Reply }[] = [];
+    for (const r of list) {
+      const parentIdMeta = (r as Partial<OrphanReply>).__parentReplyId;
+      if (parentIdMeta && idMap.has(parentIdMeta)) {
+        const parent = idMap.get(parentIdMeta)!;
+        const alreadyNested = parent.replies?.some((c) => c.id === r.id);
+        if (!alreadyNested) {
+          moves.push({ reply: r as OrphanReply, parent });
+          changed = true;
+          continue; // skip adding to top-level; will be moved
+        }
+      }
+      topLevel.push(r);
+    }
+    if (!changed) return list;
+    moves.forEach(({ reply, parent }) => {
+      interface Temp extends Reply {
+        __parentReplyId?: string;
+      }
+      const clone: Temp = { ...reply };
+      delete clone.__parentReplyId;
+      parent.replies = parent.replies ? [...parent.replies, clone] : [clone];
+    });
+    return [...topLevel];
+  }, []);
+
+  useEffect(() => {
+    setLocalReplies((prev) => {
+      const reconciled = reconcileOrphans(prev);
+      return reconciled === prev ? prev : reconciled;
+    });
+  }, [reconcileOrphans, localReplies]);
 
   // Apply socket reply:vote updates to local state
   const applyWsReplyVote = useCallback(
@@ -258,48 +301,174 @@ export function RepliesSection({
       voteType: "upvote" | "downvote" | null;
       upvotes: number;
       downvotes: number;
+      reply_classification?: "supportive" | "contradictory" | null;
+      reply_author_points?: number;
+      reply_author_points_delta?: number;
+      trickle_roles?: {
+        parent?: { userId: number; delta: number };
+        grandparent?: { userId: number; delta: number };
+        root?: { userId: number; delta: number };
+      };
     }) => {
       if (!data || String(data.postId) !== String(postId)) return;
-      const update = (arr: Reply[]): Reply[] =>
-        arr.map((r) => {
-          if (r.id === data.replyId) {
-            // best-effort set counts; userVote is derived from server type
-            const userVote =
-              data.voteType === "upvote"
-                ? "up"
-                : data.voteType === "downvote"
-                ? "down"
-                : null;
-            return {
-              ...r,
-              upvotes: data.upvotes,
-              downvotes: data.downvotes,
-              userVote,
-            };
+
+      // Helper to find path to reply (array from root-level reply down to target)
+      const findPath = (
+        arr: Reply[],
+        targetId: string,
+        stack: Reply[] = []
+      ): Reply[] | null => {
+        for (const r of arr) {
+          if (r.id === targetId) return [...stack, r];
+          if (r.replies?.length) {
+            const nested = findPath(r.replies, targetId, [...stack, r]);
+            if (nested) return nested;
           }
-          if (r.replies?.length) return { ...r, replies: update(r.replies) };
-          return r;
+        }
+        return null;
+      };
+      const path = findPath(localReplies, data.replyId) || [];
+      const classification = data.reply_classification;
+      const replyDelta = data.reply_author_points_delta;
+      interface ReplyWithMeta extends Reply {
+        __classification?: "supportive" | "contradictory";
+        __pointsFlash?: number;
+      }
+
+      // First update the voted reply (classification + its own delta)
+      setLocalReplies((prev) => {
+        const apply = (arr: Reply[]): Reply[] =>
+          arr.map((r) => {
+            if (r.id === data.replyId) {
+              const userVote =
+                data.voteType === "upvote"
+                  ? "up"
+                  : data.voteType === "downvote"
+                  ? "down"
+                  : null;
+              const next: ReplyWithMeta = {
+                ...(r as ReplyWithMeta),
+                upvotes: data.upvotes,
+                downvotes: data.downvotes,
+                userVote,
+              };
+              if (classification && !next.__classification)
+                next.__classification = classification;
+              if (typeof replyDelta === "number" && replyDelta !== 0)
+                next.__pointsFlash = replyDelta;
+              return next;
+            }
+            if (r.replies?.length) return { ...r, replies: apply(r.replies) };
+            return r;
+          });
+        return apply(prev);
+      });
+
+      // Build ancestor stages for sequential cascade (parent -> grandparent -> root)
+      const stages: { id: string; delta: number }[] = [];
+      if (data.trickle_roles) {
+        const { parent, grandparent, root } = data.trickle_roles;
+        const parentReply = path.length >= 2 ? path[path.length - 2] : null;
+        const grandReply = path.length >= 3 ? path[path.length - 3] : null;
+        if (
+          parent &&
+          parentReply &&
+          Number(parentReply.author.id) === Number(parent.userId)
+        ) {
+          stages.push({ id: parentReply.id, delta: parent.delta });
+        }
+        if (
+          grandparent &&
+          grandReply &&
+          Number(grandReply.author.id) === Number(grandparent.userId)
+        ) {
+          stages.push({ id: grandReply.id, delta: grandparent.delta });
+        }
+        if (root) {
+          const possibleRootReply = path.length >= 4 ? path[0] : null;
+          if (
+            possibleRootReply &&
+            Number(possibleRootReply.author.id) === Number(root.userId)
+          ) {
+            stages.push({ id: possibleRootReply.id, delta: root.delta });
+          }
+          // If root is the post author (no reply node), would need post-level flash (future enhancement)
+        }
+      }
+
+      // Apply each stage with delay for cascading visual effect
+      stages.forEach((stage, idx) => {
+        setTimeout(() => {
+          setLocalReplies((prev) => {
+            const applyStage = (arr: Reply[]): Reply[] =>
+              arr.map((r) => {
+                if (r.id === stage.id) {
+                  const cur = r as ReplyWithMeta;
+                  if (cur.__pointsFlash !== stage.delta) {
+                    return { ...cur, __pointsFlash: stage.delta };
+                  }
+                }
+                if (r.replies?.length)
+                  return { ...r, replies: applyStage(r.replies) };
+                return r;
+              });
+            return applyStage(prev);
+          });
+        }, 220 * (idx + 1));
+      });
+
+      // Clear flashes after overall animation window
+      const totalWindow = 220 * (stages.length + 1) + 1400;
+      setTimeout(() => {
+        setLocalReplies((prev) => {
+          const clear = (arr: Reply[]): Reply[] =>
+            arr.map((r) => {
+              let next = r as ReplyWithMeta;
+              let changed = false;
+              if (next.__pointsFlash) {
+                next = { ...next, __pointsFlash: 0 };
+                changed = true;
+              }
+              if (r.replies?.length) {
+                const nested = clear(r.replies);
+                if (nested !== r.replies) {
+                  next = { ...next, replies: nested };
+                  changed = true;
+                }
+              }
+              return changed ? next : r;
+            });
+          return clear(prev);
         });
-      setLocalReplies((prev) => update(prev));
+      }, totalWindow);
     },
-    [postId]
+    [postId, localReplies]
   );
 
   // WebSocket setup: listen to reply:create when expanded
   const serverUrl =
     (import.meta as unknown as { env?: { VITE_API_URL?: string } }).env
       ?.VITE_API_URL || "http://localhost:5000";
+  interface ReplyVoteWsPayload {
+    replyId: string;
+    postId: string;
+    userId: number;
+    voteType: "upvote" | "downvote" | null;
+    upvotes: number;
+    downvotes: number;
+    reply_classification?: "supportive" | "contradictory" | null;
+    reply_author_points?: number;
+    reply_author_points_delta?: number;
+    trickle_roles?: {
+      parent?: { userId: number; delta: number };
+      grandparent?: { userId: number; delta: number };
+      root?: { userId: number; delta: number };
+    };
+  }
   const wsHandlers = useMemo(
     () => ({
       onReplyCreate: (data: unknown) => applyWsReply(data as WsReplyPayload),
-      onReplyVote: (d: {
-        replyId: string;
-        postId: string;
-        userId: number;
-        voteType: "upvote" | "downvote" | null;
-        upvotes: number;
-        downvotes: number;
-      }) => applyWsReplyVote(d),
+      onReplyVote: (d: ReplyVoteWsPayload) => applyWsReplyVote(d),
     }),
     [applyWsReply, applyWsReplyVote]
   );
@@ -327,10 +496,24 @@ export function RepliesSection({
   }, [ws.connectionStatus, isExpanded, refetch]);
 
   // Update local state when props change
+  // Sync incoming props cautiously to avoid disruptive resets while user viewing expanded thread
   React.useEffect(() => {
-    setLocalReplies(replies);
     setLocalTotalReplies(totalReplies);
-  }, [replies, totalReplies]);
+    // Avoid disruptive merges while user is actively typing an inline reply
+    if (activeReplyId) return;
+    setLocalReplies((prev) => {
+      if (!hasUserExpandedRef.current || !isExpanded) return replies;
+      const existingMap = new Map(prev.map((r) => [r.id, r]));
+      let changed = false;
+      for (const r of replies) {
+        if (!existingMap.has(r.id)) {
+          prev = [...prev, r];
+          changed = true;
+        }
+      }
+      return changed ? prev : prev;
+    });
+  }, [replies, totalReplies, isExpanded, activeReplyId]);
 
   // Focus textarea when activeReplyId changes
   useEffect(() => {
@@ -347,13 +530,35 @@ export function RepliesSection({
   };
 
   // Calculate display logic
-  const topLevelReplies = localReplies.length;
   const actualCountFromData = countAllReplies(localReplies);
   const displayTotalCount = Math.max(actualCountFromData, localTotalReplies);
-  const hiddenReplies = isExpanded ? 0 : countAllReplies(localReplies.slice(2));
-  const showLoadMoreButton = hasMore && isExpanded && onLoadMore;
-  const showExpandButton = !isExpanded && topLevelReplies > 2;
-  const initialReplies = localReplies.slice(0, 2);
+  // Collapsed view constants & derived values
+  const COLLAPSED_COUNT = 2;
+  const hiddenReplies = Math.max(0, displayTotalCount - COLLAPSED_COUNT);
+  const visibleReplies = isExpanded
+    ? localReplies
+    : localReplies.slice(0, COLLAPSED_COUNT);
+
+  // Intersection observer for auto-loading more pages when expanded & near bottom
+  const loadMoreAutoRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (!isExpanded) return;
+    const hasNext = fetched?.data?.pagination?.hasNextPage;
+    if (!hasNext) return;
+    const el = loadMoreAutoRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const first = entries[0];
+        if (first.isIntersecting && !isFetching) {
+          setPage((p) => p + 1);
+        }
+      },
+      { root: null, rootMargin: "200px 0px 0px 0px", threshold: 0.01 }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [isExpanded, fetched?.data?.pagination?.hasNextPage, isFetching]);
 
   // Main submit handler
   const handleSubmitComment = useCallback(
@@ -382,11 +587,16 @@ export function RepliesSection({
               : "Failed to post reply",
         });
         setDraftText("");
-        setActiveReplyId(null);
-        // Ensure list is visible so socket + fetch can render the new reply
+        // keep inline form visible until socket insert appears, then collapse it shortly after
+        const prevActive = activeReplyId;
         if (!isExpanded) {
           setIsExpanded(true);
         }
+        // Defer clearing activeReplyId to avoid focus flicker
+        setTimeout(() => {
+          // only clear if user hasn't started another reply
+          if (activeReplyId === prevActive) setActiveReplyId(null);
+        }, 250);
         // Only refetch if the query has already been started
         if (!isUninitialized) {
           refetch();
@@ -505,15 +715,22 @@ export function RepliesSection({
   };
 
   // Recursive component for rendering nested replies
-  const ReplyItem = ({
+  const ReplyItem = React.memo(function ReplyItem({
     reply,
     depth = 0,
   }: {
     reply: Reply;
     depth?: number;
-  }) => {
+  }) {
     const marginLeft = depth * 24;
     const maxDepth = 3;
+    type ReplyWithMeta = Reply & {
+      __classification?: "supportive" | "contradictory";
+      __pointsFlash?: number;
+    };
+    const meta = reply as ReplyWithMeta;
+    const classification = meta.__classification;
+    const pointsFlash = meta.__pointsFlash;
 
     return (
       <div className="space-y-3" style={{ marginLeft: `${marginLeft}px` }}>
@@ -543,9 +760,35 @@ export function RepliesSection({
                   {formatTimeAgo(reply.createdAt)}
                 </span>
               </div>
+              <div className="flex items-center gap-2 mb-1">
+                {typeof pointsFlash === "number" && pointsFlash !== 0 && (
+                  <span
+                    className={`text-[10px] font-semibold transition-opacity animate-pulse ${
+                      pointsFlash > 0 ? "text-green-600" : "text-red-600"
+                    }`}
+                  >
+                    {pointsFlash > 0 ? "+" : ""}
+                    {pointsFlash}
+                  </span>
+                )}
+              </div>
               <p className="text-gray-700 text-sm leading-relaxed">
                 {reply.content}
               </p>
+              {classification && (
+                <div className="mt-2 flex justify-end">
+                  <span
+                    className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium border tracking-wide ${
+                      classification === "supportive"
+                        ? "bg-green-50 text-green-600 border-green-100"
+                        : "bg-red-50 text-red-600 border-red-100"
+                    }`}
+                    title={`Semantic classification: ${classification}`}
+                  >
+                    {classification === "supportive" ? "Support" : "Contradict"}
+                  </span>
+                </div>
+              )}
             </div>
 
             <div className="flex items-center gap-4 mt-2 ml-2">
@@ -584,19 +827,10 @@ export function RepliesSection({
                   onClick={() => {
                     setActiveReplyId(reply.id);
                     setDraftText("");
-                    setTimeout(() => {
-                      const replyForm =
-                        document.querySelector("#main-reply-form");
-                      if (replyForm) {
-                        replyForm.scrollIntoView({
-                          behavior: "smooth",
-                          block: "center",
-                        });
-                      }
-                      if (textareaRef.current) {
-                        textareaRef.current.focus();
-                      }
-                    }, 100);
+                    // Focus root textarea next frame without scrolling entire page abruptly
+                    requestAnimationFrame(() => {
+                      if (textareaRef.current) textareaRef.current.focus();
+                    });
                   }}
                   className="text-xs text-gray-500 hover:text-gray-700 p-0 h-auto"
                 >
@@ -615,6 +849,7 @@ export function RepliesSection({
           </div>
         </div>
 
+        {/* Inline form removed to prevent focus / caret issues; using single root form */}
         {reply.replies && reply.replies.length > 0 && (
           <div className="space-y-3">
             {reply.replies.map((nestedReply) => (
@@ -628,7 +863,7 @@ export function RepliesSection({
         )}
       </div>
     );
-  };
+  });
 
   // Main Reply Form Component
   const mainReplyForm = useMemo(
@@ -714,67 +949,160 @@ export function RepliesSection({
 
   return (
     <div className="mt-4 border-t border-gray-100 pt-4">
+      {/* Header / Toggle */}
       {displayTotalCount > 0 && (
         <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2 text-sm text-gray-600">
+            <MessageSquare className="h-4 w-4 text-orange-600" />
+            <span className="font-medium text-gray-800">
+              {displayTotalCount}{" "}
+              {displayTotalCount === 1 ? "Reply" : "Replies"}
+            </span>
+          </div>
           <Button
+            aria-expanded={isExpanded}
+            aria-label={
+              isExpanded
+                ? "Collapse replies list"
+                : `Expand to view all ${displayTotalCount} replies`
+            }
             variant="ghost"
             size="sm"
-            onClick={() => setIsExpanded(!isExpanded)}
-            className="flex items-center gap-2 text-gray-600 hover:text-gray-800 p-0 h-auto"
+            onClick={() => {
+              setIsExpanded((v) => {
+                const next = !v;
+                if (next) hasUserExpandedRef.current = true;
+                return next;
+              });
+            }}
+            className={`flex items-center gap-1 p-2 rounded-md text-xs font-medium transition-colors ${
+              isExpanded
+                ? "text-orange-700 bg-orange-50 hover:bg-orange-100"
+                : "text-gray-600 hover:text-orange-700 hover:bg-orange-50"
+            }`}
           >
-            <MessageSquare className="h-4 w-4" />
-            <span className="text-sm font-medium">
-              {displayTotalCount}{" "}
-              {displayTotalCount === 1 ? "reply" : "replies"}
-            </span>
-            {topLevelReplies > 2 &&
-              (isExpanded ? (
+            {isExpanded ? (
+              <>
+                Hide
                 <ChevronUp className="h-4 w-4" />
-              ) : (
+              </>
+            ) : (
+              <>
+                Show
                 <ChevronDown className="h-4 w-4" />
-              ))}
+              </>
+            )}
           </Button>
         </div>
       )}
 
-      <div className="space-y-4 mb-4">
-        {initialReplies.map((reply) => (
-          <ReplyItem key={reply.id} reply={reply} depth={0} />
-        ))}
+      {/* Replies list */}
+      <div
+        className={`relative transition-all duration-300 ${
+          isExpanded ? "" : ""
+        }`}
+      >
+        <div className="space-y-4">
+          {visibleReplies.map((reply, index) => (
+            <div
+              key={reply.id}
+              className="transform transition-all duration-300 ease-out translate-y-0 opacity-100"
+              style={{ transitionDelay: `${index * 35}ms` }}
+            >
+              <ReplyItem reply={reply} depth={0} />
+            </div>
+          ))}
 
-        {isExpanded &&
-          localReplies
-            .slice(2)
-            .map((reply) => (
-              <ReplyItem key={reply.id} reply={reply} depth={0} />
-            ))}
+          {/* Inline Expand CTA (collapsed) */}
+          {!isExpanded && hiddenReplies > 0 && (
+            <div className="pl-11">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsExpanded(true)}
+                className="text-xs text-orange-600 hover:text-orange-700 hover:bg-orange-50 px-2 py-1 rounded-md"
+              >
+                <ChevronDown className="h-4 w-4 mr-1" />
+                View {hiddenReplies} more{" "}
+                {hiddenReplies === 1 ? "reply" : "replies"}
+              </Button>
+            </div>
+          )}
 
-        {(showLoadMoreButton ||
-          (isExpanded && fetched?.data?.pagination?.hasNextPage)) && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => {
-              if (fetched?.data?.pagination?.hasNextPage) setPage((p) => p + 1);
-              onLoadMore?.();
-            }}
-            className="text-sm text-blue-600 hover:text-blue-700 p-0 h-auto ml-11"
-          >
-            {isFetching ? "Loading..." : "Load more replies..."}
-          </Button>
-        )}
+          {/* Additional replies (expanded) */}
+          {isExpanded && visibleReplies.length < localReplies.length && (
+            <div className="space-y-4">
+              {localReplies.slice(visibleReplies.length).map((reply, index) => (
+                <div
+                  key={reply.id}
+                  className="transform transition-all duration-300 ease-out translate-y-0 opacity-100"
+                  style={{
+                    transitionDelay: `${
+                      (index + visibleReplies.length) * 35
+                    }ms`,
+                  }}
+                >
+                  <ReplyItem reply={reply} depth={0} />
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Auto load sentinel & manual load more (expanded) */}
+          {isExpanded && fetched?.data?.pagination?.hasNextPage && (
+            <div
+              className="flex items-center gap-3 pl-11"
+              ref={loadMoreAutoRef}
+            >
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={isFetching}
+                onClick={() => {
+                  if (!isFetching) setPage((p) => p + 1);
+                  onLoadMore?.();
+                }}
+                className="text-xs text-orange-600 hover:text-orange-700 hover:bg-orange-50 px-2 py-1 rounded-md"
+              >
+                {isFetching ? (
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 border border-orange-300 border-t-orange-600 rounded-full animate-spin" />
+                    Loading...
+                  </div>
+                ) : (
+                  "Load more"
+                )}
+              </Button>
+              <span className="text-[11px] text-gray-400">
+                Auto loads when visible
+              </span>
+            </div>
+          )}
+
+          {/* Fetching shimmer (next pages) */}
+          {isExpanded && isFetching && page > 1 && (
+            <div className="pl-11 flex items-center gap-2 text-xs text-gray-500">
+              <div className="w-3 h-3 border border-orange-300 border-t-orange-600 rounded-full animate-spin" />
+              Loading more replies...
+            </div>
+          )}
+
+          {/* Collapse CTA at bottom (only if expanded & list long) */}
+          {isExpanded && displayTotalCount > COLLAPSED_COUNT && (
+            <div className="pl-11 pt-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsExpanded(false)}
+                className="text-xs text-gray-600 hover:text-orange-700 hover:bg-orange-50 px-2 py-1 rounded-md"
+              >
+                <ChevronUp className="h-4 w-4 mr-1" />
+                Collapse replies
+              </Button>
+            </div>
+          )}
+        </div>
       </div>
-
-      {showExpandButton && (
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => setIsExpanded(true)}
-          className="text-sm text-blue-600 hover:text-blue-700 p-0 h-auto mb-4"
-        >
-          View {hiddenReplies} more {hiddenReplies === 1 ? "reply" : "replies"}
-        </Button>
-      )}
 
       {mainReplyForm}
     </div>

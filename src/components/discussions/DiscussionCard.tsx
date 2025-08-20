@@ -192,6 +192,39 @@ export function DiscussionCard({
       setLocalUserVote(isDownSelected ? null : "down");
     }
     onVote?.(post.id, voteType);
+
+    // Persist recent vote locally (sessionStorage) for fast highlight after reload
+    try {
+      const key = "fc_recent_votes";
+      const raw = sessionStorage.getItem(key);
+      const store: Record<string, { vote: "up" | "down"; ts: number }> = raw
+        ? JSON.parse(raw)
+        : {};
+      const existing = store[post.id];
+      // If toggling off (same vote clicked), remove; otherwise store new
+      const finalVote =
+        voteType === "up"
+          ? isUpSelected
+            ? null
+            : "up"
+          : isDownSelected
+          ? null
+          : "down";
+      if (finalVote) store[post.id] = { vote: finalVote, ts: Date.now() };
+      else if (existing) delete store[post.id];
+      // Trim overly large map
+      const MAX = 500;
+      const ids = Object.keys(store);
+      if (ids.length > MAX) {
+        ids
+          .sort((a, b) => store[a].ts - store[b].ts)
+          .slice(0, ids.length - MAX)
+          .forEach((k) => delete store[k]);
+      }
+      sessionStorage.setItem(key, JSON.stringify(store));
+    } catch {
+      /* ignore storage errors */
+    }
   };
 
   const [reportPostModeration] = useReportPostModerationMutation();
@@ -680,6 +713,7 @@ export function DiscussionCard({
                   e.stopPropagation();
                   handleVote("up");
                 }}
+                title={post.userVote === "up" ? "You upvoted" : "Upvote"}
               >
                 {typeof upDelta === "number" && (
                   <span
@@ -713,6 +747,11 @@ export function DiscussionCard({
                 >
                   {post.upvotes}
                 </span>
+                {isUpSelected && (
+                  <span className="hidden sm:inline text-[10px] font-semibold text-green-600 ml-1 px-1.5 py-0.5 bg-green-100 rounded-full">
+                    You
+                  </span>
+                )}
               </Button>
 
               {/* Downvote */}
@@ -728,6 +767,7 @@ export function DiscussionCard({
                   e.stopPropagation();
                   handleVote("down");
                 }}
+                title={post.userVote === "down" ? "You downvoted" : "Downvote"}
               >
                 {typeof downDelta === "number" && (
                   <span
@@ -761,6 +801,11 @@ export function DiscussionCard({
                 >
                   {post.downvotes}
                 </span>
+                {isDownSelected && (
+                  <span className="hidden sm:inline text-[10px] font-semibold text-red-600 ml-1 px-1.5 py-0.5 bg-red-100 rounded-full">
+                    You
+                  </span>
+                )}
               </Button>
 
               {/* Replies */}

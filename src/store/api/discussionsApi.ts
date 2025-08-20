@@ -1,4 +1,6 @@
 import { baseApi } from "./baseApi";
+import { scoreApi } from "./scoreApi";
+import type { MyStats } from "./scoreApi";
 import type { ReportResponse } from "../../types/moderation";
 
 // Types for the discussions API
@@ -504,6 +506,110 @@ export const discussionsApi = baseApi.injectEndpoints({
         method: "POST",
         body,
       }),
+      async onQueryStarted(_arg, { queryFulfilled, dispatch }) {
+        try {
+          const { data } = await queryFulfilled;
+          const createdId = data?.data?.id;
+          const authorId: number | undefined = (
+            data as CreatePostResponse & { data: { authorId?: number } }
+          )?.data?.authorId;
+          const pts: number | undefined = (
+            data as CreatePostResponse & {
+              data: { authorPoints?: number };
+            }
+          )?.data?.authorPoints;
+          const lvl: number | undefined = (
+            data as CreatePostResponse & {
+              data: { authorLevel?: number };
+            }
+          )?.data?.authorLevel;
+          const delta: number | undefined = (
+            data as CreatePostResponse & {
+              data: { authorPointsDelta?: number };
+            }
+          )?.data?.authorPointsDelta;
+          if (createdId && pts !== undefined) {
+            const patchFn = (draft: PostsResponse) => {
+              const post = draft?.data?.posts?.find((p) => p.id === createdId);
+              if (post) {
+                post.author.points = pts;
+                if (typeof lvl === "number") post.author.level_id = lvl;
+                (
+                  post as unknown as { __lastAuthorPointsDelta?: number }
+                ).__lastAuthorPointsDelta = delta ?? 0;
+              }
+              // Also, if backend supplied new total points & we know authorId, apply delta to other posts by same author for visual consistency
+              if (authorId && typeof delta === "number") {
+                draft?.data?.posts?.forEach((p) => {
+                  if (p.author.id === authorId && p.id !== createdId) {
+                    p.author.points += delta; // optimistic increment
+                    (
+                      p as unknown as { __lastAuthorPointsDelta?: number }
+                    ).__lastAuthorPointsDelta = delta;
+                  }
+                });
+              }
+            };
+            dispatch(
+              discussionsApi.util.updateQueryData(
+                "getPosts",
+                {} as PostsQueryParams,
+                patchFn
+              )
+            );
+            dispatch(
+              discussionsApi.util.updateQueryData(
+                "getMyPosts",
+                {} as MyPostsQueryParams,
+                patchFn
+              )
+            );
+            // Optimistically update my posts stats (increment total + today + pending/regular classification)
+            if (authorId) {
+              dispatch(
+                discussionsApi.util.updateQueryData(
+                  "getMyPostsStats",
+                  undefined,
+                  (draft: MyPostsStatsResponse) => {
+                    if (draft?.data) {
+                      draft.data.totalMyPosts += 1;
+                      draft.data.myPostsToday += 1;
+                      if (_arg.is_market_post) {
+                        draft.data.marketPosts += 1;
+                      } else {
+                        draft.data.regularPosts += 1;
+                      }
+                      // New post starts pending (not approved yet)
+                      draft.data.pendingPosts += 1;
+                    }
+                  }
+                )
+              );
+              // Also optimistically update daily points stats (scoreApi getMyStats daily) so sidebar 'Points Today' flashes +delta
+              if (typeof delta === "number") {
+                try {
+                  dispatch(
+                    scoreApi.util.updateQueryData(
+                      "getMyStats",
+                      { period: "daily" },
+                      (draft: MyStats & { __pointsFlashDelta?: number }) => {
+                        if (draft) {
+                          draft.__pointsFlashDelta = delta;
+                          draft.points += delta;
+                        }
+                      }
+                    )
+                  );
+                } catch {
+                  /* ignore */
+                }
+              }
+            }
+          }
+        } catch {
+          /* ignore */
+        }
+      },
       invalidatesTags: [{ type: "Post", id: "LIST" }],
     }),
 

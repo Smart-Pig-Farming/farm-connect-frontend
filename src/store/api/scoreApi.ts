@@ -38,6 +38,8 @@ export interface MyStats {
   points: number; // points for period (e.g., today when daily)
   postsToday: number;
   marketOpportunities: number;
+  // Transient client-only field for showing a flash delta (e.g. +2 on post creation)
+  __pointsFlashDelta?: number;
 }
 
 function normalizePoints(raw: number): number {
