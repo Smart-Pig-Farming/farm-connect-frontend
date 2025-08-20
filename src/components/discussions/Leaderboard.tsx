@@ -152,9 +152,7 @@ export function Leaderboard({ onBackToDiscussions }: LeaderboardProps) {
 
   // Pagination: backend already pages; just map current page rows
   const USERS_PER_PAGE = 20; // should match backend limit
-  const totalPages = paginated
-    ? paginated.meta.totalPages
-    : 1;
+  const totalPages = paginated ? paginated.meta.totalPages : 1;
 
   const getCurrentPageUsers = useMemo(() => {
     if (!showFullRankings) return [];
@@ -697,7 +695,10 @@ export function Leaderboard({ onBackToDiscussions }: LeaderboardProps) {
                   {Array.from({ length: 5 }, (_, i) => i - 2) // -2,-1,0,1,2
                     .map((delta) => currentPage + delta)
                     .filter(
-                      (p) => p >= 1 && p <= totalPages && Math.abs(p - currentPage) <= 2
+                      (p) =>
+                        p >= 1 &&
+                        p <= totalPages &&
+                        Math.abs(p - currentPage) <= 2
                     )
                     .map((page) => (
                       <Button
@@ -720,7 +721,9 @@ export function Leaderboard({ onBackToDiscussions }: LeaderboardProps) {
                   {currentPage < totalPages - 2 && (
                     <Button
                       onClick={() => setCurrentPage(totalPages)}
-                      variant={currentPage === totalPages ? "default" : "outline"}
+                      variant={
+                        currentPage === totalPages ? "default" : "outline"
+                      }
                       size="sm"
                       className="rounded-xl"
                     >

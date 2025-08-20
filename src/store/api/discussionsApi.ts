@@ -181,6 +181,8 @@ export interface VoteResponse {
     upvotes: number;
     downvotes: number;
     userVote: "upvote" | "downvote" | null;
+  authorPoints?: number; // newly returned total author points after vote
+  authorLevel?: number; // optional updated level after vote
   };
 }
 
@@ -617,7 +619,40 @@ export const discussionsApi = baseApi.injectEndpoints({
         );
 
         try {
-          await queryFulfilled;
+          const { data } = await queryFulfilled;
+          // If backend returned authorPoints, update that in cached posts
+          if (data?.data?.authorPoints !== undefined) {
+            const newAuthorPoints = data.data.authorPoints;
+            const newAuthorLevel = data.data.authorLevel;
+            // Update getPosts
+            dispatch(
+              discussionsApi.util.updateQueryData("getPosts", {}, (draft) => {
+                const post = draft.data?.posts.find((p: Post) => p.id === postId);
+                if (post) {
+                  post.author.points = newAuthorPoints;
+                  if (typeof newAuthorLevel === "number") {
+                    post.author.level_id = newAuthorLevel;
+                  }
+                }
+              })
+            );
+            // Update getMyPosts
+            dispatch(
+              discussionsApi.util.updateQueryData(
+                "getMyPosts",
+                {},
+                (draft: PostsResponse) => {
+                  const post = draft.data?.posts.find((p: Post) => p.id === postId);
+                  if (post) {
+                    post.author.points = newAuthorPoints;
+                    if (typeof newAuthorLevel === "number") {
+                      post.author.level_id = newAuthorLevel;
+                    }
+                  }
+                }
+              )
+            );
+          }
         } catch {
           // Revert optimistic updates on error
           patchResults.forEach((patchResult) => patchResult.undo());

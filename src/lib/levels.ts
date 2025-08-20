@@ -124,7 +124,10 @@ export const PRESTIGE_LEVELS: PrestigeMeta[] = [
 
 export function getLevelMeta(levelId?: number | null): LevelMeta {
   if (!levelId || levelId < 1) return CORE_LEVELS[0];
-  return CORE_LEVELS.find((l) => l.id === levelId) || CORE_LEVELS[CORE_LEVELS.length - 1];
+  return (
+    CORE_LEVELS.find((l) => l.id === levelId) ||
+    CORE_LEVELS[CORE_LEVELS.length - 1]
+  );
 }
 
 export function getLevelName(levelId?: number | null): string {
@@ -143,13 +146,18 @@ export function getLevelIcon(levelId?: number | null): LucideIcon {
   return getLevelMeta(levelId).icon;
 }
 
-export function getPrestigeMeta(tier?: string | null): PrestigeMeta | undefined {
+export function getPrestigeMeta(
+  tier?: string | null
+): PrestigeMeta | undefined {
   if (!tier) return undefined;
   return PRESTIGE_LEVELS.find((p) => p.tier === tier);
 }
 
 // Convenience: returns badge config for either prestige (if provided) else core level
-export function getCompositeBadge(levelId?: number | null, prestige?: string | null) {
+export function getCompositeBadge(
+  levelId?: number | null,
+  prestige?: string | null
+) {
   const prestigeMeta = getPrestigeMeta(prestige || undefined);
   if (prestigeMeta) {
     return {

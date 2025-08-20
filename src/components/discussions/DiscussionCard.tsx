@@ -88,6 +88,8 @@ export function DiscussionCard({
   const [approvalFlash, setApprovalFlash] = useState<null | "+15" | "-15">(
     null
   );
+  // Flash for vote-based author point changes (e.g., +1, -1, +2, -2)
+  const [votePointFlash, setVotePointFlash] = useState<string | null>(null);
 
   useEffect(() => {
     // Sync if upstream changes (e.g., refetch after invalidation)
@@ -128,6 +130,27 @@ export function DiscussionCard({
   }, [showDropdown]);
 
   const handleVote = (voteType: "up" | "down") => {
+    // Compute author point net effect BEFORE mutating local vote state.
+    // Rules mirror backend scoring:
+    // none->up: +1, none->down: -1, up->none: -1, down->none: +1, up->down: -2, down->up: +2
+    const prev = currentVote; // currentVote reflects localUserVote fallback
+    let delta = 0;
+    if (prev === null) {
+      delta = voteType === "up" ? 1 : -1;
+    } else if (prev === "up" && voteType === "up") {
+      delta = -1; // removing upvote
+    } else if (prev === "down" && voteType === "down") {
+      delta = 1; // removing downvote
+    } else if (prev === "up" && voteType === "down") {
+      delta = -2; // switch
+    } else if (prev === "down" && voteType === "up") {
+      delta = 2; // switch
+    }
+    if (delta !== 0) {
+      // Optimistically show flash (do not permanently adjust displayPoints; backend will update)
+      setVotePointFlash((delta > 0 ? "+" : "") + delta.toString());
+      setTimeout(() => setVotePointFlash(null), 1200);
+    }
     // Determine if this action adds or removes a vote based on current state
     if (voteType === "up") {
       const delta = post.userVote === "up" ? -1 : 1;
@@ -419,15 +442,14 @@ export function DiscussionCard({
                   >
                     {(() => {
                       const Icon = getLevelIcon(post.author.level_id);
-                      return (
-                        <Icon className="h-3.5 w-3.5" />
-                      );
+                      return <Icon className="h-3.5 w-3.5" />;
                     })()}
                     <span className="text-xs font-semibold">
                       {getLevelName(post.author.level_id)}
                     </span>
-                    <span className="text-xs opacity-75 font-medium">
-                      {displayPoints}
+                    <span className="relative flex items-center text-xs opacity-75 font-medium">
+                      <span>{displayPoints}</span>
+                      {/* Moderator approval flash */}
                       {approvalFlash && (
                         <span
                           className={`ml-1 font-extrabold text-[10px] sm:text-xs animate-pulse select-none ${
@@ -437,6 +459,18 @@ export function DiscussionCard({
                           }`}
                         >
                           {approvalFlash}
+                        </span>
+                      )}
+                      {/* Vote point flash */}
+                      {votePointFlash && (
+                        <span
+                          className={`ml-1 font-extrabold text-[10px] sm:text-xs animate-fade-slide select-none ${
+                            votePointFlash.startsWith("+")
+                              ? "text-green-600"
+                              : "text-red-600"
+                          }`}
+                        >
+                          {votePointFlash}
                         </span>
                       )}
                     </span>

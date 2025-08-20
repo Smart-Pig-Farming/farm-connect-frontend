@@ -864,7 +864,7 @@ export function DiscussionsPage() {
                         </span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-gray-600">Current Rank</span>
+                        <span className="text-gray-600">Rank Today</span>
                         <div className="flex items-center gap-1">
                           {mockStats.rankChange === "up" && (
                             <TrendingUp className="h-3 w-3 text-green-500" />

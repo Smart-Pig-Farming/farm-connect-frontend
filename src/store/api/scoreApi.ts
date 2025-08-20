@@ -133,7 +133,7 @@ export const scoreApi = baseApi.injectEndpoints({
         search?: string;
       }
     >({
-  query: ({ period, page = 1, limit = 20, search }) =>
+      query: ({ period, page = 1, limit = 20, search }) =>
         `/score/leaderboard?period=${period}&page=${page}&limit=${limit}${
           search ? `&search=${encodeURIComponent(search)}` : ""
         }`,
