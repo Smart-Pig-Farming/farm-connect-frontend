@@ -25,6 +25,9 @@ export interface Post {
   upvotes: number;
   downvotes: number;
   userVote: "up" | "down" | "upvote" | "downvote" | null; // Accept both variants from API
+  // Explicit voter id lists (optional; when present can replace session/local storage for highlighting)
+  upvoterIds?: number[]; // user ids who upvoted
+  downvoterIds?: number[]; // user ids who downvoted
   replies: number;
   shares: number; // Added to match API spec
   isMarketPost: boolean;
@@ -189,6 +192,21 @@ export interface VoteResponse {
     authorLevel?: number; // optional updated level after vote
     authorPointsDelta?: number; // net change applied to author points
   };
+}
+
+// Voters list response
+export interface VoterItem {
+  userId: number;
+  voteType: "upvote" | "downvote";
+  votedAt: string;
+  username?: string;
+  firstname?: string;
+  lastname?: string;
+}
+export interface VotersResponse {
+  success: boolean;
+  data: VoterItem[];
+  meta: { hasMore: boolean; nextCursor: string | null };
 }
 
 // Replies types
@@ -783,6 +801,45 @@ export const discussionsApi = baseApi.injectEndpoints({
       ],
     }),
 
+    // Get voters for a post (up or down)
+    getPostVoters: builder.query<
+      VotersResponse,
+      {
+        postId: string;
+        type: "upvote" | "downvote";
+        limit?: number;
+        cursor?: string;
+      }
+    >({
+      query: ({ postId, type, limit = 50, cursor }) => ({
+        url: `/discussions/posts/${postId}/voters`,
+        params: { type, limit, cursor },
+      }),
+      // Tag by post to refetch when votes change
+      providesTags: (_res, _err, arg) => [
+        { type: "Post" as const, id: arg.postId },
+      ],
+    }),
+
+    // Get voters for a reply
+    getReplyVoters: builder.query<
+      VotersResponse,
+      {
+        replyId: string;
+        type: "upvote" | "downvote";
+        limit?: number;
+        cursor?: string;
+      }
+    >({
+      query: ({ replyId, type, limit = 50, cursor }) => ({
+        url: `/discussions/replies/${replyId}/voters`,
+        params: { type, limit, cursor },
+      }),
+      providesTags: (_res, _err, arg) => [
+        { type: "Reply" as const, id: arg.replyId },
+      ],
+    }),
+
     // Get all available tags
     getTags: builder.query<TagsResponse, void>({
       query: () => "/discussions/tags",
@@ -1108,4 +1165,6 @@ export const {
   useGetPendingModerationQuery,
   useDecideModerationMutation,
   useGetModerationHistoryQuery,
+  useGetPostVotersQuery,
+  useGetReplyVotersQuery,
 } = discussionsApi;

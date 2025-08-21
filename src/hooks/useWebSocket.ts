@@ -130,6 +130,7 @@ interface WebSocketEventHandlers {
   onReplyUpdate?: (data: unknown) => void;
   onReplyDelete?: (data: { replyId: string; postId: string }) => void;
   onReplyVote?: (data: ReplyVoteData) => void;
+  onScoreEvents?: (data: { events: ScoreEventWs[] }) => void;
   onUserOnline?: (data: UserActivity) => void;
   onUserOffline?: (data: UserActivity) => void;
   onUserTyping?: (data: TypingData) => void;
@@ -137,6 +138,22 @@ interface WebSocketEventHandlers {
   onModerationReport?: (data: unknown) => void;
   onModerationApproval?: (data: unknown) => void;
   onModerationDecision?: (data: ModerationDecisionData) => void;
+}
+
+// Unified scoring event shape (mirror backend broadcast)
+export interface ScoreEventWs {
+  id: string;
+  userId: number;
+  actorUserId?: number | null;
+  type: string;
+  refType?: string | null;
+  refId?: string | null;
+  delta: number;
+  totalPoints?: number;
+  // meta is arbitrary JSON (classification, role flags, etc.)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  meta?: any;
+  created_at: string;
 }
 
 interface UseWebSocketOptions {
@@ -284,6 +301,14 @@ export const useWebSocket = (
     socket.on("reply:vote", (data: ReplyVoteData) => {
       console.log("👍 Reply vote update:", data.replyId, data.voteType);
       handlersRef.current.onReplyVote?.(data);
+    });
+
+    // Unified score events batch
+    socket.on("score:events", (data: { events?: ScoreEventWs[] }) => {
+      if (data?.events?.length) {
+        console.log("📈 Score events batch received", data.events.length);
+        handlersRef.current.onScoreEvents?.({ events: data.events });
+      }
     });
 
     // User activity events

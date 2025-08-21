@@ -29,6 +29,8 @@ export interface Post {
   upvotes: number;
   downvotes: number;
   userVote?: "up" | "down" | null;
+  upvoterIds?: number[]; // added for realtime highlighting
+  downvoterIds?: number[];
   replies: number;
   shares: number;
   isMarketPost: boolean;

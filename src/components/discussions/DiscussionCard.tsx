@@ -24,7 +24,9 @@ import { ContactModal } from "@/components/discussions/ContactModal";
 import { RepliesSection } from "@/components/discussions/RepliesSection";
 import { SocialVideoPlayer } from "@/components/ui/social-video-player";
 import { ImageGrid } from "@/components/ui/image-grid";
-import type { Post as BasePost } from "../../data/posts";
+// Use API Post type instead of legacy mock Post
+import type { DiscussionPostUI } from "@/types/discussionPostUI";
+import { useDerivedUserVote } from "@/hooks/useDerivedUserVote";
 import { usePermissions } from "@/hooks/usePermissions";
 import {
   useApprovePostMutation,
@@ -36,10 +38,30 @@ import {
   formatModerationError,
   formatReportSuccess,
 } from "@/utils/moderationErrors";
+import { useVoterCheck, useVoterTooltip } from "@/hooks/useVoterCheck";
 
-// Extend Post with optional transient delta field coming from cache patch
-interface Post extends BasePost {
-  __lastAuthorPointsDelta?: number;
+// UI Post variant: flatten media and keep numeric author id.
+// Use shared UI type
+type Post = DiscussionPostUI;
+
+// Minimal Reply shape expected by RepliesSection mapping layer
+interface BasicReply {
+  id: string;
+  content: string;
+  author: {
+    id: string;
+    firstname: string;
+    lastname: string;
+    avatar: string | null;
+    level_id: number;
+    points: number;
+    location: string;
+  };
+  createdAt: string;
+  upvotes: number;
+  downvotes: number;
+  userVote?: "up" | "down" | null;
+  replies?: BasicReply[];
 }
 
 interface DiscussionCardProps {
@@ -63,16 +85,19 @@ export function DiscussionCard({
   onDeletePost,
   currentUserId,
 }: DiscussionCardProps) {
-  // Persistently-highlighted vote state: local state mirrors server value, updates instantly on click
-  const [localUserVote, setLocalUserVote] = useState<"up" | "down" | null>(
-    post.userVote ?? null
+  // Local optimistic vote override (applied instantly on click)
+  const [localOverride, setLocalOverride] = useState<"up" | "down" | null>(
+    null
   );
   useEffect(() => {
-    setLocalUserVote(post.userVote ?? null);
-  }, [post.userVote]);
-  const currentVote = localUserVote ?? post.userVote;
-  const isUpSelected = currentVote === "up";
-  const isDownSelected = currentVote === "down";
+    // Reset override if server state changes (e.g., after refetch) and matches override
+    setLocalOverride(null);
+  }, [post.userVote, post.upvotes, post.downvotes]);
+  const { currentVote, isUpSelected, isDownSelected } = useDerivedUserVote(
+    post,
+    currentUserId,
+    localOverride
+  );
   const { hasPermission } = usePermissions();
   const canModerate = hasPermission("MODERATE:POSTS");
   const [showReportModal, setShowReportModal] = useState(false);
@@ -95,6 +120,35 @@ export function DiscussionCard({
   );
   // Flash for vote-based author point changes (e.g., +1, -1, +2, -2)
   const [votePointFlash, setVotePointFlash] = useState<string | null>(null);
+
+  // Voter tooltips on hover
+  const [showUpvotersTooltip, setShowUpvotersTooltip] = useState(false);
+  const [showDownvotersTooltip, setShowDownvotersTooltip] = useState(false);
+
+  // Fetch voter lists when hovering over vote buttons
+  const upvotersQuery = useVoterCheck({
+    postId: post.id,
+    voteType: "upvote",
+    enabled: showUpvotersTooltip,
+  });
+
+  const downvotersQuery = useVoterCheck({
+    postId: post.id,
+    voteType: "downvote",
+    enabled: showDownvotersTooltip,
+  });
+
+  const upvotersTooltip = useVoterTooltip(
+    post.upvotes,
+    upvotersQuery.isCurrentUserVoter,
+    upvotersQuery.votersList
+  );
+
+  const downvotersTooltip = useVoterTooltip(
+    post.downvotes,
+    downvotersQuery.isCurrentUserVoter,
+    downvotersQuery.votersList
+  );
 
   useEffect(() => {
     const backendPoints = post.author.points;
@@ -179,7 +233,7 @@ export function DiscussionCard({
         setUpDelta(null);
       }, 500);
       // Immediate local highlight toggle
-      setLocalUserVote(isUpSelected ? null : "up");
+      setLocalOverride(isUpSelected ? null : "up");
     } else {
       const delta = post.userVote === "down" ? -1 : 1;
       setDownDelta(delta);
@@ -189,42 +243,11 @@ export function DiscussionCard({
         setDownDelta(null);
       }, 500);
       // Immediate local highlight toggle
-      setLocalUserVote(isDownSelected ? null : "down");
+      setLocalOverride(isDownSelected ? null : "down");
     }
     onVote?.(post.id, voteType);
 
-    // Persist recent vote locally (sessionStorage) for fast highlight after reload
-    try {
-      const key = "fc_recent_votes";
-      const raw = sessionStorage.getItem(key);
-      const store: Record<string, { vote: "up" | "down"; ts: number }> = raw
-        ? JSON.parse(raw)
-        : {};
-      const existing = store[post.id];
-      // If toggling off (same vote clicked), remove; otherwise store new
-      const finalVote =
-        voteType === "up"
-          ? isUpSelected
-            ? null
-            : "up"
-          : isDownSelected
-          ? null
-          : "down";
-      if (finalVote) store[post.id] = { vote: finalVote, ts: Date.now() };
-      else if (existing) delete store[post.id];
-      // Trim overly large map
-      const MAX = 500;
-      const ids = Object.keys(store);
-      if (ids.length > MAX) {
-        ids
-          .sort((a, b) => store[a].ts - store[b].ts)
-          .slice(0, ids.length - MAX)
-          .forEach((k) => delete store[k]);
-      }
-      sessionStorage.setItem(key, JSON.stringify(store));
-    } catch {
-      /* ignore storage errors */
-    }
+    // Local persistence removed: rely on backend userVote & batch my-votes endpoint.
   };
 
   const [reportPostModeration] = useReportPostModerationMutation();
@@ -272,7 +295,11 @@ export function DiscussionCard({
     setShowDropdown(false);
 
     // Check if this is user's own post and callback is available
-    if (currentUserId && post.author.id === currentUserId && onDeletePost) {
+    if (
+      currentUserId &&
+      post.author.id === Number(currentUserId) &&
+      onDeletePost
+    ) {
       onDeletePost(post.id);
     } else {
       // Moderators can also delete
@@ -376,17 +403,22 @@ export function DiscussionCard({
         {/* Header with tags and actions */}
         <div className="flex items-center justify-between p-3 sm:p-4 border-b border-gray-100">
           <div className="flex items-center gap-2 flex-wrap">
-            {post.tags.map((tag) => (
-              <Badge
-                key={tag}
-                variant="outline"
-                className={`text-xs font-medium border ${getTagColor(
-                  tag
-                )} transition-colors duration-200`}
-              >
-                {tag}
-              </Badge>
-            ))}
+            {post.tags.map(
+              (t: string | { id: string; name: string; color: string }) => {
+                const name = typeof t === "string" ? t : t.name;
+                return (
+                  <Badge
+                    key={name}
+                    variant="outline"
+                    className={`text-xs font-medium border ${getTagColor(
+                      name
+                    )} transition-colors duration-200`}
+                  >
+                    {name}
+                  </Badge>
+                );
+              }
+            )}
           </div>
 
           <div className="flex items-center gap-2">
@@ -396,7 +428,7 @@ export function DiscussionCard({
             </span>
 
             {/* Actions Menu: authors always see edit/delete; moderators see moderation + delete */}
-            {(currentUserId && post.author.id === currentUserId) ||
+            {(currentUserId && post.author.id === Number(currentUserId)) ||
             canModerate ? (
               <div className="relative" ref={dropdownRef}>
                 <button
@@ -417,7 +449,8 @@ export function DiscussionCard({
                 {showDropdown && (
                   <div className="absolute right-0 top-full mt-1 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-10">
                     {/* Show different options based on whether it's user's own post */}
-                    {currentUserId && post.author.id === currentUserId ? (
+                    {currentUserId &&
+                    post.author.id === Number(currentUserId) ? (
                       // User's own post - show edit and delete options
                       <>
                         <button
@@ -705,7 +738,7 @@ export function DiscussionCard({
                 variant="ghost"
                 size="sm"
                 className={`relative flex items-center gap-1 px-2 sm:px-3 py-1.5 sm:py-2 cursor-pointer transition-all duration-300 ease-in-out hover:scale-[1.02] max-[475px]:px-1.5 max-[475px]:py-1 max-[475px]:text-xs ${
-                  post.userVote === "up"
+                  isUpSelected
                     ? "bg-green-50 text-green-600"
                     : "text-gray-600 hover:text-green-600"
                 } ${flashUp ? "ring-2 ring-green-300 ring-offset-1" : ""}`}
@@ -713,7 +746,15 @@ export function DiscussionCard({
                   e.stopPropagation();
                   handleVote("up");
                 }}
-                title={post.userVote === "up" ? "You upvoted" : "Upvote"}
+                onMouseEnter={() => setShowUpvotersTooltip(true)}
+                onMouseLeave={() => setShowUpvotersTooltip(false)}
+                title={
+                  showUpvotersTooltip && upvotersTooltip
+                    ? upvotersTooltip
+                    : isUpSelected
+                    ? "You upvoted"
+                    : "Upvote"
+                }
               >
                 {typeof upDelta === "number" && (
                   <span
@@ -759,7 +800,7 @@ export function DiscussionCard({
                 variant="ghost"
                 size="sm"
                 className={`relative flex items-center gap-1 px-2 sm:px-3 py-1.5 sm:py-2 cursor-pointer transition-all duration-300 ease-in-out hover:scale-[1.02] max-[475px]:px-1.5 max-[475px]:py-1 max-[475px]:text-xs ${
-                  post.userVote === "down"
+                  isDownSelected
                     ? "bg-red-50 text-red-600"
                     : "text-gray-600 hover:text-red-600"
                 } ${flashDown ? "ring-2 ring-red-300 ring-offset-1" : ""}`}
@@ -767,7 +808,15 @@ export function DiscussionCard({
                   e.stopPropagation();
                   handleVote("down");
                 }}
-                title={post.userVote === "down" ? "You downvoted" : "Downvote"}
+                onMouseEnter={() => setShowDownvotersTooltip(true)}
+                onMouseLeave={() => setShowDownvotersTooltip(false)}
+                title={
+                  showDownvotersTooltip && downvotersTooltip
+                    ? downvotersTooltip
+                    : isDownSelected
+                    ? "You downvoted"
+                    : "Downvote"
+                }
               >
                 {typeof downDelta === "number" && (
                   <span
@@ -850,7 +899,7 @@ export function DiscussionCard({
           <div className="px-4 pb-4">
             <RepliesSection
               postId={post.id}
-              replies={post.repliesData || []}
+              replies={(post.repliesData as unknown as BasicReply[]) || []}
               totalReplies={post.replies}
               onVoteReply={onVoteReply}
               onLoadMore={() => onLoadMoreReplies?.(post.id)}
@@ -871,7 +920,10 @@ export function DiscussionCard({
       <ContactModal
         isOpen={showContactModal}
         onClose={() => setShowContactModal(false)}
-        author={post.author}
+        author={{
+          ...post.author,
+          id: String(post.author.id),
+        }}
         postTitle={post.title}
       />
     </>

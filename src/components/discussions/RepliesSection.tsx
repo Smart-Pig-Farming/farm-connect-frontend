@@ -15,7 +15,25 @@ import {
 } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import type { Reply } from "../../data/posts";
+// Local Reply shape (matches API mapping subset)
+export interface Reply {
+  id: string;
+  content: string;
+  author: {
+    id: string; // kept as string for UI consistency
+    firstname: string;
+    lastname: string;
+    avatar: string | null;
+    level_id: number;
+    points: number;
+    location: string;
+  };
+  createdAt: string;
+  upvotes: number;
+  downvotes: number;
+  userVote?: "up" | "down" | null;
+  replies?: Reply[];
+}
 import { toast } from "sonner";
 import {
   useGetRepliesQuery,
@@ -24,6 +42,9 @@ import {
   type ReplyItem as ApiReply,
 } from "@/store/api/discussionsApi";
 import { useWebSocket } from "@/hooks/useWebSocket";
+import { useAppDispatch, useAppSelector } from "@/store/hooks";
+import { processScoreEvents } from "@/store/utils/scoreEventsClient";
+import type { ScoreEventWs } from "@/hooks/useWebSocket";
 
 interface RepliesSectionProps {
   postId: string;
@@ -60,6 +81,8 @@ export function RepliesSection({
   const [draftText, setDraftText] = useState("");
   const [addReply] = useAddReplyMutation();
   const [voteReply] = useVoteReplyMutation();
+  const dispatch = useAppDispatch();
+  const authUserId = useAppSelector((s) => s.auth.user?.id);
 
   const {
     data: fetched,
@@ -304,6 +327,8 @@ export function RepliesSection({
       reply_classification?: "supportive" | "contradictory" | null;
       reply_author_points?: number;
       reply_author_points_delta?: number;
+      actor_points?: number;
+      actor_points_delta?: number;
       trickle_roles?: {
         parent?: { userId: number; delta: number };
         grandparent?: { userId: number; delta: number };
@@ -311,6 +336,8 @@ export function RepliesSection({
       };
     }) => {
       if (!data || String(data.postId) !== String(postId)) return;
+
+      // Daily points delta aggregation removed (handled by unified score:events)
 
       // Helper to find path to reply (array from root-level reply down to target)
       const findPath = (
@@ -467,10 +494,19 @@ export function RepliesSection({
   }
   const wsHandlers = useMemo(
     () => ({
-      onReplyCreate: (data: unknown) => applyWsReply(data as WsReplyPayload),
+      onReplyCreate: (data: unknown) => {
+        const payload = data as WsReplyPayload & { parentReplyId?: string };
+        applyWsReply(payload);
+      },
       onReplyVote: (d: ReplyVoteWsPayload) => applyWsReplyVote(d),
+      onScoreEvents: ({ events }: { events: ScoreEventWs[] }) => {
+        processScoreEvents(events, {
+          dispatch,
+          currentUserId: authUserId,
+        });
+      },
     }),
-    [applyWsReply, applyWsReplyVote]
+    [applyWsReply, applyWsReplyVote, authUserId, dispatch]
   );
 
   const ws = useWebSocket(wsHandlers, { autoConnect: isExpanded, serverUrl });

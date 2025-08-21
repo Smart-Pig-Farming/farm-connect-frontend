@@ -24,12 +24,10 @@ import {
 import { type PostToEdit } from "../../components/discussions/EditPostModal";
 import { ModerationDashboard } from "../../components/discussions/ModerationDashboard";
 import { TagFilter } from "../../components/discussions/TagFilter";
-import { type Post } from "../../data/posts";
-import {
-  useGetMyStatsQuery,
-  scoreApi,
-  type MyStats,
-} from "../../store/api/scoreApi";
+// Legacy Post type removed – using API post directly with lightweight flattening for media
+// (Avoid referencing old `Post` identifier to prevent TS lookup errors.)
+import { useGetMyStatsQuery } from "../../store/api/scoreApi";
+import { useGetCurrentUserQuery } from "@/store/api/authApi";
 import { useAppSelector } from "@/store/hooks";
 import { POSTS_PER_LOAD_MORE, LOADING_DEBOUNCE_DELAY } from "../../utils/posts";
 import {
@@ -44,6 +42,7 @@ import type {
   PostsQueryParams,
   MyPostsQueryParams,
 } from "../../store/api/discussionsApi";
+import type { DiscussionPostUI } from "@/types/discussionPostUI";
 import { useInfiniteScroll } from "../../hooks/useInfiniteScroll";
 import { useMyPostsInfiniteScroll } from "../../hooks/useMyPostsInfiniteScroll";
 import { useGetMyPostsStatsQuery } from "../../store/api/discussionsApi";
@@ -56,57 +55,21 @@ import { useWebSocket } from "../../hooks/useWebSocket";
 import type { PostMediaLike } from "@/types/postMedia";
 import { useAppDispatch } from "@/store/hooks";
 import { discussionsApi } from "@/store/api/discussionsApi";
+// (legacy daily points delta path removed – unified score events now handle aggregation)
+import { processScoreEvents } from "@/store/utils/scoreEventsClient";
 
 // Current user id is passed per-card when in My Posts view via each post's author.id
 
-// Map API post to UI post shape used by DiscussionCard
-const mapApiPostToUi = (p: ApiPost): Post => {
-  const tagStrings = p.tags.map((t) => t.name);
-  const imagesArr = p.images.map((m) => m.url);
-  const videoVal = p.video ? p.video.url : null;
-  const coverThumb = getPostCoverThumbnail(p);
-  const videoThumbnail = getVideoThumbnail(p);
-  // Normalize userVote coming from API or optimistic cache
-  const apiVote = p.userVote as unknown as
-    | "up"
-    | "down"
-    | "upvote"
-    | "downvote"
-    | null;
-  return {
-    id: p.id,
-    title: p.title,
-    content: p.content,
-    author: {
-      id: String(p.author.id),
-      firstname: p.author.firstname,
-      lastname: p.author.lastname,
-      avatar: p.author.avatar ?? null,
-      level_id: p.author.level_id ?? 1,
-      points: p.author.points ?? 0,
-      location: p.author.location ?? "",
-    },
-    tags: tagStrings.filter(Boolean) as string[],
-    upvotes: p.upvotes,
-    downvotes: p.downvotes,
-    userVote:
-      apiVote === "upvote" || apiVote === "up"
-        ? "up"
-        : apiVote === "downvote" || apiVote === "down"
-        ? "down"
-        : null,
-    replies: p.replies,
-    shares: 0,
-    isMarketPost: p.isMarketPost,
-    isAvailable: p.isAvailable,
-    createdAt: p.createdAt,
-    images: imagesArr.filter(Boolean) as string[],
-    video: videoVal,
-    coverThumb,
-    videoThumbnail,
-    isModeratorApproved: p.isModeratorApproved,
-  };
-};
+// Helper to normalize vote to "up" | "down" | null
+const normalizeVote = (v: ApiPost["userVote"]) =>
+  v === "upvote" || v === "up"
+    ? "up"
+    : v === "downvote" || v === "down"
+    ? "down"
+    : null;
+
+// Use shared DiscussionPostUI type
+type DiscussionCardPostUI = DiscussionPostUI;
 
 // Custom debounce hook for better search performance
 const useDebounce = (value: string, delay: number) => {
@@ -166,7 +129,9 @@ export function DiscussionsPage() {
   const [showCreatePost, setShowCreatePost] = useState(false);
   const [showMyPostsView, setShowMyPostsView] = useState(false);
   const [showEditPost, setShowEditPost] = useState(false);
-  const [editingPost, setEditingPost] = useState<Post | null>(null);
+  const [editingPost, setEditingPost] = useState<DiscussionCardPostUI | null>(
+    null
+  );
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -203,6 +168,10 @@ export function DiscussionsPage() {
     undefined,
     { skip: !showMyPostsView }
   );
+  const { data: currentUserResp } = useGetCurrentUserQuery();
+  const currentUserId = currentUserResp?.data?.id
+    ? String(currentUserResp.data.id)
+    : undefined;
 
   // Toast on errors
   useEffect(() => {
@@ -226,61 +195,39 @@ export function DiscussionsPage() {
 
   // Map API posts to UI posts
   const displayedPosts = useMemo(() => {
-    const mapped = apiPosts
+    return apiPosts
       .filter((p) => !clientDeleted[p.id])
       .map((p) => {
-        const ui = mapApiPostToUi(p);
-        const overlay = wsThumbs[ui.id];
-        if (overlay) {
-          ui.coverThumb = overlay.coverThumb ?? ui.coverThumb;
-          ui.videoThumbnail = overlay.videoThumbnail ?? ui.videoThumbnail;
-        }
-        // Hydrate vote highlight from sessionStorage if API hasn't returned it yet
-        try {
-          if (ui.userVote == null) {
-            const raw = sessionStorage.getItem("fc_recent_votes");
-            if (raw) {
-              const store: Record<string, { vote: "up" | "down"; ts: number }> =
-                JSON.parse(raw);
-              const rec = store[ui.id];
-              if (rec) {
-                const TEN_MIN = 10 * 60 * 1000;
-                if (Date.now() - rec.ts < TEN_MIN) {
-                  ui.userVote = rec.vote;
-                } else {
-                  // stale -> cleanup lazily
-                  delete store[ui.id];
-                  sessionStorage.setItem(
-                    "fc_recent_votes",
-                    JSON.stringify(store)
-                  );
-                }
-              }
-            }
-          }
-        } catch {
-          /* ignore */
-        }
+        const images = p.images.map((m) => m.url).filter(Boolean);
+        const video = p.video ? p.video.url : null;
+        const coverThumb = getPostCoverThumbnail(p);
+        const videoThumbnail = getVideoThumbnail(p);
+        const overlay = wsThumbs[p.id];
+        const ui: DiscussionCardPostUI = {
+          id: p.id,
+          title: p.title,
+          content: p.content,
+          author: { ...p.author },
+          tags: p.tags,
+          upvotes: p.upvotes,
+          downvotes: p.downvotes,
+          userVote: normalizeVote(p.userVote),
+          upvoterIds: p.upvoterIds || [],
+          downvoterIds: p.downvoterIds || [],
+          replies: p.replies,
+          isMarketPost: p.isMarketPost,
+          isAvailable: p.isAvailable,
+          createdAt: p.createdAt,
+          images,
+          video,
+          coverThumb: overlay?.coverThumb ?? coverThumb ?? null,
+          videoThumbnail: overlay?.videoThumbnail ?? videoThumbnail ?? null,
+          isModeratorApproved: p.isModeratorApproved,
+          media: p.media,
+        } as DiscussionCardPostUI;
         return ui;
       });
-    console.log("🎯 DiscussionsPage mapping posts:", {
-      apiPostsCount: apiPosts.length,
-      mappedPostsCount: mapped.length,
-      hasNextPage,
-      isLoading,
-      isFetching,
-      error: !!error,
-    });
-    return mapped;
-  }, [
-    apiPosts,
-    hasNextPage,
-    isLoading,
-    isFetching,
-    error,
-    wsThumbs,
-    clientDeleted,
-  ]);
+  }, [apiPosts, clientDeleted, wsThumbs]);
 
   const { data: statsData } = useGetPostsStatsQuery();
   const [votePost] = useVotePostMutation();
@@ -446,33 +393,8 @@ export function DiscussionsPage() {
         actor_points?: number;
         actor_points_delta?: number;
       }) => {
-        // Surgically update vote counts from WebSocket without overriding optimistic state
+        // Update vote counts & author enrichment (daily points now primarily from unified score:events)
         if (data?.postId) {
-          // Helper to apply a delta to daily stats & accumulate flash delta
-          const applyDailyDelta = (delta?: number) => {
-            if (typeof delta !== "number" || delta === 0) return;
-            try {
-              dispatch(
-                scoreApi.util.updateQueryData(
-                  "getMyStats",
-                  { period: "daily" },
-                  (
-                    draft:
-                      | (MyStats & { __pointsFlashDelta?: number })
-                      | undefined
-                  ) => {
-                    if (draft) {
-                      draft.points += delta;
-                      draft.__pointsFlashDelta =
-                        (draft.__pointsFlashDelta || 0) + delta;
-                    }
-                  }
-                )
-              );
-            } catch {
-              /* ignore */
-            }
-          };
           const patchFn = (draft: { data?: { posts?: ApiPost[] } }) => {
             const post = draft?.data?.posts?.find((p) => p.id === data.postId);
             if (post) {
@@ -507,13 +429,7 @@ export function DiscussionsPage() {
                   post.author.level_id = data.author_level;
                 }
                 // If this client user is the author, reflect author's delta in daily stats.
-                if (
-                  authUserId &&
-                  Number(post.author.id) === Number(authUserId) &&
-                  typeof data.author_points_delta === "number"
-                ) {
-                  applyDailyDelta(data.author_points_delta);
-                }
+                // Daily delta for author removed (handled by unified score events)
               }
             }
           };
@@ -531,40 +447,14 @@ export function DiscussionsPage() {
               patchFn
             )
           );
-          // Actor (the voter) daily delta if this client performed the vote (includes engagement +1 and any future variants)
-          if (authUserId && Number(data.userId) === Number(authUserId)) {
-            applyDailyDelta(data.actor_points_delta);
-          }
-          // SessionStorage cleanup: reconcile stored vote with server-provided userVote (if included)
-          if (data.userVote !== undefined) {
-            try {
-              const key = "fc_recent_votes";
-              const raw = sessionStorage.getItem(key);
-              if (raw) {
-                const store: Record<
-                  string,
-                  { vote: "up" | "down"; ts: number }
-                > = JSON.parse(raw);
-                const rec = store[data.postId];
-                const serverVote = data.userVote
-                  ? data.userVote === "upvote"
-                    ? "up"
-                    : "down"
-                  : null;
-                if (!serverVote && rec) {
-                  delete store[data.postId];
-                  sessionStorage.setItem(key, JSON.stringify(store));
-                } else if (serverVote && rec && rec.vote !== serverVote) {
-                  // Update with authoritative vote
-                  store[data.postId] = { vote: serverVote, ts: Date.now() };
-                  sessionStorage.setItem(key, JSON.stringify(store));
-                }
-              }
-            } catch {
-              /* ignore */
-            }
-          }
+          // Actor daily delta removed (handled by unified score events)
         }
+      },
+      onScoreEvents: ({ events }) => {
+        processScoreEvents(events, {
+          dispatch,
+          currentUserId: authUserId,
+        });
       },
       onPostDelete: (data: { postId: string }) => {
         // When another user deletes a post, refresh the active feed
@@ -596,14 +486,19 @@ export function DiscussionsPage() {
 
   // Helper function to convert Post to PostToEdit
   const convertPostToPostToEdit = useCallback(
-    (post: Post | null): PostToEdit | undefined => {
+    (post: DiscussionCardPostUI | null): PostToEdit | undefined => {
       if (!post) return undefined;
 
       return {
         id: post.id,
         title: post.title,
         content: post.content,
-        tags: post.tags,
+        // Map tag objects (or strings) to their name strings for EditPostModal (expects string[])
+        tags: (
+          post.tags as Array<
+            string | { id: string; name: string; color: string }
+          >
+        ).map((t) => (typeof t === "string" ? t : t.name)),
         isMarketPost: post.isMarketPost,
         isAvailable: post.isAvailable,
         images: post.images,
@@ -973,9 +868,7 @@ export function DiscussionsPage() {
                                 ? handleDeleteUserPost
                                 : undefined
                             }
-                            currentUserId={
-                              showMyPostsView ? post.author.id : undefined
-                            }
+                            currentUserId={currentUserId}
                           />
                         ))}
                       </InfiniteScrollContainer>
