@@ -384,3 +384,18 @@ select option {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+/* Enhanced Modal Responsiveness - Simple utility classes */
+.modal-touch-target {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+/* Prevent zoom on iOS Safari inputs */
+@media screen and (max-width: 640px) {
+  input,
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+}

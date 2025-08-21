@@ -168,6 +168,7 @@ export function EditPostModal({
   };
 
   const nextStep = () => {
+    console.log("Moving to next step, current:", currentStep);
     if (currentStep === "content") {
       if (validateContentStep()) {
         setCurrentStep("media");
@@ -177,17 +178,23 @@ export function EditPostModal({
   };
 
   const prevStep = () => {
+    console.log("Moving to previous step, current:", currentStep);
     if (currentStep === "media") {
       setCurrentStep("content");
     }
   };
 
+  // Removed render-time validation; validation runs on click via validateContentStep
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     e.stopPropagation();
 
+    console.log("Form submitted, current step:", currentStep);
+
     // Only allow submission from media step
     if (currentStep !== "media") {
+      console.log("Preventing submission - not on media step");
       return;
     }
 
@@ -197,6 +204,12 @@ export function EditPostModal({
       selectedTags.length === 0 ||
       !post?.id
     ) {
+      console.log("Validation failed", {
+        title: title.trim(),
+        content: content.trim(),
+        tags: selectedTags.length,
+        postId: post?.id,
+      });
       return;
     }
 
@@ -225,6 +238,7 @@ export function EditPostModal({
   };
 
   const handleClose = () => {
+    console.log("Closing modal");
     setCurrentStep("content");
     setTitle("");
     setContent("");
@@ -296,6 +310,8 @@ export function EditPostModal({
     setRemovedVideo(true);
   };
 
+  // getTagColor removed; unified orange selection style used
+
   if (!isOpen) return null;
 
   return (
@@ -306,10 +322,10 @@ export function EditPostModal({
         onClick={handleClose}
       />
 
-      {/* Modal - Comprehensive responsive sizing */}
+      {/* Modal - Responsive sizing strategy */}
       <div className="flex min-h-full items-center justify-center p-2 sm:p-4 lg:p-6">
         <div className="relative w-full max-w-sm sm:max-w-md md:max-w-lg lg:max-w-2xl xl:max-w-3xl transform overflow-hidden rounded-lg sm:rounded-xl bg-white shadow-2xl transition-all duration-300 scale-100 max-h-[95vh] sm:max-h-[90vh]">
-          {/* Header with Responsive Stepper */}
+          {/* Header with Stepper */}
           <div className="relative p-3 sm:p-4 lg:p-6 bg-gradient-to-b from-orange-50 to-white">
             <div className="flex items-center justify-between mb-4 sm:mb-6">
               <div className="flex items-center gap-2 sm:gap-3">
@@ -320,7 +336,7 @@ export function EditPostModal({
                   <h3 className="text-lg sm:text-xl font-semibold text-gray-900">
                     Edit Post
                   </h3>
-                  <p className="text-xs sm:text-sm text-gray-600 hidden sm:block">
+                  <p className="text-xs sm:text-sm text-gray-600">
                     Update your post content and settings
                   </p>
                 </div>
@@ -345,7 +361,7 @@ export function EditPostModal({
 
                 return (
                   <div key={step.id} className="flex items-center">
-                    {/* Step Circle - Responsive sizing */}
+                    {/* Step Circle */}
                     <div
                       className={`flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 rounded-full border-2 transition-all duration-300 ${
                         isCompleted
@@ -362,7 +378,7 @@ export function EditPostModal({
                       )}
                     </div>
 
-                    {/* Step Info - Hide descriptions on small screens */}
+                    {/* Step Info - Responsive text */}
                     <div className="ml-2 sm:ml-4 min-w-0">
                       <p
                         className={`text-xs sm:text-sm font-medium ${
@@ -393,15 +409,15 @@ export function EditPostModal({
               })}
             </div>
 
-            {/* Subtle gradient separator */}
+            {/* Subtle gradient separator instead of border */}
             <div className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-orange-200 to-transparent" />
           </div>
 
           {/* Step Content - Responsive padding and scrolling */}
           <div className="p-3 sm:p-4 lg:p-6 overflow-y-auto max-h-[50vh] sm:max-h-[55vh] lg:max-h-[60vh]">
             {currentStep === "content" && (
-              <div className="space-y-4 sm:space-y-6">
-                <h4 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">
+              <div className="space-y-6">
+                <h4 className="text-lg font-semibold text-gray-900 mb-4">
                   Edit Post Content
                 </h4>
 
@@ -434,9 +450,6 @@ export function EditPostModal({
                   {errors.title && (
                     <p className="mt-1 text-xs text-red-600">{errors.title}</p>
                   )}
-                  <p className="text-xs text-gray-500 mt-1">
-                    {title.length}/255 characters
-                  </p>
                 </div>
 
                 {/* Content */}
@@ -457,16 +470,11 @@ export function EditPostModal({
                         setErrors((prev) => ({ ...prev, content: undefined }));
                     }}
                     placeholder="Share your knowledge, experience, or question..."
-                    className={`w-full min-h-[100px] sm:min-h-[120px] p-3 border rounded-lg resize-none transition-colors duration-200 focus:border-orange-500 focus:ring-orange-500/20 focus:outline-none focus:ring-2 ${
+                    className={`w-full min-h-[120px] p-3 border rounded-lg resize-none transition-colors duration-200 focus:border-orange-500 focus:ring-orange-500/20 focus:outline-none focus:ring-2 ${
                       errors.content
                         ? "border-red-500 ring-red-500 focus:border-red-500 focus:ring-red-500/20"
                         : "border-gray-300"
                     }`}
-                    rows={
-                      typeof window !== "undefined" && window.innerWidth < 640
-                        ? 4
-                        : 6
-                    }
                     required
                   />
                   {errors.content && (
@@ -474,9 +482,6 @@ export function EditPostModal({
                       {errors.content}
                     </p>
                   )}
-                  <p className="text-xs text-gray-500 mt-1">
-                    {content.length}/10,000 characters
-                  </p>
                 </div>
 
                 {/* Tags */}
@@ -497,11 +502,14 @@ export function EditPostModal({
                           key={tag.name}
                           type="button"
                           onClick={() => {
-                            const newTags = isSelected
-                              ? selectedTags.filter((t) => t !== tag.name)
-                              : [...selectedTags, tag.name];
-                            setSelectedTags(newTags);
-                            if (errors.tags && newTags.length > 0)
+                            if (isSelected) {
+                              setSelectedTags((prev) =>
+                                prev.filter((t) => t !== tag.name)
+                              );
+                            } else {
+                              setSelectedTags((prev) => [...prev, tag.name]);
+                            }
+                            if (errors.tags)
                               setErrors((prev) => ({
                                 ...prev,
                                 tags: undefined,
@@ -524,7 +532,7 @@ export function EditPostModal({
                 </div>
 
                 {/* Market Post Options */}
-                <div className="space-y-4 p-3 sm:p-4 bg-green-50 rounded-lg border border-green-200">
+                <div className="space-y-4 p-4 bg-green-50 rounded-lg border border-green-200">
                   <div className="flex items-center gap-3">
                     <input
                       type="checkbox"
@@ -533,6 +541,7 @@ export function EditPostModal({
                       onChange={(e) => {
                         const checked = e.target.checked;
                         setIsMarketPost(checked);
+                        // Align with backend: non-market posts are always available
                         if (!checked) setIsAvailable(true);
                       }}
                       className="h-4 w-4 text-orange-600 focus:ring-orange-500 border-gray-300 rounded"
@@ -547,6 +556,7 @@ export function EditPostModal({
                   </div>
                   <p className="text-xs text-green-700 ml-7">
                     Mark this if you're offering products or services for sale.
+                    Your choice will be saved when you update the post.
                   </p>
 
                   {isMarketPost && (
@@ -566,6 +576,10 @@ export function EditPostModal({
                           Item/Service is currently available
                         </Label>
                       </div>
+                      <p className="text-xs text-green-700">
+                        This availability will be saved when you update the
+                        post.
+                      </p>
                     </div>
                   )}
                 </div>
@@ -579,9 +593,8 @@ export function EditPostModal({
                     Update Media (Optional)
                   </h4>
                   <p className="text-xs sm:text-sm text-gray-600 mb-3 sm:mb-4">
-                    You can update images or video for your post, or keep
-                    existing media. Choose either images (up to 4) or one video.
-                    You cannot mix both.
+                    You can update images or video for your post, or keep existing media.
+                    Choose either images (up to 4) or one video. You cannot mix both.
                   </p>
                 </div>
 
@@ -654,8 +667,7 @@ export function EditPostModal({
                     <div className="space-y-3 sm:space-y-4">
                       {hasAnyVideo && (
                         <div className="p-2 sm:p-3 rounded-md border border-amber-300 bg-amber-50 text-amber-800 text-xs">
-                          This post currently has a video. Remove the video
-                          first to add images.
+                          This post currently has a video. Remove the video first to add images.
                         </div>
                       )}
                       <div className="flex items-center justify-between">
@@ -667,7 +679,7 @@ export function EditPostModal({
                         </span>
                       </div>
 
-                      {/* Existing Images - Responsive grid */}
+                      {/* Existing Images */}
                       {existingImages.length > 0 && (
                         <div className="space-y-2">
                           <p className="text-xs text-gray-600 font-medium">
@@ -727,13 +739,12 @@ export function EditPostModal({
                                     type="button"
                                     aria-label="Undo remove image"
                                     title="Undo remove"
-                                    onClick={() =>
-                                      restoreRemovedImage(imageSrc)
-                                    }
+                                    onClick={() => restoreRemovedImage(imageSrc)}
                                     className="absolute top-1 right-1 sm:top-2 sm:right-2 z-10 bg-white/90 hover:bg-white text-gray-700 border border-gray-300 rounded-full px-2 sm:px-3 h-6 sm:h-8 flex items-center justify-center shadow-sm transition-colors text-[9px] sm:text-xs"
                                   >
                                     Undo
                                   </button>
+                                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors pointer-events-none" />
                                 </div>
                               </div>
                             ))}
@@ -768,6 +779,7 @@ export function EditPostModal({
                                   >
                                     <X className="h-3 w-3 sm:h-4 sm:w-4" />
                                   </button>
+                                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors pointer-events-none" />
                                 </div>
                               </div>
                             ))}
@@ -776,36 +788,33 @@ export function EditPostModal({
                       )}
 
                       {/* Add New Images - CreatePostModal Style */}
-                      {existingImages.length + images.length < 4 &&
-                        !hasAnyVideo && (
-                          <div className="space-y-2">
-                            <p className="text-xs text-gray-600 font-medium">
-                              Add Images (JPG, PNG, GIF, WebP):
-                            </p>
-                            <input
-                              type="file"
-                              multiple
-                              accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
-                              onChange={handleFileUpload}
-                              className="hidden"
-                              id="image-upload"
-                            />
-                            <label
-                              htmlFor="image-upload"
-                              className="flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-lg p-4 sm:p-6 cursor-pointer hover:border-orange-300 hover:bg-orange-50/50 transition-colors"
-                            >
-                              <Upload className="h-6 w-6 sm:h-8 sm:w-8 text-gray-400 mb-2" />
-                              <span className="text-xs sm:text-sm text-gray-600 text-center">
-                                Click to upload images or drag and drop
-                              </span>
-                              <span className="text-xs text-gray-500 mt-1 text-center">
-                                Max 100MB per file,{" "}
-                                {4 - (existingImages.length + images.length)}{" "}
-                                remaining
-                              </span>
-                            </label>
-                          </div>
-                        )}
+                      {existingImages.length + images.length < 4 && !hasAnyVideo && (
+                        <div className="space-y-2">
+                          <p className="text-xs text-gray-600 font-medium">
+                            Add Images (JPG, PNG, GIF, WebP):
+                          </p>
+                          <input
+                            type="file"
+                            multiple
+                            accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
+                            onChange={handleFileUpload}
+                            className="hidden"
+                            id="image-upload"
+                          />
+                          <label
+                            htmlFor="image-upload"
+                            className="flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-lg p-4 sm:p-6 cursor-pointer hover:border-orange-300 hover:bg-orange-50/50 transition-colors"
+                          >
+                            <Upload className="h-6 w-6 sm:h-8 sm:w-8 text-gray-400 mb-2" />
+                            <span className="text-xs sm:text-sm text-gray-600 text-center">
+                              Click to upload images or drag and drop
+                            </span>
+                            <span className="text-xs text-gray-500 mt-1 text-center">
+                              Max 100MB per file, {4 - (existingImages.length + images.length)} remaining
+                            </span>
+                          </label>
+                        </div>
+                      )}
                     </div>
                   )}
 
@@ -814,8 +823,7 @@ export function EditPostModal({
                     <div className="space-y-3 sm:space-y-4">
                       {hasAnyImage && (
                         <div className="p-2 sm:p-3 rounded-md border border-amber-300 bg-amber-50 text-amber-800 text-xs">
-                          This post currently has images. Remove all images
-                          first to add a video.
+                          This post currently has images. Remove all images first to add a video.
                         </div>
                       )}
                       <div className="flex items-center justify-between">
@@ -823,10 +831,7 @@ export function EditPostModal({
                           Video Content
                         </span>
                         <span className="text-xs text-gray-500">
-                          {video || (existingVideo && !removedVideo)
-                            ? "1/1"
-                            : "0/1"}{" "}
-                          video
+                          {video || (existingVideo && !removedVideo) ? "1/1" : "0/1"} video
                         </span>
                       </div>
 
@@ -846,9 +851,7 @@ export function EditPostModal({
                             {removedVideo && (
                               <div className="absolute inset-0 bg-red-100/80 rounded-lg flex items-center justify-center">
                                 <div className="text-center">
-                                  <p className="text-red-700 font-medium text-sm">
-                                    Marked for Removal
-                                  </p>
+                                  <p className="text-red-700 font-medium text-sm">Marked for Removal</p>
                                   <button
                                     type="button"
                                     onClick={() => setRemovedVideo(false)}
@@ -927,25 +930,179 @@ export function EditPostModal({
                 </div>
               </div>
             )}
+                                <div className="text-center">
+                                  <p className="text-sm font-medium text-gray-700 hover:text-orange-600 transition-colors">
+                                    Add Images
+                                  </p>
+                                  <p className="text-xs text-gray-500">
+                                    PNG, JPG up to 10MB
+                                  </p>
+                                </div>
+                              </div>
+                              <input
+                                type="file"
+                                accept="image/*"
+                                multiple
+                                onChange={handleFileUpload}
+                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                              />
+                            </label>
+                          </div>
+                        )}
+                    </div>
+                  )}
 
-            {/* Responsive Navigation Buttons */}
-            <div className="flex justify-between items-center pt-4 sm:pt-6 mt-4 sm:mt-6 border-t border-gray-100">
+                  {/* Video Upload Section */}
+                  {mediaType === "video" && (
+                    <div className="space-y-4">
+                      {hasAnyImage && (
+                        <div className="p-3 rounded-md border border-amber-300 bg-amber-50 text-amber-800 text-xs">
+                          This post currently has images. Remove all images
+                          first to add a video.
+                        </div>
+                      )}
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium text-gray-700">
+                          Manage Video
+                        </span>
+                        {(video || existingVideo) && (
+                          <span className="text-xs text-green-600 font-medium">
+                            Video selected
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Existing Video */}
+                      {existingVideo && !video && (
+                        <div className="space-y-2">
+                          <p className="text-xs text-gray-600 font-medium">
+                            Current Video:
+                          </p>
+                          <div className="group relative">
+                            <div
+                              className={`relative w-full aspect-video rounded-lg overflow-hidden border-2 ${
+                                removedVideo
+                                  ? "border-red-300 bg-red-50"
+                                  : "border-orange-200 bg-orange-50"
+                              }`}
+                            >
+                              <video
+                                src={existingVideo}
+                                className="w-full h-full object-cover"
+                                controls
+                              />
+                              <button
+                                type="button"
+                                onClick={removeExistingVideo}
+                                className="absolute top-3 right-3 bg-white/90 hover:bg-white text-gray-700 border border-gray-300 rounded-full w-8 h-8 flex items-center justify-center shadow-sm transition-colors"
+                              >
+                                <X className="h-4 w-4" />
+                              </button>
+                              {removedVideo && (
+                                <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                                  <div className="flex items-center gap-3">
+                                    <span className="text-xs font-semibold px-2 py-1 rounded-full bg-red-100 text-red-700 border border-red-200">
+                                      Removed
+                                    </span>
+                                    <button
+                                      type="button"
+                                      onClick={() => setRemovedVideo(false)}
+                                      className="text-xs px-2 py-1 rounded-full bg-white/90 border border-gray-300 hover:bg-white shadow-sm"
+                                    >
+                                      Undo
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
+                              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors pointer-events-none" />
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* New Video */}
+                      {video && (
+                        <div className="space-y-2">
+                          <p className="text-xs text-green-600 font-medium">
+                            New Video:
+                          </p>
+                          <div className="group relative">
+                            <div className="relative w-full aspect-video rounded-lg overflow-hidden border-2 border-green-200 bg-green-50">
+                              <video
+                                src={URL.createObjectURL(video)}
+                                className="w-full h-full object-cover"
+                                controls
+                              />
+                              <button
+                                type="button"
+                                onClick={removeVideo}
+                                className="absolute top-3 right-3 bg-white/90 hover:bg-white text-gray-700 border border-gray-300 rounded-full w-8 h-8 flex items-center justify-center shadow-sm transition-colors"
+                              >
+                                <X className="h-4 w-4" />
+                              </button>
+                              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors pointer-events-none" />
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Upload New Video */}
+                      {!video && !hasAnyImage && (
+                        <div className="space-y-2">
+                          <p className="text-xs text-gray-600 font-medium">
+                            {existingVideo ? "Replace Video:" : "Add Video:"}
+                          </p>
+                          <label className="relative w-full aspect-video flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-lg cursor-pointer transition-all hover:border-orange-400 hover:bg-orange-50/50">
+                            <div className="flex flex-col items-center space-y-4">
+                              <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center hover:bg-orange-100 transition-colors">
+                                <VideoIcon className="h-8 w-8 text-gray-400 hover:text-orange-500 transition-colors" />
+                              </div>
+                              <div className="text-center space-y-1">
+                                <p className="text-base font-medium text-gray-700 hover:text-orange-600 transition-colors">
+                                  {existingVideo
+                                    ? "Replace Video"
+                                    : "Upload Video"}
+                                </p>
+                                <p className="text-sm text-gray-500">
+                                  MP4, MOV, AVI up to 100MB
+                                </p>
+                                <p className="text-xs text-gray-400">
+                                  Click or drag to upload
+                                </p>
+                              </div>
+                            </div>
+                            <input
+                              type="file"
+                              accept="video/*"
+                              onChange={handleFileUpload}
+                              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                            />
+                          </label>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Navigation Buttons */}
+            <div className="flex justify-between items-center pt-6 mt-6">
               <div>
                 {currentStep !== "content" && (
                   <Button
                     type="button"
                     variant="outline"
                     onClick={prevStep}
-                    className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm px-3 sm:px-4 py-2"
+                    className="flex items-center gap-2"
                   >
-                    <ArrowLeft className="h-3 w-3 sm:h-4 sm:w-4" />
-                    <span className="hidden sm:inline">Previous</span>
-                    <span className="sm:hidden">Back</span>
+                    <ArrowLeft className="h-4 w-4" />
+                    Previous
                   </Button>
                 )}
               </div>
 
-              <div className="flex gap-2 sm:gap-3">
+              <div className="flex gap-3">
                 {currentStep === "content" ? (
                   <div className="flex flex-col items-end gap-2">
                     {Object.keys(errors).length > 0 && (
@@ -960,13 +1117,10 @@ export function EditPostModal({
                         e.stopPropagation();
                         nextStep();
                       }}
-                      className="flex items-center gap-1 sm:gap-2 bg-orange-500 hover:bg-orange-600 text-xs sm:text-sm px-3 sm:px-4 py-2"
+                      className="flex items-center gap-2 bg-orange-500 hover:bg-orange-600"
                     >
-                      <span className="hidden sm:inline">
-                        Next: Update Media
-                      </span>
-                      <span className="sm:hidden">Media</span>
-                      <ArrowRight className="h-3 w-3 sm:h-4 sm:w-4" />
+                      Next: Update Media
+                      <ArrowRight className="h-4 w-4" />
                     </Button>
                   </div>
                 ) : (
@@ -974,7 +1128,7 @@ export function EditPostModal({
                     <Button
                       type="submit"
                       disabled={isSubmitting}
-                      className="bg-green-500 hover:bg-green-600 text-xs sm:text-sm px-3 sm:px-4 py-2"
+                      className="bg-green-500 hover:bg-green-600"
                     >
                       {isSubmitting ? "Updating..." : "Update Post"}
                     </Button>

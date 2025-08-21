@@ -7,7 +7,6 @@ import {
   Video as VideoIcon,
   Loader2,
   Upload,
-  Check,
 } from "lucide-react";
 import { BEST_PRACTICE_CATEGORIES } from "./constants";
 import type {
@@ -17,6 +16,12 @@ import type {
 } from "@/types/bestPractices";
 import { usePersistentDraft } from "./hooks/usePersistentDraft";
 import { reorder } from "./utils/reorder";
+
+// Create a lookup map for categories
+const CATEGORY_MAP = BEST_PRACTICE_CATEGORIES.reduce((acc, category) => {
+  acc[category.key] = category;
+  return acc;
+}, {} as Record<BestPracticeCategoryKey, (typeof BEST_PRACTICE_CATEGORIES)[0]>);
 
 interface ContentWizardProps {
   open: boolean;
@@ -57,6 +62,9 @@ export const ContentWizard = ({
   });
   const [wizardStep, setWizardStep] = useState<StepId>(0);
   const [saving, setSaving] = useState(false);
+  const [validationErrors, setValidationErrors] = useState<
+    Record<string, string>
+  >({});
   const containerRef = useRef<HTMLDivElement | null>(null);
 
   const handleKeyDown = useCallback(
@@ -140,19 +148,77 @@ export const ContentWizard = ({
         : [...draft.categories, key],
     });
   const setMedia = (media: BestPracticeMedia | null) => update({ media });
-  const canNext = () => {
+
+  // Validation functions that return errors object
+  const validateCurrentStep = (): Record<string, string> => {
+    const errors: Record<string, string> = {};
+
     switch (wizardStep) {
-      case 0:
-        return (
-          draft.title.trim().length >= 5 &&
-          draft.description.trim().length >= 20
-        );
-      case 1:
-        return draft.steps.every((s) => s.text.trim().length >= 5);
+      case 0: {
+        if (!draft.title.trim()) {
+          errors.title = "Title is required";
+        }
+        if (!draft.description.trim()) {
+          errors.description = "Description is required";
+        }
+        if (draft.categories.length === 0) {
+          errors.categories = "Please select at least one category";
+        }
+        break;
+      }
+      case 1: {
+        const invalidSteps = draft.steps.filter((s) => !s.text.trim());
+        if (invalidSteps.length > 0) {
+          errors.steps = `${invalidSteps.length} step(s) need content`;
+        }
+        break;
+      }
       default:
-        return true;
+        // No validation needed for other steps
+        break;
+    }
+
+    return errors;
+  };
+
+  // Handle next button click with validation
+  const handleNext = () => {
+    const errors = validateCurrentStep();
+    setValidationErrors(errors);
+
+    if (Object.keys(errors).length === 0) {
+      // No errors, proceed to next step
+      setWizardStep((s) => (s + 1) as StepId);
+    } else {
+      // Focus first invalid field
+      setTimeout(() => {
+        if (errors.title) {
+          containerRef.current
+            ?.querySelector<HTMLInputElement>('input[placeholder*="title"]')
+            ?.focus();
+        } else if (errors.description) {
+          containerRef.current
+            ?.querySelector<HTMLTextAreaElement>(
+              'textarea[placeholder*="explanation"]'
+            )
+            ?.focus();
+        } else if (errors.steps) {
+          containerRef.current
+            ?.querySelector<HTMLTextAreaElement>(
+              'textarea[placeholder*="step"]'
+            )
+            ?.focus();
+        }
+      }, 100);
     }
   };
+
+  // Handle previous button click
+  const handlePrevious = () => {
+    setValidationErrors({}); // Clear errors when going back
+    setWizardStep((s) => (s - 1) as StepId);
+  };
+
   const handleSave = () => {
     setSaving(true);
     setTimeout(() => {
@@ -173,7 +239,7 @@ export const ContentWizard = ({
       <div
         ref={containerRef}
         onKeyDown={handleKeyDown}
-        className="w-full max-w-5xl max-h-[95vh] sm:max-h-[90vh] overflow-hidden rounded-2xl sm:rounded-3xl bg-white dark:bg-slate-900 shadow-2xl shadow-black/10 focus:outline-none"
+        className="w-full max-w-5xl max-h-[95vh] sm:max-h-[90vh] overflow-hidden rounded-2xl sm:rounded-3xl bg-white dark:bg-slate-900 shadow-2xl shadow-black/10 focus:outline-none flex flex-col"
       >
         {/* Header Section */}
         <div className="relative bg-gradient-to-r from-orange-500 to-orange-600 p-4 sm:p-6 text-white">
@@ -191,7 +257,7 @@ export const ContentWizard = ({
                 clearDraft();
                 onClose();
               }}
-              className="p-2 rounded-full hover:bg-white/20 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-white/50"
+              className="p-2 rounded-full hover:bg-white/20 hover:cursor-pointer transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-white/50"
               aria-label="Close wizard"
             >
               <X className="w-5 h-5" />
@@ -206,7 +272,7 @@ export const ContentWizard = ({
                   <div key={label} className="flex items-center flex-1">
                     <button
                       onClick={() => setWizardStep(index as StepId)}
-                      className={`group relative flex-1 py-2 sm:py-3 px-1 sm:px-2 rounded-lg sm:rounded-xl text-xs font-medium transition-all duration-300 ${
+                      className={`group relative flex-1 py-2 sm:py-3 px-1 sm:px-2 rounded-lg sm:rounded-xl text-xs font-medium hover:cursor-pointer transition-all duration-300 ${
                         wizardStep === index
                           ? "bg-white/20 text-white shadow-lg"
                           : wizardStep > index
@@ -248,7 +314,7 @@ export const ContentWizard = ({
             {/* Mobile Step Label */}
             <div className="mt-3 text-center sm:hidden">
               <span className="text-xs text-orange-100">
-                {wizardStep === 0 && "Step 1: Basics"}
+                {wizardStep === 0 && "Step 1: Basics & Categories"}
                 {wizardStep === 1 && "Step 2: Steps"}
                 {wizardStep === 2 && "Step 3: Benefits"}
                 {wizardStep === 3 && "Step 4: Media"}
@@ -259,7 +325,7 @@ export const ContentWizard = ({
         </div>
 
         {/* Content Section */}
-        <div className="overflow-y-auto max-h-[calc(95vh-180px)] sm:max-h-[calc(90vh-200px)] bg-gradient-to-br from-slate-50 to-orange-50/30 dark:from-slate-800 dark:to-slate-900">
+        <div className="flex-1 overflow-y-auto bg-gradient-to-br from-slate-50 to-orange-50/30 dark:from-slate-800 dark:to-slate-900">
           <div className="p-4 sm:p-8 space-y-6 sm:space-y-8">
             {/* Step 0: Basics */}
             {wizardStep === 0 && (
@@ -272,13 +338,33 @@ export const ContentWizard = ({
                       </h3>
                       <input
                         value={draft.title}
-                        onChange={(e) => update({ title: e.target.value })}
+                        onChange={(e) => {
+                          update({ title: e.target.value });
+                          // Clear error when user types
+                          if (validationErrors.title) {
+                            setValidationErrors((prev) => {
+                              const newErrors = { ...prev };
+                              delete newErrors.title;
+                              return newErrors;
+                            });
+                          }
+                        }}
                         placeholder="Enter a clear, descriptive title..."
-                        className="w-full rounded-xl bg-slate-50 dark:bg-slate-700 px-4 py-3 text-sm text-slate-900 dark:text-slate-100 placeholder-slate-500 dark:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:bg-white dark:focus:bg-slate-600 transition-all duration-200"
+                        className={`w-full rounded-xl px-4 py-3 text-sm text-slate-900 dark:text-slate-100 placeholder-slate-500 dark:placeholder-slate-400 focus:outline-none focus:ring-2 transition-all duration-200 ${
+                          validationErrors.title
+                            ? "bg-red-50 dark:bg-red-900/20 border border-red-300 dark:border-red-700 focus:ring-red-500"
+                            : "bg-slate-50 dark:bg-slate-700 focus:ring-orange-500 focus:bg-white dark:focus:bg-slate-600"
+                        }`}
                       />
-                      <p className="text-xs text-slate-500 mt-2">
-                        At least 5 characters required
-                      </p>
+                      {validationErrors.title ? (
+                        <p className="text-xs text-red-500 mt-2">
+                          {validationErrors.title}
+                        </p>
+                      ) : (
+                        <p className="text-xs text-slate-500 mt-2">
+                          Enter a descriptive title for your practice
+                        </p>
+                      )}
                     </div>
 
                     <div>
@@ -287,18 +373,52 @@ export const ContentWizard = ({
                       </h3>
                       <textarea
                         value={draft.description}
-                        onChange={(e) =>
-                          update({ description: e.target.value })
-                        }
+                        onChange={(e) => {
+                          update({ description: e.target.value });
+                          // Clear error when user types
+                          if (validationErrors.description) {
+                            setValidationErrors((prev) => {
+                              const newErrors = { ...prev };
+                              delete newErrors.description;
+                              return newErrors;
+                            });
+                          }
+                        }}
                         placeholder="Provide a detailed explanation of this practice, why it's important, and when to use it..."
                         rows={4}
-                        className="w-full rounded-xl bg-slate-50 dark:bg-slate-700 px-4 py-3 text-sm text-slate-900 dark:text-slate-100 placeholder-slate-500 dark:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:bg-white dark:focus:bg-slate-600 transition-all duration-200 resize-none"
+                        className={`w-full rounded-xl px-4 py-3 text-sm text-slate-900 dark:text-slate-100 placeholder-slate-500 dark:placeholder-slate-400 focus:outline-none focus:ring-2 transition-all duration-200 resize-none ${
+                          validationErrors.description
+                            ? "bg-red-50 dark:bg-red-900/20 border border-red-300 dark:border-red-700 focus:ring-red-500"
+                            : "bg-slate-50 dark:bg-slate-700 focus:ring-orange-500 focus:bg-white dark:focus:bg-slate-600"
+                        }`}
                       />
-                      <p className="text-xs text-slate-500 mt-2">
-                        At least 20 characters required
-                      </p>
+                      {validationErrors.description ? (
+                        <p className="text-xs text-red-500 mt-2">
+                          {validationErrors.description}
+                        </p>
+                      ) : (
+                        <p className="text-xs text-slate-500 mt-2">
+                          Explain the practice and its importance
+                        </p>
+                      )}
                     </div>
                   </div>
+                </div>
+
+                {/* Categories Section */}
+                <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-lg shadow-slate-200/50 dark:shadow-slate-900/50">
+                  <CategoryGrid
+                    selected={draft.categories}
+                    onToggle={toggleCategory}
+                    validationError={validationErrors.categories}
+                    onErrorClear={() => {
+                      setValidationErrors((prev) => {
+                        const newErrors = { ...prev };
+                        delete newErrors.categories;
+                        return newErrors;
+                      });
+                    }}
+                  />
                 </div>
               </div>
             )}
@@ -313,6 +433,14 @@ export const ContentWizard = ({
                     update={updateStep}
                     remove={removeStep}
                     move={moveStep}
+                    validationError={validationErrors.steps}
+                    onErrorClear={() => {
+                      setValidationErrors((prev) => {
+                        const newErrors = { ...prev };
+                        delete newErrors.steps;
+                        return newErrors;
+                      });
+                    }}
                   />
                 </div>
               </div>
@@ -330,13 +458,6 @@ export const ContentWizard = ({
                         benefits: draft.benefits.filter((b) => b !== v),
                       })
                     }
-                  />
-                </div>
-
-                <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-lg shadow-slate-200/50 dark:shadow-slate-900/50">
-                  <CategoryGrid
-                    selected={draft.categories}
-                    onToggle={toggleCategory}
                   />
                 </div>
               </div>
@@ -426,14 +547,14 @@ export const ContentWizard = ({
                         </h4>
                         <div className="flex flex-wrap gap-2">
                           {draft.categories.map((catKey) => {
-                            const category = BEST_PRACTICE_CATEGORIES[catKey];
+                            const category = CATEGORY_MAP[catKey];
                             if (!category) return null;
                             return (
                               <span
                                 key={catKey}
                                 className="px-3 py-1 bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-200 rounded-full text-sm"
                               >
-                                {category?.name}
+                                {category.name}
                               </span>
                             );
                           })}
@@ -461,35 +582,40 @@ export const ContentWizard = ({
 
         {/* Footer with Navigation */}
         <div className="bg-white dark:bg-slate-900 p-6 flex justify-between items-center shadow-lg">
-          <button
-            disabled={wizardStep === 0}
-            onClick={() => setWizardStep((s) => (s - 1) as StepId)}
-            className="px-6 py-2 rounded-xl font-medium text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
-            aria-label="Previous step"
-          >
-            ← Back
-          </button>
+          {wizardStep > 0 ? (
+            <button
+              onClick={handlePrevious}
+              className="px-6 py-2 rounded-xl font-medium text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 hover:cursor-pointer transition-all duration-200"
+              aria-label="Previous step"
+            >
+              ← Back
+            </button>
+          ) : (
+            <div></div>
+          )}
 
           <div className="text-sm text-slate-500">
             Step {wizardStep + 1} of 5
+            {Object.keys(validationErrors).length > 0 && (
+              <div className="text-xs text-red-500 mt-1">
+                Please fix the highlighted fields
+              </div>
+            )}
           </div>
 
-          {wizardStep < 4 && (
+          {wizardStep < 4 ? (
             <button
-              disabled={!canNext()}
-              onClick={() => setWizardStep((s) => (s + 1) as StepId)}
-              className="px-6 py-2 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-xl font-medium hover:from-orange-600 hover:to-orange-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg"
+              onClick={handleNext}
+              className="px-6 py-2 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-xl font-medium hover:from-orange-600 hover:to-orange-700 hover:cursor-pointer transition-all duration-200 shadow-lg"
               aria-label="Next step"
             >
               Continue →
             </button>
-          )}
-
-          {wizardStep === 4 && (
+          ) : (
             <button
-              disabled={!canNext() || saving}
+              disabled={saving}
               onClick={handleSave}
-              className="px-6 py-2 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-xl font-medium hover:from-green-600 hover:to-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg flex items-center gap-2"
+              className="px-6 py-2 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-xl font-medium hover:from-green-600 hover:to-green-700 disabled:opacity-50 disabled:cursor-not-allowed hover:cursor-pointer transition-all duration-200 shadow-lg flex items-center gap-2"
             >
               {saving && <Loader2 className="w-4 h-4 animate-spin" />}
               {saving ? "Saving..." : "Save Practice"}
@@ -507,12 +633,16 @@ const StepEditor = ({
   update,
   remove,
   move,
+  validationError,
+  onErrorClear,
 }: {
   steps: Array<{ id: string; text: string; order: number }>;
   add: () => void;
   update: (id: string, text: string) => void;
   remove: (id: string) => void;
   move: (id: string, dir: -1 | 1) => void;
+  validationError?: string;
+  onErrorClear?: () => void;
 }) => (
   <div className="space-y-4">
     <div>
@@ -522,6 +652,9 @@ const StepEditor = ({
       <p className="text-sm text-slate-600 dark:text-slate-400">
         Break down your practice into clear, actionable steps.
       </p>
+      {validationError && (
+        <p className="text-xs text-red-500 mt-2">{validationError}</p>
+      )}
     </div>
 
     <div className="space-y-3">
@@ -538,7 +671,7 @@ const StepEditor = ({
               <button
                 onClick={() => move(step.id, -1)}
                 disabled={idx === 0}
-                className="w-6 h-6 rounded bg-slate-200 dark:bg-slate-600 text-slate-600 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-500 disabled:opacity-50 disabled:cursor-not-allowed text-xs flex items-center justify-center"
+                className="w-6 h-6 rounded bg-slate-200 dark:bg-slate-600 text-slate-600 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-500 disabled:opacity-50 disabled:cursor-not-allowed hover:cursor-pointer text-xs flex items-center justify-center"
                 aria-label="Move step up"
               >
                 ↑
@@ -546,7 +679,7 @@ const StepEditor = ({
               <button
                 onClick={() => move(step.id, 1)}
                 disabled={idx === steps.length - 1}
-                className="w-6 h-6 rounded bg-slate-200 dark:bg-slate-600 text-slate-600 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-500 disabled:opacity-50 disabled:cursor-not-allowed text-xs flex items-center justify-center"
+                className="w-6 h-6 rounded bg-slate-200 dark:bg-slate-600 text-slate-600 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-500 disabled:opacity-50 disabled:cursor-not-allowed hover:cursor-pointer text-xs flex items-center justify-center"
                 aria-label="Move step down"
               >
                 ↓
@@ -555,15 +688,25 @@ const StepEditor = ({
           </div>
           <textarea
             value={step.text}
-            onChange={(e) => update(step.id, e.target.value)}
+            onChange={(e) => {
+              update(step.id, e.target.value);
+              // Clear validation error when user types
+              if (validationError && onErrorClear) {
+                onErrorClear();
+              }
+            }}
             placeholder={`Describe step ${idx + 1}...`}
             rows={2}
-            className="flex-1 rounded-lg bg-white dark:bg-slate-800 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 placeholder-slate-500 dark:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-500 transition-all duration-200 resize-none"
+            className={`flex-1 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-slate-100 placeholder-slate-500 dark:placeholder-slate-400 focus:outline-none focus:ring-2 transition-all duration-200 resize-none ${
+              validationError && !step.text.trim()
+                ? "bg-red-50 dark:bg-red-900/20 border border-red-300 dark:border-red-700 focus:ring-red-500"
+                : "bg-white dark:bg-slate-800 focus:ring-orange-500"
+            }`}
           />
           <button
             onClick={() => remove(step.id)}
             disabled={steps.length === 1}
-            className="w-8 h-8 rounded-lg bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 opacity-0 group-hover:opacity-100 flex items-center justify-center"
+            className="w-8 h-8 rounded-lg bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/50 disabled:opacity-50 disabled:cursor-not-allowed hover:cursor-pointer transition-all duration-200 opacity-0 group-hover:opacity-100 flex items-center justify-center"
             aria-label="Remove step"
           >
             <Trash2 className="w-4 h-4" />
@@ -574,7 +717,7 @@ const StepEditor = ({
 
     <button
       onClick={add}
-      className="w-full py-3 border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-xl text-slate-600 dark:text-slate-400 hover:border-orange-300 hover:text-orange-600 dark:hover:text-orange-400 hover:bg-orange-50/50 dark:hover:bg-orange-900/20 transition-all duration-200 flex items-center justify-center gap-2"
+      className="w-full py-3 border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-xl text-slate-600 dark:text-slate-400 hover:border-orange-300 hover:text-orange-600 dark:hover:text-orange-400 hover:bg-orange-50/50 dark:hover:bg-orange-900/20 hover:cursor-pointer transition-all duration-200 flex items-center justify-center gap-2"
     >
       <Plus className="w-4 h-4" />
       Add Step
@@ -622,7 +765,7 @@ const BenefitEditor = ({
             add(input);
             setInput("");
           }}
-          className="px-4 py-3 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-xl font-medium hover:from-orange-600 hover:to-orange-700 transition-all duration-200 shadow-lg"
+          className="px-4 py-3 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-xl font-medium hover:from-orange-600 hover:to-orange-700 hover:cursor-pointer transition-all duration-200 shadow-lg"
         >
           Add
         </button>
@@ -640,7 +783,7 @@ const BenefitEditor = ({
             </div>
             <button
               onClick={() => remove(v)}
-              className="w-8 h-8 rounded-lg bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/50 flex items-center justify-center transition-all duration-200 opacity-0 group-hover:opacity-100"
+              className="w-8 h-8 rounded-lg bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/50 hover:cursor-pointer flex items-center justify-center transition-all duration-200 opacity-0 group-hover:opacity-100"
             >
               ×
             </button>
@@ -697,7 +840,7 @@ const MediaPicker = ({
           <button
             key={m}
             onClick={() => setMode(m)}
-            className={`p-4 rounded-xl text-center transition-all duration-200 ${
+            className={`p-4 rounded-xl text-center hover:cursor-pointer transition-all duration-200 ${
               mode === m
                 ? "bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-lg transform scale-105"
                 : "bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600 hover:scale-102"
@@ -776,7 +919,7 @@ const MediaPicker = ({
                     setMedia(null);
                     setMode("none");
                   }}
-                  className="px-3 py-1 text-xs rounded-lg bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors duration-200"
+                  className="px-3 py-1 text-xs rounded-lg bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/50 hover:cursor-pointer transition-colors duration-200"
                 >
                   Remove
                 </button>
@@ -837,28 +980,47 @@ const MediaPicker = ({
 const CategoryGrid = ({
   selected,
   onToggle,
+  validationError,
+  onErrorClear,
 }: {
   selected: BestPracticeCategoryKey[];
   onToggle: (key: BestPracticeCategoryKey) => void;
+  validationError?: string;
+  onErrorClear?: () => void;
 }) => (
   <div className="space-y-4">
     <div>
       <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200 mb-2">
-        Categories (Optional)
+        Categories <span className="text-red-500">*</span>
       </h3>
       <p className="text-sm text-slate-600 dark:text-slate-400">
         Help others find your practice by selecting relevant categories.
       </p>
+      {validationError && (
+        <p className="text-xs text-red-500 mt-2">{validationError}</p>
+      )}
     </div>
 
-    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-      {Object.entries(BEST_PRACTICE_CATEGORIES).map(([key, category]) => {
-        const isSelected = selected.includes(key as BestPracticeCategoryKey);
+    <div
+      className={`grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 ${
+        validationError
+          ? "ring-2 ring-red-300 dark:ring-red-700 rounded-xl p-2"
+          : ""
+      }`}
+    >
+      {BEST_PRACTICE_CATEGORIES.map((category) => {
+        const isSelected = selected.includes(category.key);
         return (
           <button
-            key={key}
-            onClick={() => onToggle(key as BestPracticeCategoryKey)}
-            className={`p-4 rounded-xl text-left transition-all duration-200 ${
+            key={category.key}
+            onClick={() => {
+              onToggle(category.key);
+              // Clear error when user selects a category
+              if (validationError && onErrorClear) {
+                onErrorClear();
+              }
+            }}
+            className={`p-4 rounded-xl text-left hover:cursor-pointer transition-all duration-200 ${
               isSelected
                 ? "bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-lg transform scale-105"
                 : "bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600 hover:scale-102"
@@ -867,7 +1029,6 @@ const CategoryGrid = ({
           >
             <div className="space-y-2">
               <div className="flex items-center gap-2">
-                <span className="text-lg">{category.icon}</span>
                 <span className="font-medium text-sm">{category.name}</span>
               </div>
               <p className="text-xs opacity-75 line-clamp-2">
