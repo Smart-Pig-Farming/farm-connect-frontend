@@ -99,54 +99,58 @@ export const PostsList: React.FC<PostsListProps> = ({
         isFetching={isFetching}
         className="space-y-4"
       >
-        {posts.map((post, index) => (
-          <DiscussionCard
-            key={`${post.id}-${index}`}
-            post={{
-              id: post.id,
-              title: post.title,
-              content: post.content,
-              author: {
-                id: String(post.author.id),
-                firstname: post.author.firstname,
-                lastname: post.author.lastname,
-                avatar: post.author.avatar,
-                level_id: post.author.level_id,
-                points: post.author.points,
-                location: post.author.location,
-              },
-              tags: post.tags.map((t) => t.name),
-              upvotes: post.upvotes,
-              downvotes: post.downvotes,
-              userVote:
-                post.userVote === "upvote"
-                  ? "up"
-                  : post.userVote === "downvote"
-                  ? "down"
-                  : null,
-              replies: post.replies,
-              shares: 0,
-              isMarketPost: post.isMarketPost,
-              isAvailable: post.isAvailable,
-              createdAt: post.createdAt,
-              images: post.images.map((img) => img.url),
-              video: post.video?.url || null,
-              isModeratorApproved: post.isModeratorApproved,
-            }}
-            onVote={(postId, voteType) => {
-              console.log("Vote:", postId, voteType);
-              // Implement voting logic
-            }}
-            onVoteReply={(replyId, voteType) => {
-              console.log("Vote reply:", replyId, voteType);
-              // Implement reply voting logic
-            }}
-            onLoadMoreReplies={(postId) => {
-              console.log("Load more replies:", postId);
-              // Implement load more replies logic
-            }}
-          />
-        ))}
+        {posts.map((post, index) => {
+          const normalizedVote =
+            post.userVote === "upvote"
+              ? "up"
+              : post.userVote === "downvote"
+              ? "down"
+              : post.userVote ?? null;
+          return (
+            <DiscussionCard
+              key={`${post.id}-${index}`}
+              post={{
+                id: post.id,
+                title: post.title,
+                content: post.content,
+                author: {
+                  id: post.author.id,
+                  firstname: post.author.firstname,
+                  lastname: post.author.lastname,
+                  avatar: post.author.avatar,
+                  level_id: post.author.level_id,
+                  points: post.author.points,
+                  location: post.author.location,
+                },
+                tags: post.tags.map((t) => ({
+                  id: t.id,
+                  name: t.name,
+                  color: t.color,
+                })),
+                upvotes: post.upvotes,
+                downvotes: post.downvotes,
+                userVote: normalizedVote,
+                replies: post.replies,
+                shares: post.shares ?? 0,
+                isMarketPost: post.isMarketPost,
+                isAvailable: post.isAvailable,
+                createdAt: post.createdAt,
+                images: post.images.map((img) => img.url),
+                video: post.video?.url || null,
+                isModeratorApproved: post.isModeratorApproved,
+              }}
+              onVote={(postId, voteType) => {
+                console.log("Vote:", postId, voteType);
+              }}
+              onVoteReply={(replyId, voteType) => {
+                console.log("Vote reply:", replyId, voteType);
+              }}
+              onLoadMoreReplies={(postId) => {
+                console.log("Load more replies:", postId);
+              }}
+            />
+          );
+        })}
       </InfiniteScrollContainer>
 
       {/* Manual refresh button */}

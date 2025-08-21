@@ -19,7 +19,6 @@ import "./api/authApi";
 import "./api/userApi";
 import "./api/permissionsApi";
 import "./api/discussionsApi";
-import { notificationsApi } from "./api/notificationsApi";
 
 // Import regular slices
 import authSlice from "./slices/authSlice";
@@ -35,9 +34,8 @@ const authPersistConfig = {
 
 // Combine reducers
 const rootReducer = combineReducers({
-  // RTK Query API
+  // RTK Query base API (all injected endpoints share this)
   [baseApi.reducerPath]: baseApi.reducer,
-  [notificationsApi.reducerPath]: notificationsApi.reducer,
 
   // Regular slices
   auth: persistReducer(authPersistConfig, authSlice),
@@ -53,7 +51,8 @@ export const store = configureStore({
       serializableCheck: {
         ignoredActions: [FLUSH, REHYDRATE, PAUSE, PERSIST, PURGE, REGISTER],
       },
-    }).concat(baseApi.middleware, notificationsApi.middleware),
+  // Only include baseApi.middleware once; injected endpoints piggyback on it
+  }).concat(baseApi.middleware),
 
   devTools: process.env.NODE_ENV !== "production",
 });

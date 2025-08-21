@@ -4,7 +4,8 @@ export const BEST_PRACTICE_CATEGORIES: BestPracticeCategory[] = [
   {
     key: "feeding_nutrition",
     name: "Feeding & Nutrition",
-    color: "amber",
+    // Green for growth/health
+    color: "green",
     icon: "UtensilsCrossed",
   },
   {
@@ -16,19 +17,22 @@ export const BEST_PRACTICE_CATEGORIES: BestPracticeCategory[] = [
   {
     key: "growth_weight",
     name: "Growth & Weight Mgmt",
+    // Teal to represent balanced progress
     color: "teal",
     icon: "Activity",
   },
   {
     key: "environment_management",
     name: "Environment Mgmt",
-    color: "green",
+    // Teal already used; use indigo for systems/environment or could be 'emerald'
+    color: "indigo",
     icon: "Leaf",
   },
   {
     key: "breeding_insemination",
     name: "Breeding & Insemination",
-    color: "indigo",
+    // Purple hues for genetics/reproduction
+    color: "purple",
     icon: "Dna",
   },
   {
@@ -46,7 +50,8 @@ export const BEST_PRACTICE_CATEGORIES: BestPracticeCategory[] = [
   {
     key: "marketing_finance",
     name: "Marketing & Finance",
-    color: "purple",
+    // Amber conveys value/wealth (could also be gold-like)
+    color: "amber",
     icon: "LineChart",
   },
 ];

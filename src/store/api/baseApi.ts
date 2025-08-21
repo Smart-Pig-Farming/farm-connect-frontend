@@ -8,20 +8,26 @@ export const baseApi = createApi({
     baseUrl: "http://localhost:5000/api",
     credentials: "include", // Include HttpOnly cookies in requests
     prepareHeaders: (headers) => {
-      // Authentication is cookie-based (HttpOnly). No bearer token needed.
-      // If in the future we add a token to auth state, it can be set here.
-
-      // CSRF: mirror cookie value into header for state-changing requests
+      // Mirror accessToken & csrfToken cookies into headers when present
       try {
-        if (typeof document !== "undefined") {
-          const csrf = document.cookie
-            .split("; ")
-            .find((c) => c.startsWith("csrfToken="))
-            ?.split("=")[1];
-          if (csrf) headers.set("x-csrf-token", csrf);
+        if (typeof document !== "undefined" && document.cookie) {
+          const parts = document.cookie.split("; ");
+          const lookup = (name: string) =>
+            parts
+              .find((c) => c.startsWith(name + "="))
+              ?.substring(name.length + 1);
+          const accessToken = lookup("accessToken");
+          const csrf = lookup("csrfToken");
+          if (accessToken && !headers.has("authorization")) {
+            headers.set("authorization", `Bearer ${accessToken}`);
+          }
+            // CSRF header only needed for state-changing requests but harmless for reads
+          if (csrf && !headers.has("x-csrf-token")) {
+            headers.set("x-csrf-token", csrf);
+          }
         }
       } catch {
-        // noop in non-browser contexts
+        // ignore
       }
 
       return headers;
@@ -42,6 +48,11 @@ export const baseApi = createApi({
     "Permission",
     "Role",
     "RolePermission",
+    // Additional slices
+    "Notifications",
+    "UnreadCount",
+    "PendingReports",
+    "ModerationHistory",
   ],
   endpoints: () => ({}),
 });

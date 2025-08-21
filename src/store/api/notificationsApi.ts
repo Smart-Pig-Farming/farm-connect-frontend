@@ -1,4 +1,4 @@
-import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
+import { baseApi } from "./baseApi";
 
 export interface NotificationItem {
   id: string;
@@ -28,13 +28,7 @@ export interface UnreadCountResponse {
   unreadCount: number;
 }
 
-export const notificationsApi = createApi({
-  reducerPath: "notificationsApi",
-  baseQuery: fetchBaseQuery({
-    baseUrl: "http://localhost:5000/api/notifications",
-    credentials: "include",
-  }),
-  tagTypes: ["Notifications", "UnreadCount"],
+export const notificationsApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
     getNotifications: builder.query<
       {
@@ -49,7 +43,10 @@ export const notificationsApi = createApi({
       },
       { page?: number; limit?: number }
     >({
-      query: ({ page = 1, limit = 20 } = {}) => `/?page=${page}&limit=${limit}`,
+      query: ({ page = 1, limit = 20 } = {}) => ({
+        url: `/notifications/`,
+        params: { page, limit },
+      }),
       providesTags: ["Notifications"],
     }),
 
@@ -57,7 +54,7 @@ export const notificationsApi = createApi({
       { success: boolean; data: UnreadCountResponse },
       void
     >({
-      query: () => "/unread-count",
+  query: () => ({ url: "/notifications/unread-count" }),
       providesTags: ["UnreadCount"],
     }),
 
@@ -66,7 +63,7 @@ export const notificationsApi = createApi({
       { notificationIds: string[] }
     >({
       query: (body) => ({
-        url: "/mark-read",
+        url: "/notifications/mark-read",
         method: "POST",
         body,
       }),
@@ -78,7 +75,7 @@ export const notificationsApi = createApi({
       void
     >({
       query: () => ({
-        url: "/mark-all-read",
+        url: "/notifications/mark-all-read",
         method: "POST",
       }),
       invalidatesTags: ["Notifications", "UnreadCount"],
@@ -89,7 +86,7 @@ export const notificationsApi = createApi({
       void
     >({
       query: () => ({
-        url: "/clear-all",
+        url: "/notifications/clear-all",
         method: "DELETE",
       }),
       invalidatesTags: ["Notifications", "UnreadCount"],

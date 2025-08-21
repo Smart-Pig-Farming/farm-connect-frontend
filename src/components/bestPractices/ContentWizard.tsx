@@ -17,6 +17,58 @@ import type {
 import { usePersistentDraft } from "./hooks/usePersistentDraft";
 import { reorder } from "./utils/reorder";
 
+// Color gradients for categories - matching actual category keys in ContentWizard
+const COLOR_GRADIENTS = {
+  feeding_nutrition: {
+    icon: "text-green-600",
+    hover: "hover:bg-green-50",
+    bg: "bg-gradient-to-r from-green-500 to-green-600",
+    text: "text-white",
+  },
+  disease_control: {
+    icon: "text-red-600",
+    hover: "hover:bg-red-50",
+    bg: "bg-gradient-to-r from-red-500 to-red-600",
+    text: "text-white",
+  },
+  growth_weight: {
+    icon: "text-teal-600",
+    hover: "hover:bg-teal-50",
+    bg: "bg-gradient-to-r from-teal-500 to-teal-600",
+    text: "text-white",
+  },
+  environment_management: {
+    icon: "text-indigo-600",
+    hover: "hover:bg-indigo-50",
+    bg: "bg-gradient-to-r from-indigo-500 to-indigo-600",
+    text: "text-white",
+  },
+  breeding_insemination: {
+    icon: "text-purple-600",
+    hover: "hover:bg-purple-50",
+    bg: "bg-gradient-to-r from-purple-500 to-purple-600",
+    text: "text-white",
+  },
+  farrowing_management: {
+    icon: "text-pink-600",
+    hover: "hover:bg-pink-50",
+    bg: "bg-gradient-to-r from-pink-500 to-pink-600",
+    text: "text-white",
+  },
+  record_management: {
+    icon: "text-blue-600",
+    hover: "hover:bg-blue-50",
+    bg: "bg-gradient-to-r from-blue-500 to-blue-600",
+    text: "text-white",
+  },
+  marketing_finance: {
+    icon: "text-amber-600",
+    hover: "hover:bg-amber-50",
+    bg: "bg-gradient-to-r from-amber-500 to-amber-600",
+    text: "text-white",
+  },
+} as const;
+
 // Create a lookup map for categories
 const CATEGORY_MAP = BEST_PRACTICE_CATEGORIES.reduce((acc, category) => {
   acc[category.key] = category;
@@ -548,11 +600,12 @@ export const ContentWizard = ({
                         <div className="flex flex-wrap gap-2">
                           {draft.categories.map((catKey) => {
                             const category = CATEGORY_MAP[catKey];
+                            const colorGradient = COLOR_GRADIENTS[catKey];
                             if (!category) return null;
                             return (
                               <span
                                 key={catKey}
-                                className="px-3 py-1 bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-200 rounded-full text-sm"
+                                className={`px-3 py-1 ${colorGradient.bg} ${colorGradient.text} rounded-full text-sm shadow-sm`}
                               >
                                 {category.name}
                               </span>
@@ -990,9 +1043,16 @@ const CategoryGrid = ({
 }) => (
   <div className="space-y-4">
     <div>
-      <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200 mb-2">
-        Categories <span className="text-red-500">*</span>
-      </h3>
+      <div className="flex items-center justify-between mb-2">
+        <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200">
+          Categories <span className="text-red-500">*</span>
+        </h3>
+        {selected.length > 0 && (
+          <span className="text-sm bg-orange-100 text-orange-600 px-2 py-1 rounded-full">
+            {selected.length} selected
+          </span>
+        )}
+      </div>
       <p className="text-sm text-slate-600 dark:text-slate-400">
         Help others find your practice by selecting relevant categories.
       </p>
@@ -1010,6 +1070,7 @@ const CategoryGrid = ({
     >
       {BEST_PRACTICE_CATEGORIES.map((category) => {
         const isSelected = selected.includes(category.key);
+        const colorGradient = COLOR_GRADIENTS[category.key];
         return (
           <button
             key={category.key}
@@ -1022,14 +1083,20 @@ const CategoryGrid = ({
             }}
             className={`p-4 rounded-xl text-left hover:cursor-pointer transition-all duration-200 ${
               isSelected
-                ? "bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-lg transform scale-105"
-                : "bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600 hover:scale-102"
+                ? `${colorGradient.bg} ${colorGradient.text} shadow-lg transform scale-105`
+                : `bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 ${colorGradient.hover} hover:scale-102`
             }`}
             aria-pressed={isSelected}
           >
             <div className="space-y-2">
               <div className="flex items-center gap-2">
-                <span className="font-medium text-sm">{category.name}</span>
+                <span
+                  className={`font-medium text-sm ${
+                    !isSelected ? colorGradient.icon : ""
+                  }`}
+                >
+                  {category.name}
+                </span>
               </div>
               <p className="text-xs opacity-75 line-clamp-2">
                 {category.description}

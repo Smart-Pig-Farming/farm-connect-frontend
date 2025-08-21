@@ -1,5 +1,5 @@
 // Enhanced moderation API with rate limiting, snapshots, and real-time updates
-import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
+import { baseApi } from "./baseApi";
 import type {
   EnhancedModerationReport,
   PostSnapshot,
@@ -22,13 +22,7 @@ export interface PendingReportsResponse {
   hasMore: boolean;
 }
 
-export const moderationApi = createApi({
-  reducerPath: "moderationApi",
-  baseQuery: fetchBaseQuery({
-    baseUrl: "http://localhost:5000/api/moderation",
-    credentials: "include",
-  }),
-  tagTypes: ["PendingReports", "ModerationHistory"],
+export const moderationApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
     // Get pending moderation reports with enhanced data
     getPendingReports: builder.query<
@@ -41,7 +35,7 @@ export const moderationApi = createApi({
       }
     >({
       query: ({ page = 1, limit = 10, search, timeRange }) => ({
-        url: "/pending",
+        url: "/moderation/pending",
         params: { page, limit, search, timeRange },
       }),
       providesTags: ["PendingReports"],
@@ -57,7 +51,7 @@ export const moderationApi = createApi({
       }
     >({
       query: (reportData) => ({
-        url: "/report",
+        url: "/moderation/report",
         method: "POST",
         body: reportData,
       }),
@@ -118,7 +112,7 @@ export const moderationApi = createApi({
       }
     >({
       query: (decisionData) => ({
-        url: `/decide/${decisionData.reportId}`,
+        url: `/moderation/decide/${decisionData.reportId}`,
         method: "POST",
         body: {
           decision: decisionData.decision,
@@ -134,7 +128,7 @@ export const moderationApi = createApi({
       BulkModerationRequest
     >({
       query: (bulkData) => ({
-        url: "/bulk-decide",
+        url: "/moderation/bulk-decide",
         method: "POST",
         body: bulkData,
       }),
@@ -147,7 +141,7 @@ export const moderationApi = createApi({
       ModerationFilters
     >({
       query: ({ page = 1, limit = 10, search, timeRange, decision }) => ({
-        url: "/history",
+        url: "/moderation/history",
         params: { page, limit, search, timeRange, decision },
       }),
       providesTags: ["ModerationHistory"],
@@ -155,7 +149,7 @@ export const moderationApi = createApi({
 
     // Get post snapshot by report ID
     getPostSnapshot: builder.query<PostSnapshot, string>({
-      query: (reportId) => `/snapshot/${reportId}`,
+  query: (reportId) => `/moderation/snapshot/${reportId}`,
     }),
 
     // Compare post versions (before and after)
@@ -171,7 +165,7 @@ export const moderationApi = createApi({
       },
       string
     >({
-      query: (postId) => `/compare/${postId}`,
+  query: (postId) => `/moderation/compare/${postId}`,
     }),
 
     // Metrics & analytics endpoints removed
@@ -186,7 +180,7 @@ export const moderationApi = createApi({
       }
     >({
       query: (reopenData) => ({
-        url: "/reopen",
+        url: "/moderation/reopen",
         method: "POST",
         body: reopenData,
       }),
@@ -204,7 +198,7 @@ export const moderationApi = createApi({
       { postId?: string; userId?: number }
     >({
       query: ({ postId, userId }) => ({
-        url: "/rate-limit-status",
+        url: "/moderation/rate-limit-status",
         params: { postId, userId },
       }),
     }),
@@ -228,7 +222,7 @@ export const moderationApi = createApi({
       },
       string
     >({
-      query: (reportId) => `/report/${reportId}`,
+  query: (reportId) => `/moderation/report/${reportId}`,
     }),
 
     // Search moderation items with advanced filters
@@ -252,7 +246,7 @@ export const moderationApi = createApi({
       }
     >({
       query: ({ query, filters, page = 1, limit = 20 }) => ({
-        url: "/search",
+        url: "/moderation/search",
         params: { q: query, ...filters, page, limit },
       }),
     }),
@@ -267,7 +261,7 @@ export const moderationApi = createApi({
       }
     >({
       query: (exportParams) => ({
-        url: "/export",
+        url: "/moderation/export",
         method: "POST",
         body: exportParams,
       }),
@@ -292,7 +286,7 @@ export const moderationApi = createApi({
       },
       number
     >({
-      query: (moderatorId) => `/moderator/${moderatorId}/stats`,
+  query: (moderatorId) => `/moderation/moderator/${moderatorId}/stats`,
     }),
   }),
 });

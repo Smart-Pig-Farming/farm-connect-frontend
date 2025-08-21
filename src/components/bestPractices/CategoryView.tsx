@@ -27,6 +27,115 @@ export const CategoryView = ({
   const Icon = getCategoryIcon(category.key as "feeding_nutrition");
   const itemCount = mode === "learn" ? contents.length : questions.length;
 
+  const colorStem = category.color || "orange";
+  // Basic mapping of color stems to gradient classes
+  const categoryGradients: Record<
+    string,
+    {
+      block: string;
+      button: string;
+      buttonHover: string;
+      ring: string;
+      textHover: string;
+      subtle: string;
+      dot: string;
+    }
+  > = {
+    amber: {
+      block: "from-amber-500 to-amber-600",
+      button: "from-amber-500 to-amber-600",
+      buttonHover:
+        "hover:from-amber-600 hover:to-amber-700 shadow-amber-500/25 hover:shadow-amber-500/40",
+      ring: "focus:ring-amber-500",
+      textHover: "group-hover:text-amber-600 dark:group-hover:text-amber-400",
+      subtle: "text-amber-600 dark:text-amber-400",
+      dot: "bg-amber-500",
+    },
+    red: {
+      block: "from-red-500 to-red-600",
+      button: "from-red-500 to-red-600",
+      buttonHover:
+        "hover:from-red-600 hover:to-rose-600 shadow-red-500/25 hover:shadow-red-500/40",
+      ring: "focus:ring-red-500",
+      textHover: "group-hover:text-red-600 dark:group-hover:text-red-400",
+      subtle: "text-red-600 dark:text-red-400",
+      dot: "bg-red-500",
+    },
+    teal: {
+      block: "from-teal-500 to-teal-600",
+      button: "from-teal-500 to-teal-600",
+      buttonHover:
+        "hover:from-teal-600 hover:to-cyan-600 shadow-teal-500/25 hover:shadow-teal-500/40",
+      ring: "focus:ring-teal-500",
+      textHover: "group-hover:text-teal-600 dark:group-hover:text-teal-400",
+      subtle: "text-teal-600 dark:text-teal-400",
+      dot: "bg-teal-500",
+    },
+    green: {
+      block: "from-green-500 to-emerald-600",
+      button: "from-green-500 to-emerald-600",
+      buttonHover:
+        "hover:from-green-600 hover:to-emerald-700 shadow-green-500/25 hover:shadow-green-500/40",
+      ring: "focus:ring-green-500",
+      textHover: "group-hover:text-green-600 dark:group-hover:text-emerald-400",
+      subtle: "text-green-600 dark:text-emerald-400",
+      dot: "bg-green-500",
+    },
+    indigo: {
+      block: "from-indigo-500 to-indigo-600",
+      button: "from-indigo-500 to-indigo-600",
+      buttonHover:
+        "hover:from-indigo-600 hover:to-violet-600 shadow-indigo-500/25 hover:shadow-indigo-500/40",
+      ring: "focus:ring-indigo-500",
+      textHover: "group-hover:text-indigo-600 dark:group-hover:text-indigo-400",
+      subtle: "text-indigo-600 dark:text-indigo-400",
+      dot: "bg-indigo-500",
+    },
+    pink: {
+      block: "from-pink-500 to-rose-500",
+      button: "from-pink-500 to-rose-500",
+      buttonHover:
+        "hover:from-pink-600 hover:to-rose-600 shadow-pink-500/25 hover:shadow-pink-500/40",
+      ring: "focus:ring-pink-500",
+      textHover: "group-hover:text-pink-600 dark:group-hover:text-pink-400",
+      subtle: "text-pink-600 dark:text-pink-400",
+      dot: "bg-pink-500",
+    },
+    blue: {
+      block: "from-blue-500 to-blue-600",
+      button: "from-blue-500 to-blue-600",
+      buttonHover:
+        "hover:from-blue-600 hover:to-indigo-600 shadow-blue-500/25 hover:shadow-blue-500/40",
+      ring: "focus:ring-blue-500",
+      textHover: "group-hover:text-blue-600 dark:group-hover:text-blue-400",
+      subtle: "text-blue-600 dark:text-blue-400",
+      dot: "bg-blue-500",
+    },
+    purple: {
+      block: "from-purple-500 to-fuchsia-600",
+      button: "from-purple-500 to-fuchsia-600",
+      buttonHover:
+        "hover:from-purple-600 hover:to-fuchsia-600 shadow-purple-500/25 hover:shadow-purple-500/40",
+      ring: "focus:ring-purple-500",
+      textHover:
+        "group-hover:text-purple-600 dark:group-hover:text-fuchsia-400",
+      subtle: "text-purple-600 dark:text-fuchsia-400",
+      dot: "bg-purple-500",
+    },
+    orange: {
+      block: "from-orange-500 to-orange-600",
+      button: "from-orange-500 to-orange-600",
+      buttonHover:
+        "hover:from-orange-600 hover:to-red-600 shadow-orange-500/25 hover:shadow-orange-500/40",
+      ring: "focus:ring-orange-500",
+      textHover: "group-hover:text-orange-600 dark:group-hover:text-orange-400",
+      subtle: "text-orange-600 dark:text-orange-400",
+      dot: "bg-orange-500",
+    },
+  };
+
+  const g = categoryGradients[colorStem] || categoryGradients.orange;
+
   return (
     <div className="max-w-6xl mx-auto">
       {/* Category Header */}
@@ -53,11 +162,7 @@ export const CategoryView = ({
 
         <div className="flex items-center gap-6 mb-6">
           <div
-            className={`flex items-center justify-center w-16 h-16 rounded-2xl ${
-              mode === "learn"
-                ? "bg-gradient-to-br from-orange-500 to-orange-600"
-                : "bg-gradient-to-br from-orange-500 to-orange-600"
-            } shadow-lg`}
+            className={`flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br ${g.block} shadow-lg`}
           >
             <Icon className="w-8 h-8 text-white" />
           </div>
@@ -68,11 +173,7 @@ export const CategoryView = ({
             </h2>
             <div className="flex items-center gap-4 text-sm text-slate-600 dark:text-slate-400">
               <span className="flex items-center gap-1">
-                <div
-                  className={`w-2 h-2 rounded-full ${
-                    mode === "learn" ? "bg-orange-500" : "bg-orange-500"
-                  }`}
-                />
+                <div className={`w-2 h-2 rounded-full ${g.dot}`} />
                 {itemCount} {mode === "learn" ? "practices" : "questions"}
               </span>
               <span>•</span>
@@ -82,11 +183,7 @@ export const CategoryView = ({
 
           <button
             onClick={mode === "learn" ? onAddContent : onAddQuestion}
-            className={`flex items-center gap-2 px-6 py-3 rounded-2xl font-medium shadow-lg transition-all duration-200 transform hover:scale-105 hover:cursor-pointer ${
-              mode === "learn"
-                ? "bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 shadow-orange-500/25 hover:shadow-orange-500/40"
-                : "bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 shadow-orange-500/25 hover:shadow-orange-500/40"
-            } text-white`}
+            className={`flex items-center gap-2 px-6 py-3 rounded-2xl font-medium shadow-lg transition-all duration-200 transform hover:scale-105 hover:cursor-pointer bg-gradient-to-r ${g.button} ${g.buttonHover} text-white`}
           >
             <svg
               className="w-5 h-5"
@@ -116,7 +213,9 @@ export const CategoryView = ({
             >
               <div className="mb-4">
                 <div className="flex items-start justify-between mb-3">
-                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center">
+                  <div
+                    className={`w-10 h-10 rounded-xl bg-gradient-to-br ${g.block} flex items-center justify-center`}
+                  >
                     <svg
                       className="w-5 h-5 text-white"
                       fill="none"
@@ -135,7 +234,9 @@ export const CategoryView = ({
                     Practice
                   </span>
                 </div>
-                <h3 className="font-semibold text-slate-900 dark:text-white line-clamp-2 group-hover:text-orange-600 dark:group-hover:text-orange-400 transition-colors">
+                <h3
+                  className={`font-semibold text-slate-900 dark:text-white line-clamp-2 transition-colors ${g.textHover}`}
+                >
                   {c.title}
                 </h3>
                 <p className="text-sm text-slate-500 dark:text-slate-400 line-clamp-3 mt-2">
@@ -186,7 +287,9 @@ export const CategoryView = ({
             >
               <div className="mb-4">
                 <div className="flex items-start justify-between mb-3">
-                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center">
+                  <div
+                    className={`w-10 h-10 rounded-xl bg-gradient-to-br ${g.block} flex items-center justify-center`}
+                  >
                     <svg
                       className="w-5 h-5 text-white"
                       fill="none"
@@ -215,7 +318,9 @@ export const CategoryView = ({
                     </span>
                   </div>
                 </div>
-                <h3 className="font-semibold text-slate-900 dark:text-white line-clamp-2 group-hover:text-orange-600 dark:group-hover:text-orange-400 transition-colors">
+                <h3
+                  className={`font-semibold text-slate-900 dark:text-white line-clamp-2 transition-colors ${g.textHover}`}
+                >
                   {q.prompt}
                 </h3>
                 <p className="text-sm text-slate-500 dark:text-slate-400 mt-2">
@@ -262,7 +367,9 @@ export const CategoryView = ({
         {mode === "learn" && contents.length === 0 && (
           <div className="col-span-full">
             <div className="text-center py-16 bg-white dark:bg-slate-800 rounded-3xl shadow-lg ring-1 ring-slate-200 dark:ring-slate-700">
-              <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-orange-500 to-orange-600 rounded-2xl flex items-center justify-center">
+              <div
+                className={`w-16 h-16 mx-auto mb-4 bg-gradient-to-br ${g.block} rounded-2xl flex items-center justify-center`}
+              >
                 <svg
                   className="w-8 h-8 text-white"
                   fill="none"
@@ -286,7 +393,7 @@ export const CategoryView = ({
               </p>
               <button
                 onClick={onAddContent}
-                className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white rounded-2xl font-medium shadow-lg shadow-orange-500/25 hover:shadow-orange-500/40 transition-all duration-200 transform hover:scale-105 hover:cursor-pointer"
+                className={`inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r ${g.button} ${g.buttonHover} text-white rounded-2xl font-medium shadow-lg transition-all duration-200 transform hover:scale-105 hover:cursor-pointer`}
               >
                 <svg
                   className="w-5 h-5"
@@ -310,7 +417,9 @@ export const CategoryView = ({
         {mode === "quiz" && questions.length === 0 && (
           <div className="col-span-full">
             <div className="text-center py-16 bg-white dark:bg-slate-800 rounded-3xl shadow-lg ring-1 ring-slate-200 dark:ring-slate-700">
-              <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-orange-500 to-orange-600 rounded-2xl flex items-center justify-center">
+              <div
+                className={`w-16 h-16 mx-auto mb-4 bg-gradient-to-br ${g.block} rounded-2xl flex items-center justify-center`}
+              >
                 <svg
                   className="w-8 h-8 text-white"
                   fill="none"
@@ -334,7 +443,7 @@ export const CategoryView = ({
               </p>
               <button
                 onClick={onAddQuestion}
-                className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white rounded-2xl font-medium shadow-lg shadow-orange-500/25 hover:shadow-orange-500/40 transition-all duration-200 transform hover:scale-105 hover:cursor-pointer"
+                className={`inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r ${g.button} ${g.buttonHover} text-white rounded-2xl font-medium shadow-lg transition-all duration-200 transform hover:scale-105 hover:cursor-pointer`}
               >
                 <svg
                   className="w-5 h-5"
