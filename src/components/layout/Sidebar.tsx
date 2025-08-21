@@ -174,7 +174,10 @@ export function Sidebar({
       {/* Navigation */}
       <nav className="flex-1 px-3 py-6 space-y-1 overflow-y-auto">
         {navigation.map((item) => {
-          const isActive = location.pathname === item.href;
+          const isActive =
+            item.href === "/dashboard/best-practices"
+              ? location.pathname.startsWith("/dashboard/best-practices")
+              : location.pathname === item.href;
           const Icon = item.icon;
 
           return (

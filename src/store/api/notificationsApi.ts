@@ -54,7 +54,7 @@ export const notificationsApi = baseApi.injectEndpoints({
       { success: boolean; data: UnreadCountResponse },
       void
     >({
-  query: () => ({ url: "/notifications/unread-count" }),
+      query: () => ({ url: "/notifications/unread-count" }),
       providesTags: ["UnreadCount"],
     }),
 

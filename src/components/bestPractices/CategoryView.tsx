@@ -1,18 +1,24 @@
+import { useState, useEffect, useRef, useCallback } from "react";
 import type {
   BestPracticeCategory,
   BestPracticeContentDraft,
   QuizQuestionDraft,
 } from "@/types/bestPractices";
 import { getCategoryIcon } from "./iconMap";
+import {
+  fetchPracticesPage,
+  BEST_PRACTICES_PAGE_SIZE,
+} from "@/data/bestPracticesMock";
+import { useNavigate } from "react-router-dom";
+import type { BestPracticeCategoryKey } from "@/types/bestPractices";
 
 interface CategoryViewProps {
   category: BestPracticeCategory;
   mode: "learn" | "quiz";
   contents: BestPracticeContentDraft[];
   questions: QuizQuestionDraft[];
-  onAddContent: () => void;
-  onAddQuestion: () => void;
   onBack: () => void;
+  onContentClick?: (content: BestPracticeContentDraft) => void;
 }
 
 export const CategoryView = ({
@@ -20,12 +26,13 @@ export const CategoryView = ({
   mode,
   contents,
   questions,
-  onAddContent,
-  onAddQuestion,
   onBack,
+  onContentClick,
 }: CategoryViewProps) => {
   const Icon = getCategoryIcon(category.key as "feeding_nutrition");
-  const itemCount = mode === "learn" ? contents.length : questions.length;
+
+  // Search state
+  const [searchTerm, setSearchTerm] = useState("");
 
   const colorStem = category.color || "orange";
   // Basic mapping of color stems to gradient classes
@@ -136,13 +143,81 @@ export const CategoryView = ({
 
   const g = categoryGradients[colorStem] || categoryGradients.orange;
 
+  // Infinite scroll state (only for learn mode)
+  const [items, setItems] = useState<BestPracticeContentDraft[]>(contents);
+  // No inline selected now; navigation to dedicated page
+  const [page, setPage] = useState(1); // parent may have provided page 0
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const loaderRef = useRef<HTMLDivElement | null>(null);
+  const navigate = useNavigate();
+
+  // Reset items when category or external contents change
+  useEffect(() => {
+    setItems(contents);
+    setPage(1);
+    setHasMore(true);
+  }, [contents, category.key]);
+
+  const loadMore = useCallback(() => {
+    if (mode !== "learn" || !hasMore || loadingMore) return;
+    setLoadingMore(true);
+    setLoadError(null);
+    fetchPracticesPage(
+      page,
+      BEST_PRACTICES_PAGE_SIZE,
+      category.key as BestPracticeCategoryKey
+    )
+      .then((res) => {
+        setItems((prev) => [
+          ...prev,
+          ...res.data.filter((n) => !prev.some((p) => p.id === n.id)),
+        ]);
+        setHasMore(res.hasMore);
+        setPage((p) => p + 1);
+      })
+      .catch((e) => {
+        setLoadError(e?.message || "Failed to load more practices");
+      })
+      .finally(() => setLoadingMore(false));
+  }, [page, hasMore, loadingMore, mode, category.key]);
+
+  useEffect(() => {
+    if (!loaderRef.current) return;
+    const el = loaderRef.current;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            loadMore();
+          }
+        });
+      },
+      { rootMargin: "600px 0px 0px 0px" }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [loadMore]);
+
+  // Filter content based on search (from locally accumulated items)
+  const filteredContents = items.filter(
+    (content) =>
+      content.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      content.description.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const filteredQuestions = questions.filter((question) =>
+    question.prompt.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
   return (
-    <div className="max-w-6xl mx-auto">
-      {/* Category Header */}
+    <div className="mx-auto w-full px-3 sm:px-6 lg:px-10 max-w-5xl">
+      {/* Simple Header */}
       <div className="mb-8">
         <button
           onClick={onBack}
-          className="inline-flex items-center gap-2 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 mb-4 group hover:cursor-pointer"
+          className="inline-flex items-center gap-2 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 mb-6 group hover:cursor-pointer"
         >
           <svg
             className="w-4 h-4 transform group-hover:-translate-x-1 transition-transform"
@@ -160,33 +235,16 @@ export const CategoryView = ({
           Back to Categories
         </button>
 
-        <div className="flex items-center gap-6 mb-6">
-          <div
-            className={`flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br ${g.block} shadow-lg`}
-          >
-            <Icon className="w-8 h-8 text-white" />
-          </div>
+        {/* Clean Category Title */}
+        <h1 className="text-3xl font-bold text-slate-900 dark:text-white mb-6 tracking-tight">
+          {category.name}
+        </h1>
 
-          <div className="flex-1">
-            <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">
-              {category.name}
-            </h2>
-            <div className="flex items-center gap-4 text-sm text-slate-600 dark:text-slate-400">
-              <span className="flex items-center gap-1">
-                <div className={`w-2 h-2 rounded-full ${g.dot}`} />
-                {itemCount} {mode === "learn" ? "practices" : "questions"}
-              </span>
-              <span>•</span>
-              <span>{mode === "learn" ? "Learning Mode" : "Quiz Mode"}</span>
-            </div>
-          </div>
-
-          <button
-            onClick={mode === "learn" ? onAddContent : onAddQuestion}
-            className={`flex items-center gap-2 px-6 py-3 rounded-2xl font-medium shadow-lg transition-all duration-200 transform hover:scale-105 hover:cursor-pointer bg-gradient-to-r ${g.button} ${g.buttonHover} text-white`}
-          >
+        {/* Search Bar */}
+        <div className="relative mb-8">
+          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
             <svg
-              className="w-5 h-5"
+              className="h-5 w-5 text-slate-400"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -195,183 +253,190 @@ export const CategoryView = ({
                 strokeLinecap="round"
                 strokeLinejoin="round"
                 strokeWidth={2}
-                d="M12 4v16m8-8H4"
+                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
               />
             </svg>
-            Add {mode === "learn" ? "Practice" : "Question"}
-          </button>
+          </div>
+          <input
+            type="text"
+            placeholder="Search..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="block w-full pl-10 pr-3 py-3 border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-transparent"
+          />
         </div>
       </div>
 
-      {/* Content Grid */}
-      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+      {/* Content List */}
+      <div className="space-y-8">
         {mode === "learn" &&
-          contents.map((c) => (
-            <div
-              key={c.id}
-              className="group bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-lg shadow-slate-200/50 dark:shadow-slate-900/50 hover:shadow-xl hover:shadow-slate-300/50 dark:hover:shadow-slate-900/70 transition-all duration-300 hover:scale-105 ring-1 ring-slate-200 dark:ring-slate-700 hover:cursor-pointer"
+          filteredContents.map((content) => (
+            <article
+              key={content.id}
+              onClick={() => {
+                onContentClick?.(content);
+                navigate(`/dashboard/best-practices/${content.id}`, {
+                  state: { practice: content },
+                });
+              }}
+              className="group bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-6 md:p-7 hover:shadow-lg hover:border-slate-300 dark:hover:border-slate-600 transition-all duration-200 cursor-pointer"
             >
-              <div className="mb-4">
-                <div className="flex items-start justify-between mb-3">
-                  <div
-                    className={`w-10 h-10 rounded-xl bg-gradient-to-br ${g.block} flex items-center justify-center`}
-                  >
-                    <svg
-                      className="w-5 h-5 text-white"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                      />
-                    </svg>
-                  </div>
-                  <span className="text-xs text-slate-400 bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded-full">
-                    Practice
-                  </span>
-                </div>
-                <h3
-                  className={`font-semibold text-slate-900 dark:text-white line-clamp-2 transition-colors ${g.textHover}`}
-                >
-                  {c.title}
-                </h3>
-                <p className="text-sm text-slate-500 dark:text-slate-400 line-clamp-3 mt-2">
-                  {c.description}
-                </p>
-              </div>
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
+                  <h2 className="text-[1.375rem] leading-snug font-semibold text-slate-900 dark:text-white mb-2 group-hover:text-slate-700 dark:group-hover:text-slate-200 transition-colors">
+                    {content.title}
+                  </h2>
 
-              <div className="flex items-center justify-between pt-4 border-t border-slate-100 dark:border-slate-700">
-                <div className="flex items-center gap-3 text-xs text-slate-500 dark:text-slate-400">
-                  <span className="flex items-center gap-1">
-                    <svg
-                      className="w-3 h-3"
-                      fill="currentColor"
-                      viewBox="0 0 20 20"
-                    >
-                      <path
-                        fillRule="evenodd"
-                        d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z"
-                        clipRule="evenodd"
-                      />
-                    </svg>
-                    {c.steps.length} steps
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <svg
-                      className="w-3 h-3"
-                      fill="currentColor"
-                      viewBox="0 0 20 20"
-                    >
-                      <path
-                        fillRule="evenodd"
-                        d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                        clipRule="evenodd"
-                      />
-                    </svg>
-                    {c.benefits.length} benefits
-                  </span>
+                  {/* Category tags */}
+                  <div className="flex flex-wrap gap-2 mb-4">
+                    {content.categories.map((cat) => (
+                      <span
+                        key={cat}
+                        className="px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-700/60 text-slate-600 dark:text-slate-300 text-xs font-medium tracking-wide"
+                      >
+                        {cat.replace(/_/g, " ")}
+                      </span>
+                    ))}
+                  </div>
+
+                  <p className="text-slate-600 dark:text-slate-400 mb-5 leading-relaxed max-w-[72ch] line-clamp-2">
+                    {content.description}
+                  </p>
+
+                  <div className="flex items-center gap-6 text-sm text-slate-500 dark:text-slate-400">
+                    <span className="flex items-center gap-2">
+                      <svg
+                        className="w-4 h-4"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+                        />
+                      </svg>
+                      {content.steps.length} steps
+                    </span>
+                    <span className="flex items-center gap-2">
+                      <svg
+                        className="w-4 h-4"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                        />
+                      </svg>
+                      {content.benefits.length} benefits
+                    </span>
+                    <span className="flex items-center gap-2">
+                      <div className={`w-2 h-2 rounded-full ${g.dot}`} />
+                      Practice
+                    </span>
+                  </div>
+                </div>
+
+                {/* Optional: Add a checkmark if this is a completed/read item */}
+                <div className="ml-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <svg
+                    className="w-5 h-5 text-slate-400"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M9 5l7 7-7 7"
+                    />
+                  </svg>
                 </div>
               </div>
-            </div>
+            </article>
           ))}
 
         {mode === "quiz" &&
-          questions.map((q) => (
-            <div
-              key={q.id}
-              className="group bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-lg shadow-slate-200/50 dark:shadow-slate-900/50 hover:shadow-xl hover:shadow-slate-300/50 dark:hover:shadow-slate-900/70 transition-all duration-300 hover:scale-105 ring-1 ring-slate-200 dark:ring-slate-700 hover:cursor-pointer"
+          filteredQuestions.map((question) => (
+            <article
+              key={question.id}
+              className="group bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-6 md:p-7 hover:shadow-lg hover:border-slate-300 dark:hover:border-slate-600 transition-all duration-200 cursor-pointer"
             >
-              <div className="mb-4">
-                <div className="flex items-start justify-between mb-3">
-                  <div
-                    className={`w-10 h-10 rounded-xl bg-gradient-to-br ${g.block} flex items-center justify-center`}
-                  >
-                    <svg
-                      className="w-5 h-5 text-white"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                      />
-                    </svg>
-                  </div>
-                  <div className="flex items-center gap-2">
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
+                  <h2 className="text-[1.375rem] leading-snug font-semibold text-slate-900 dark:text-white mb-2 group-hover:text-slate-700 dark:group-hover:text-slate-200 transition-colors">
+                    {question.prompt}
+                  </h2>
+
+                  <div className="flex items-center gap-6 text-sm text-slate-500 dark:text-slate-400 mb-2">
                     <span
-                      className={`text-xs px-2 py-1 rounded-full font-medium ${
-                        q.difficulty === "easy"
+                      className={`px-2 py-1 rounded-full text-xs font-medium ${
+                        question.difficulty === "easy"
                           ? "bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-400"
-                          : q.difficulty === "medium"
+                          : question.difficulty === "medium"
                           ? "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/20 dark:text-yellow-400"
                           : "bg-red-100 text-red-700 dark:bg-red-900/20 dark:text-red-400"
                       }`}
                     >
-                      {q.difficulty}
+                      {question.difficulty}
+                    </span>
+                    <span className="flex items-center gap-2">
+                      <svg
+                        className="w-4 h-4"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+                        />
+                      </svg>
+                      {question.choices.length} choices
+                    </span>
+                    <span className="flex items-center gap-2">
+                      <div className={`w-2 h-2 rounded-full ${g.dot}`} />
+                      Quiz
                     </span>
                   </div>
                 </div>
-                <h3
-                  className={`font-semibold text-slate-900 dark:text-white line-clamp-2 transition-colors ${g.textHover}`}
-                >
-                  {q.prompt}
-                </h3>
-                <p className="text-sm text-slate-500 dark:text-slate-400 mt-2">
-                  {q.type.toUpperCase()} • Multiple choice question
-                </p>
-              </div>
 
-              <div className="flex items-center justify-between pt-4 border-t border-slate-100 dark:border-slate-700">
-                <div className="flex items-center gap-3 text-xs text-slate-500 dark:text-slate-400">
-                  <span className="flex items-center gap-1">
-                    <svg
-                      className="w-3 h-3"
-                      fill="currentColor"
-                      viewBox="0 0 20 20"
-                    >
-                      <path
-                        fillRule="evenodd"
-                        d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                        clipRule="evenodd"
-                      />
-                    </svg>
-                    {q.choices.filter((c) => c.correct).length} correct
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <svg
-                      className="w-3 h-3"
-                      fill="currentColor"
-                      viewBox="0 0 20 20"
-                    >
-                      <path
-                        fillRule="evenodd"
-                        d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z"
-                        clipRule="evenodd"
-                      />
-                    </svg>
-                    {q.choices.length} choices
-                  </span>
+                <div className="ml-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <svg
+                    className="w-5 h-5 text-slate-400"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M9 5l7 7-7 7"
+                    />
+                  </svg>
                 </div>
               </div>
-            </div>
+            </article>
           ))}
 
         {/* Empty States */}
-        {mode === "learn" && contents.length === 0 && (
-          <div className="col-span-full">
-            <div className="text-center py-16 bg-white dark:bg-slate-800 rounded-3xl shadow-lg ring-1 ring-slate-200 dark:ring-slate-700">
-              <div
-                className={`w-16 h-16 mx-auto mb-4 bg-gradient-to-br ${g.block} rounded-2xl flex items-center justify-center`}
-              >
+        {mode === "learn" &&
+          filteredContents.length === 0 &&
+          contents.length > 0 && (
+            <div className="text-center py-12">
+              <div className="text-slate-500 dark:text-slate-400 mb-4">
                 <svg
-                  className="w-8 h-8 text-white"
+                  className="w-12 h-12 mx-auto mb-4"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -380,90 +445,96 @@ export const CategoryView = ({
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     strokeWidth={2}
-                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
                   />
                 </svg>
+                <p className="text-lg font-medium">No practices found</p>
+                <p className="text-sm">Try adjusting your search terms</p>
               </div>
-              <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-2">
-                No practices yet
-              </h3>
-              <p className="text-slate-500 dark:text-slate-400 mb-6">
-                Create your first best practice guide for{" "}
-                {category.name.toLowerCase()}
-              </p>
-              <button
-                onClick={onAddContent}
-                className={`inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r ${g.button} ${g.buttonHover} text-white rounded-2xl font-medium shadow-lg transition-all duration-200 transform hover:scale-105 hover:cursor-pointer`}
-              >
-                <svg
-                  className="w-5 h-5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 4v16m8-8H4"
-                  />
-                </svg>
-                Create First Practice
-              </button>
             </div>
+          )}
+
+        {mode === "learn" && contents.length === 0 && (
+          <div className="text-center py-16 bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
+            <div
+              className={`w-16 h-16 mx-auto mb-4 bg-gradient-to-br ${g.block} rounded-xl flex items-center justify-center`}
+            >
+              <Icon className="w-8 h-8 text-white" />
+            </div>
+            <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-2">
+              No practices yet
+            </h3>
+            <p className="text-slate-500 dark:text-slate-400">
+              No best practice guides available for{" "}
+              {category.name.toLowerCase()}
+            </p>
           </div>
         )}
 
         {mode === "quiz" && questions.length === 0 && (
-          <div className="col-span-full">
-            <div className="text-center py-16 bg-white dark:bg-slate-800 rounded-3xl shadow-lg ring-1 ring-slate-200 dark:ring-slate-700">
-              <div
-                className={`w-16 h-16 mx-auto mb-4 bg-gradient-to-br ${g.block} rounded-2xl flex items-center justify-center`}
-              >
-                <svg
-                  className="w-8 h-8 text-white"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                  />
-                </svg>
-              </div>
-              <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-2">
-                No questions yet
-              </h3>
-              <p className="text-slate-500 dark:text-slate-400 mb-6">
-                Create your first quiz question for{" "}
-                {category.name.toLowerCase()}
-              </p>
-              <button
-                onClick={onAddQuestion}
-                className={`inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r ${g.button} ${g.buttonHover} text-white rounded-2xl font-medium shadow-lg transition-all duration-200 transform hover:scale-105 hover:cursor-pointer`}
-              >
-                <svg
-                  className="w-5 h-5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 4v16m8-8H4"
-                  />
-                </svg>
-                Create First Question
-              </button>
+          <div className="text-center py-16 bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
+            <div
+              className={`w-16 h-16 mx-auto mb-4 bg-gradient-to-br ${g.block} rounded-xl flex items-center justify-center`}
+            >
+              <Icon className="w-8 h-8 text-white" />
             </div>
+            <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-2">
+              No questions yet
+            </h3>
+            <p className="text-slate-500 dark:text-slate-400">
+              No quiz questions available for {category.name.toLowerCase()}
+            </p>
           </div>
         )}
       </div>
+
+      {/* Details moved to dedicated route; no inline panel */}
+
+      {/* Infinite Scroll Loader / Error / Skeleton */}
+      {mode === "learn" && (
+        <div
+          ref={loaderRef}
+          className="py-10 flex flex-col items-center justify-center text-sm text-slate-500 dark:text-slate-400"
+        >
+          {loadingMore && (
+            <div className="w-full max-w-sm space-y-3">
+              <div className="h-3 rounded bg-slate-200 dark:bg-slate-700 animate-pulse" />
+              <div className="h-3 rounded bg-slate-200 dark:bg-slate-700 animate-pulse" />
+              <div className="h-3 rounded bg-slate-200 dark:bg-slate-700 animate-pulse" />
+            </div>
+          )}
+          {loadError && (
+            <div className="flex items-center gap-3 text-red-600 dark:text-red-400">
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M18.364 5.636l-12.728 12.728M5.636 5.636l12.728 12.728"
+                />
+              </svg>
+              <span>{loadError}</span>
+              <button
+                onClick={loadMore}
+                className="underline text-xs font-medium hover:text-red-700 dark:hover:text-red-300"
+              >
+                Retry
+              </button>
+            </div>
+          )}
+          {!loadingMore &&
+            !loadError &&
+            !hasMore &&
+            filteredContents.length > 0 && (
+              <span className="text-slate-400">No more practices</span>
+            )}
+        </div>
+      )}
     </div>
   );
 };

@@ -15,6 +15,7 @@ import {
   ProfilePage,
   UserManagementPage,
 } from "@/pages/dashboard";
+import { PracticeDetailsPage } from "@/pages/dashboard/PracticeDetailsPage";
 import { DashboardLayout, ProtectedRoute } from "@/components/layout";
 
 function App() {
@@ -65,6 +66,16 @@ function App() {
           }
         />
         <Route
+          path="/dashboard/best-practices/:practiceId"
+          element={
+            <ProtectedRoute>
+              <DashboardLayout>
+                <PracticeDetailsPage />
+              </DashboardLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
           path="/dashboard/discussions"
           element={
             <ProtectedRoute>
@@ -74,7 +85,7 @@ function App() {
             </ProtectedRoute>
           }
         />
-       
+
         <Route
           path="/dashboard/profile"
           element={

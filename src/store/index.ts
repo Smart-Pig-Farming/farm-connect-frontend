@@ -51,8 +51,8 @@ export const store = configureStore({
       serializableCheck: {
         ignoredActions: [FLUSH, REHYDRATE, PAUSE, PERSIST, PURGE, REGISTER],
       },
-  // Only include baseApi.middleware once; injected endpoints piggyback on it
-  }).concat(baseApi.middleware),
+      // Only include baseApi.middleware once; injected endpoints piggyback on it
+    }).concat(baseApi.middleware),
 
   devTools: process.env.NODE_ENV !== "production",
 });

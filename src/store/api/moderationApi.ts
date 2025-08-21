@@ -149,7 +149,7 @@ export const moderationApi = baseApi.injectEndpoints({
 
     // Get post snapshot by report ID
     getPostSnapshot: builder.query<PostSnapshot, string>({
-  query: (reportId) => `/moderation/snapshot/${reportId}`,
+      query: (reportId) => `/moderation/snapshot/${reportId}`,
     }),
 
     // Compare post versions (before and after)
@@ -165,7 +165,7 @@ export const moderationApi = baseApi.injectEndpoints({
       },
       string
     >({
-  query: (postId) => `/moderation/compare/${postId}`,
+      query: (postId) => `/moderation/compare/${postId}`,
     }),
 
     // Metrics & analytics endpoints removed
@@ -222,7 +222,7 @@ export const moderationApi = baseApi.injectEndpoints({
       },
       string
     >({
-  query: (reportId) => `/moderation/report/${reportId}`,
+      query: (reportId) => `/moderation/report/${reportId}`,
     }),
 
     // Search moderation items with advanced filters
@@ -286,7 +286,7 @@ export const moderationApi = baseApi.injectEndpoints({
       },
       number
     >({
-  query: (moderatorId) => `/moderation/moderator/${moderatorId}/stats`,
+      query: (moderatorId) => `/moderation/moderator/${moderatorId}/stats`,
     }),
   }),
 });
