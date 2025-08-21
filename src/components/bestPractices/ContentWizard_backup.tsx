@@ -1,14 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import {
-  X,
-  Plus,
-  Trash2,
-  ImageIcon,
-  Video as VideoIcon,
-  Loader2,
-  Upload,
-  Check,
-} from "lucide-react";
+import { X, Plus, Trash2, ImageIcon, Video as VideoIcon, Loader2, Upload, Check } from "lucide-react";
 import { BEST_PRACTICE_CATEGORIES } from "./constants";
 import type {
   BestPracticeContentDraft,
@@ -24,7 +15,6 @@ interface ContentWizardProps {
   onSave: (draft: BestPracticeContentDraft) => void;
   initial?: Partial<BestPracticeContentDraft>;
 }
-
 const emptyDraft = (): BestPracticeContentDraft => ({
   id: crypto.randomUUID(),
   title: "",
@@ -37,7 +27,6 @@ const emptyDraft = (): BestPracticeContentDraft => ({
   createdAt: Date.now(),
   updatedAt: Date.now(),
 });
-
 type StepId = 0 | 1 | 2 | 3 | 4;
 
 export const ContentWizard = ({
@@ -58,7 +47,6 @@ export const ContentWizard = ({
   const [wizardStep, setWizardStep] = useState<StepId>(0);
   const [saving, setSaving] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
-
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
       if (e.key === "Escape") {
@@ -179,9 +167,7 @@ export const ContentWizard = ({
         <div className="relative bg-gradient-to-r from-orange-500 to-orange-600 p-4 sm:p-6 text-white">
           <div className="flex items-start justify-between">
             <div>
-              <h2 className="text-xl sm:text-2xl font-bold">
-                Create Best Practice
-              </h2>
+              <h2 className="text-xl sm:text-2xl font-bold">Create Best Practice</h2>
               <p className="text-orange-100 text-sm mt-1 hidden sm:block">
                 Share your knowledge with the farming community
               </p>
@@ -234,9 +220,7 @@ export const ContentWizard = ({
                     {index < 4 && (
                       <div
                         className={`w-1 sm:w-2 h-0.5 mx-0.5 sm:mx-1 transition-colors duration-300 ${
-                          wizardStep > index
-                            ? "bg-white/40"
-                            : "bg-orange-400/30"
+                          wizardStep > index ? "bg-white/40" : "bg-orange-400/30"
                         }`}
                       />
                     )}
@@ -264,41 +248,145 @@ export const ContentWizard = ({
             {/* Step 0: Basics */}
             {wizardStep === 0 && (
               <div className="space-y-6">
-                <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-lg shadow-slate-200/50 dark:shadow-slate-900/50">
-                  <div className="space-y-6">
-                    <div>
-                      <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200 mb-2">
-                        Practice Title
-                      </h3>
-                      <input
-                        value={draft.title}
-                        onChange={(e) => update({ title: e.target.value })}
-                        placeholder="Enter a clear, descriptive title..."
-                        className="w-full rounded-xl bg-slate-50 dark:bg-slate-700 px-4 py-3 text-sm text-slate-900 dark:text-slate-100 placeholder-slate-500 dark:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:bg-white dark:focus:bg-slate-600 transition-all duration-200"
-                      />
-                      <p className="text-xs text-slate-500 mt-2">
-                        At least 5 characters required
-                      </p>
-                    </div>
+                <div className="bg-white dark:bg-slate-800 rounded-2xl p-4 sm:p-6 shadow-lg shadow-slate-200/50 dark:shadow-slate-900/50">
+                  <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">
+                    Practice Title *
+                  </label>
+                  <input
+                    value={draft.title}
+                    onChange={(e) => update({ title: e.target.value })}
+                    className="w-full rounded-xl bg-slate-50 dark:bg-slate-700 px-4 py-3 text-sm text-slate-900 dark:text-slate-100 placeholder-slate-500 dark:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:bg-white dark:focus:bg-slate-600 transition-all duration-200"
+                    placeholder="e.g. Optimizing Piglet Nutrition in First 14 Days"
+                  />
+                  {draft.title.length < 5 && draft.title.length > 0 && (
+                    <p className="text-xs text-orange-600 mt-2">Title must be at least 5 characters</p>
+                  )}
+                </div>
 
-                    <div>
-                      <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200 mb-2">
-                        Description
-                      </h3>
-                      <textarea
-                        value={draft.description}
-                        onChange={(e) =>
-                          update({ description: e.target.value })
-                        }
-                        placeholder="Provide a detailed explanation of this practice, why it's important, and when to use it..."
-                        rows={4}
-                        className="w-full rounded-xl bg-slate-50 dark:bg-slate-700 px-4 py-3 text-sm text-slate-900 dark:text-slate-100 placeholder-slate-500 dark:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:bg-white dark:focus:bg-slate-600 transition-all duration-200 resize-none"
-                      />
-                      <p className="text-xs text-slate-500 mt-2">
-                        At least 20 characters required
-                      </p>
-                    </div>
+                <div className="bg-white dark:bg-slate-800 rounded-2xl p-4 sm:p-6 shadow-lg shadow-slate-200/50 dark:shadow-slate-900/50">
+                  <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">
+                    Description *
+                  </label>
+                  <textarea
+                    value={draft.description}
+                    onChange={(e) => update({ description: e.target.value })}
+                    className="w-full rounded-xl bg-slate-50 dark:bg-slate-700 px-4 py-3 text-sm text-slate-900 dark:text-slate-100 placeholder-slate-500 dark:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:bg-white dark:focus:bg-slate-600 transition-all duration-200 min-h-32 resize-none"
+                    placeholder="Provide a clear overview of this best practice and its benefits..."
+                  />
+                  <div className="flex justify-between items-center mt-2">
+                    {draft.description.length < 20 && draft.description.length > 0 && (
+                      <p className="text-xs text-orange-600">Description must be at least 20 characters</p>
+                    )}
+                    <p className="text-xs text-slate-500 ml-auto">{draft.description.length} characters</p>
                   </div>
+                </div>
+
+                <div className="bg-white dark:bg-slate-800 rounded-2xl p-4 sm:p-6 shadow-lg shadow-slate-200/50 dark:shadow-slate-900/50">
+                  <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-4">
+                    Categories
+                  </label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {BEST_PRACTICE_CATEGORIES.map((c) => (
+                      <button
+                        key={c.key}
+                        type="button"
+                        onClick={() =>
+                          toggleCategory(c.key as BestPracticeCategoryKey)
+                        }
+                        className={`p-3 rounded-xl text-sm font-medium transition-all duration-200 text-left ${
+                          draft.categories.includes(c.key as BestPracticeCategoryKey)
+                            ? "bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-lg transform scale-105"
+                            : "bg-slate-50 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-600 hover:scale-102"
+                        }`}
+                        aria-pressed={draft.categories.includes(c.key as BestPracticeCategoryKey)}
+                      >
+                        {c.name}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="text-xs text-slate-500 mt-3">
+                    Select categories that best describe your practice
+                  </p>
+                </div>
+              </div>
+            )}
+
+        {/* Content Section */}
+        <div className="overflow-y-auto max-h-[calc(90vh-200px)] bg-gradient-to-br from-slate-50 to-orange-50/30 dark:from-slate-800 dark:to-slate-900">
+          <div className="p-8 space-y-8">
+            {/* Step 0: Basics */}
+            {wizardStep === 0 && (
+              <div className="space-y-6">
+                <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-lg shadow-slate-200/50 dark:shadow-slate-900/50">
+                  <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">
+                    Practice Title *
+                  </label>
+                  <input
+                    value={draft.title}
+                    onChange={(e) => update({ title: e.target.value })}
+                    className="w-full rounded-xl bg-slate-50 dark:bg-slate-700 px-4 py-3 text-sm text-slate-900 dark:text-slate-100 placeholder-slate-500 dark:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:bg-white dark:focus:bg-slate-600 transition-all duration-200"
+                    placeholder="e.g. Optimizing Piglet Nutrition in First 14 Days"
+                  />
+                  {draft.title.length < 5 && draft.title.length > 0 && (
+                    <p className="text-xs text-orange-600 mt-2">
+                      Title must be at least 5 characters
+                    </p>
+                  )}
+                </div>
+
+                <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-lg shadow-slate-200/50 dark:shadow-slate-900/50">
+                  <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">
+                    Description *
+                  </label>
+                  <textarea
+                    value={draft.description}
+                    onChange={(e) => update({ description: e.target.value })}
+                    className="w-full rounded-xl bg-slate-50 dark:bg-slate-700 px-4 py-3 text-sm text-slate-900 dark:text-slate-100 placeholder-slate-500 dark:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:bg-white dark:focus:bg-slate-600 transition-all duration-200 min-h-32 resize-none"
+                    placeholder="Provide a clear overview of this best practice and its benefits..."
+                  />
+                  <div className="flex justify-between items-center mt-2">
+                    {draft.description.length < 20 &&
+                      draft.description.length > 0 && (
+                        <p className="text-xs text-orange-600">
+                          Description must be at least 20 characters
+                        </p>
+                      )}
+                    <p className="text-xs text-slate-500 ml-auto">
+                      {draft.description.length} characters
+                    </p>
+                  </div>
+                </div>
+
+                <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-lg shadow-slate-200/50 dark:shadow-slate-900/50">
+                  <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-4">
+                    Categories
+                  </label>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                    {BEST_PRACTICE_CATEGORIES.map((c) => (
+                      <button
+                        key={c.key}
+                        type="button"
+                        onClick={() =>
+                          toggleCategory(c.key as BestPracticeCategoryKey)
+                        }
+                        className={`p-3 rounded-xl text-sm font-medium transition-all duration-200 text-left ${
+                          draft.categories.includes(
+                            c.key as BestPracticeCategoryKey
+                          )
+                            ? "bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-lg transform scale-105"
+                            : "bg-slate-50 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-600 hover:scale-102"
+                        }`}
+                        aria-pressed={draft.categories.includes(
+                          c.key as BestPracticeCategoryKey
+                        )}
+                      >
+                        {c.name}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="text-xs text-slate-500 mt-3">
+                    Select categories that best describe your practice
+                  </p>
                 </div>
               </div>
             )}
@@ -307,13 +395,83 @@ export const ContentWizard = ({
             {wizardStep === 1 && (
               <div className="space-y-6">
                 <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-lg shadow-slate-200/50 dark:shadow-slate-900/50">
-                  <StepEditor
-                    steps={draft.steps}
-                    add={addStep}
-                    update={updateStep}
-                    remove={removeStep}
-                    move={moveStep}
-                  />
+                  <div className="flex justify-between items-center mb-6">
+                    <div>
+                      <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200">
+                        Practice Steps
+                      </h3>
+                      <p className="text-sm text-slate-600 dark:text-slate-400">
+                        Break down your practice into clear, actionable steps
+                      </p>
+                    </div>
+                    <button
+                      onClick={addStep}
+                      className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-xl font-medium hover:from-orange-600 hover:to-orange-700 transition-all duration-200 shadow-lg"
+                    >
+                      <Plus className="w-4 h-4" /> Add Step
+                    </button>
+                  </div>
+
+                  <div className="space-y-4">
+                    {draft.steps.map((s, i) => (
+                      <div
+                        key={s.id}
+                        className="group relative bg-slate-50 dark:bg-slate-700 rounded-xl p-4 hover:bg-slate-100 dark:hover:bg-slate-600 transition-all duration-200"
+                      >
+                        <div className="flex items-start gap-4">
+                          <div className="flex flex-col items-center gap-2 pt-1">
+                            <div className="w-8 h-8 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-full flex items-center justify-center text-sm font-bold">
+                              {i + 1}
+                            </div>
+                            <div className="flex flex-col gap-1">
+                              <button
+                                disabled={i === 0}
+                                aria-label="Move step up"
+                                onClick={() => moveStep(s.id, -1)}
+                                className="w-6 h-6 rounded bg-slate-200 dark:bg-slate-600 hover:bg-slate-300 dark:hover:bg-slate-500 disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center text-xs font-bold transition-colors duration-200"
+                              >
+                                ↑
+                              </button>
+                              <button
+                                disabled={i === draft.steps.length - 1}
+                                aria-label="Move step down"
+                                onClick={() => moveStep(s.id, 1)}
+                                className="w-6 h-6 rounded bg-slate-200 dark:bg-slate-600 hover:bg-slate-300 dark:hover:bg-slate-500 disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center text-xs font-bold transition-colors duration-200"
+                              >
+                                ↓
+                              </button>
+                            </div>
+                          </div>
+
+                          <div className="flex-1">
+                            <textarea
+                              value={s.text}
+                              onChange={(e) => updateStep(s.id, e.target.value)}
+                              className="w-full rounded-xl bg-white dark:bg-slate-800 px-4 py-3 text-sm text-slate-900 dark:text-slate-100 placeholder-slate-500 dark:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-500 transition-all duration-200 min-h-24 resize-none"
+                              placeholder={`Describe step ${
+                                i + 1
+                              } in detail...`}
+                            />
+                            {s.text.length < 5 && s.text.length > 0 && (
+                              <p className="text-xs text-orange-600 mt-2">
+                                Step must be at least 5 characters
+                              </p>
+                            )}
+                          </div>
+
+                          {draft.steps.length > 1 && (
+                            <button
+                              onClick={() => removeStep(s.id)}
+                              className="w-8 h-8 rounded-lg bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/50 flex items-center justify-center transition-colors duration-200 opacity-0 group-hover:opacity-100"
+                              aria-label="Remove step"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
             )}
@@ -330,13 +488,6 @@ export const ContentWizard = ({
                         benefits: draft.benefits.filter((b) => b !== v),
                       })
                     }
-                  />
-                </div>
-
-                <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-lg shadow-slate-200/50 dark:shadow-slate-900/50">
-                  <CategoryGrid
-                    selected={draft.categories}
-                    onToggle={toggleCategory}
                   />
                 </div>
               </div>
@@ -367,7 +518,7 @@ export const ContentWizard = ({
                       <h4 className="font-medium text-slate-700 dark:text-slate-300 mb-2">
                         Title
                       </h4>
-                      <p className="text-slate-600 dark:text-slate-400">
+                      <p className="text-slate-900 dark:text-slate-100">
                         {draft.title}
                       </p>
                     </div>
@@ -376,7 +527,7 @@ export const ContentWizard = ({
                       <h4 className="font-medium text-slate-700 dark:text-slate-300 mb-2">
                         Description
                       </h4>
-                      <p className="text-slate-600 dark:text-slate-400">
+                      <p className="text-slate-900 dark:text-slate-100">
                         {draft.description}
                       </p>
                     </div>
@@ -385,61 +536,58 @@ export const ContentWizard = ({
                       <h4 className="font-medium text-slate-700 dark:text-slate-300 mb-2">
                         Steps ({draft.steps.length})
                       </h4>
-                      <div className="space-y-2">
-                        {draft.steps.map((step, idx) => (
-                          <div
-                            key={step.id}
-                            className="flex gap-3 text-slate-600 dark:text-slate-400"
-                          >
-                            <span className="font-bold text-orange-500">
-                              {idx + 1}.
+                      <ol className="space-y-2">
+                        {draft.steps.map((step, i) => (
+                          <li key={step.id} className="flex gap-3">
+                            <span className="font-medium text-orange-600">
+                              {i + 1}.
                             </span>
-                            <span>{step.text}</span>
-                          </div>
+                            <span className="text-slate-900 dark:text-slate-100">
+                              {step.text}
+                            </span>
+                          </li>
                         ))}
-                      </div>
+                      </ol>
                     </div>
 
                     {draft.benefits.length > 0 && (
                       <div>
                         <h4 className="font-medium text-slate-700 dark:text-slate-300 mb-2">
-                          Benefits ({draft.benefits.length})
+                          Benefits
                         </h4>
-                        <div className="space-y-1">
-                          {draft.benefits.map((benefit) => (
-                            <div
-                              key={benefit}
-                              className="flex gap-2 text-slate-600 dark:text-slate-400"
-                            >
+                        <ul className="space-y-1">
+                          {draft.benefits.map((benefit, i) => (
+                            <li key={i} className="flex gap-2 items-center">
                               <span className="text-green-500">✓</span>
-                              <span>{benefit}</span>
-                            </div>
+                              <span className="text-slate-900 dark:text-slate-100">
+                                {benefit}
+                              </span>
+                            </li>
                           ))}
-                        </div>
+                        </ul>
                       </div>
                     )}
 
-                    {draft.categories.length > 0 && (
-                      <div>
-                        <h4 className="font-medium text-slate-700 dark:text-slate-300 mb-2">
-                          Categories
-                        </h4>
-                        <div className="flex flex-wrap gap-2">
-                          {draft.categories.map((catKey) => {
-                            const category = BEST_PRACTICE_CATEGORIES[catKey];
-                            if (!category) return null;
-                            return (
-                              <span
-                                key={catKey}
-                                className="px-3 py-1 bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-200 rounded-full text-sm"
-                              >
-                                {category?.name}
-                              </span>
-                            );
-                          })}
-                        </div>
+                    <div>
+                      <h4 className="font-medium text-slate-700 dark:text-slate-300 mb-2">
+                        Categories
+                      </h4>
+                      <div className="flex flex-wrap gap-2">
+                        {draft.categories.map((catKey) => {
+                          const category = BEST_PRACTICE_CATEGORIES.find(
+                            (c) => c.key === catKey
+                          );
+                          return (
+                            <span
+                              key={catKey}
+                              className="px-3 py-1 bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-200 rounded-full text-sm"
+                            >
+                              {category?.name}
+                            </span>
+                          );
+                        })}
                       </div>
-                    )}
+                    </div>
 
                     {draft.media && (
                       <div>
@@ -500,87 +648,6 @@ export const ContentWizard = ({
     </div>
   );
 };
-
-const StepEditor = ({
-  steps,
-  add,
-  update,
-  remove,
-  move,
-}: {
-  steps: Array<{ id: string; text: string; order: number }>;
-  add: () => void;
-  update: (id: string, text: string) => void;
-  remove: (id: string) => void;
-  move: (id: string, dir: -1 | 1) => void;
-}) => (
-  <div className="space-y-4">
-    <div>
-      <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200 mb-2">
-        Step-by-Step Instructions
-      </h3>
-      <p className="text-sm text-slate-600 dark:text-slate-400">
-        Break down your practice into clear, actionable steps.
-      </p>
-    </div>
-
-    <div className="space-y-3">
-      {steps.map((step, idx) => (
-        <div
-          key={step.id}
-          className="flex gap-3 items-start bg-slate-50 dark:bg-slate-700 rounded-xl p-4 group hover:bg-slate-100 dark:hover:bg-slate-600 transition-colors duration-200"
-        >
-          <div className="flex flex-col gap-1">
-            <span className="w-8 h-8 bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 rounded-full flex items-center justify-center text-sm font-bold">
-              {idx + 1}
-            </span>
-            <div className="flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-              <button
-                onClick={() => move(step.id, -1)}
-                disabled={idx === 0}
-                className="w-6 h-6 rounded bg-slate-200 dark:bg-slate-600 text-slate-600 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-500 disabled:opacity-50 disabled:cursor-not-allowed text-xs flex items-center justify-center"
-                aria-label="Move step up"
-              >
-                ↑
-              </button>
-              <button
-                onClick={() => move(step.id, 1)}
-                disabled={idx === steps.length - 1}
-                className="w-6 h-6 rounded bg-slate-200 dark:bg-slate-600 text-slate-600 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-500 disabled:opacity-50 disabled:cursor-not-allowed text-xs flex items-center justify-center"
-                aria-label="Move step down"
-              >
-                ↓
-              </button>
-            </div>
-          </div>
-          <textarea
-            value={step.text}
-            onChange={(e) => update(step.id, e.target.value)}
-            placeholder={`Describe step ${idx + 1}...`}
-            rows={2}
-            className="flex-1 rounded-lg bg-white dark:bg-slate-800 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 placeholder-slate-500 dark:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-500 transition-all duration-200 resize-none"
-          />
-          <button
-            onClick={() => remove(step.id)}
-            disabled={steps.length === 1}
-            className="w-8 h-8 rounded-lg bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 opacity-0 group-hover:opacity-100 flex items-center justify-center"
-            aria-label="Remove step"
-          >
-            <Trash2 className="w-4 h-4" />
-          </button>
-        </div>
-      ))}
-    </div>
-
-    <button
-      onClick={add}
-      className="w-full py-3 border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-xl text-slate-600 dark:text-slate-400 hover:border-orange-300 hover:text-orange-600 dark:hover:text-orange-400 hover:bg-orange-50/50 dark:hover:bg-orange-900/20 transition-all duration-200 flex items-center justify-center gap-2"
-    >
-      <Plus className="w-4 h-4" />
-      Add Step
-    </button>
-  </div>
-);
 
 const BenefitEditor = ({
   values,
@@ -686,8 +753,7 @@ const MediaPicker = ({
           Add Media (Optional)
         </h3>
         <p className="text-sm text-slate-600 dark:text-slate-400">
-          Enhance your practice with images or videos to help others understand
-          better
+          Enhance your practice with images or videos to help others understand better
         </p>
       </div>
 
@@ -705,18 +771,25 @@ const MediaPicker = ({
             aria-pressed={mode === m}
           >
             <div className="flex flex-col items-center gap-2">
-              {m === "none" && <X className="w-6 h-6" />}
-              {m === "image" && <ImageIcon className="w-6 h-6" />}
-              {m === "video" && <VideoIcon className="w-6 h-6" />}
+              {m === "none" && (
+                <X className="w-6 h-6" />
+              )}
+              {m === "image" && (
+                <ImageIcon className="w-6 h-6" />
+              )}
+              {m === "video" && (
+                <VideoIcon className="w-6 h-6" />
+              )}
               <span className="font-medium text-sm">
                 {m === "none" ? "No Media" : m === "image" ? "Image" : "Video"}
               </span>
               <span className="text-xs opacity-75">
-                {m === "none"
-                  ? "Skip media"
-                  : m === "image"
-                  ? "JPG, PNG, GIF"
-                  : "MP4, MOV, AVI"}
+                {m === "none" 
+                  ? "Skip media" 
+                  : m === "image" 
+                  ? "JPG, PNG, GIF" 
+                  : "MP4, MOV, AVI"
+                }
               </span>
             </div>
           </button>
@@ -728,16 +801,11 @@ const MediaPicker = ({
           {!media && (
             <div>
               <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-3">
-                Upload {mode === "image" ? "Image" : "Video"} (JPG, PNG, GIF,
-                WebP for images / MP4, MOV, AVI, WebM for videos)
+                Upload {mode === "image" ? "Image" : "Video"} (JPG, PNG, GIF, WebP for images / MP4, MOV, AVI, WebM for videos)
               </label>
               <input
                 type="file"
-                accept={
-                  mode === "image"
-                    ? "image/jpeg,image/jpg,image/png,image/gif,image/webp"
-                    : "video/mp4,video/mov,video/avi,video/webm"
-                }
+                accept={mode === "image" ? "image/jpeg,image/jpg,image/png,image/gif,image/webp" : "video/mp4,video/mov,video/avi,video/webm"}
                 onChange={(e) => onFile(e.target.files?.[0])}
                 className="hidden"
                 id={`${mode}-upload`}
@@ -805,9 +873,10 @@ const MediaPicker = ({
               {/* Alt Text / Caption */}
               <div>
                 <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                  {media.kind === "image"
-                    ? "Alt text (required for accessibility)"
-                    : "Caption (optional)"}
+                  {media.kind === "image" 
+                    ? "Alt text (required for accessibility)" 
+                    : "Caption (optional)"
+                  }
                 </label>
                 <input
                   type="text"
@@ -833,50 +902,3 @@ const MediaPicker = ({
     </div>
   );
 };
-
-const CategoryGrid = ({
-  selected,
-  onToggle,
-}: {
-  selected: BestPracticeCategoryKey[];
-  onToggle: (key: BestPracticeCategoryKey) => void;
-}) => (
-  <div className="space-y-4">
-    <div>
-      <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200 mb-2">
-        Categories (Optional)
-      </h3>
-      <p className="text-sm text-slate-600 dark:text-slate-400">
-        Help others find your practice by selecting relevant categories.
-      </p>
-    </div>
-
-    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-      {Object.entries(BEST_PRACTICE_CATEGORIES).map(([key, category]) => {
-        const isSelected = selected.includes(key as BestPracticeCategoryKey);
-        return (
-          <button
-            key={key}
-            onClick={() => onToggle(key as BestPracticeCategoryKey)}
-            className={`p-4 rounded-xl text-left transition-all duration-200 ${
-              isSelected
-                ? "bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-lg transform scale-105"
-                : "bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600 hover:scale-102"
-            }`}
-            aria-pressed={isSelected}
-          >
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <span className="text-lg">{category.icon}</span>
-                <span className="font-medium text-sm">{category.name}</span>
-              </div>
-              <p className="text-xs opacity-75 line-clamp-2">
-                {category.description}
-              </p>
-            </div>
-          </button>
-        );
-      })}
-    </div>
-  </div>
-);

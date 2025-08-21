@@ -38,7 +38,7 @@ export function BestPracticesPage() {
       <div className="p-4 md:p-8">
         {/* Hero Header */}
         <div className="max-w-6xl mx-auto">
-          <div className="flex flex-col md:flex-row md:items-center gap-6 mb-8">
+          <div className="flex flex-col gap-6 mb-8">
             <div className="flex-1">
               <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-slate-900 to-slate-600 dark:from-white dark:to-slate-300 bg-clip-text text-transparent mb-3">
                 Best Practices Hub
@@ -49,61 +49,115 @@ export function BestPracticesPage() {
               </p>
             </div>
 
-            {/* Mode Toggle - Redesigned */}
-            <div className="flex items-center gap-3">
-              <div className="relative bg-white dark:bg-slate-800 rounded-2xl p-1 shadow-lg ring-1 ring-slate-200 dark:ring-slate-700">
-                <button
-                  onClick={() => {
-                    setMode("learn");
-                    setSelectedCategory(null);
-                  }}
-                  className={`relative px-6 py-3 rounded-xl text-sm font-medium transition-all duration-200 hover:cursor-pointer ${
-                    mode === "learn"
-                      ? "bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-lg shadow-orange-500/25"
-                      : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
-                  }`}
-                >
-                  Learn
-                </button>
-                <button
-                  onClick={() => {
-                    setMode("quiz");
-                    setSelectedCategory(null);
-                  }}
-                  className={`relative px-6 py-3 rounded-xl text-sm font-medium transition-all duration-200 hover:cursor-pointer ${
-                    mode === "quiz"
-                      ? "bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-lg shadow-orange-500/25"
-                      : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
-                  }`}
-                >
-                  Quiz
-                </button>
-              </div>
-
-              {/* Centralized Add Button */}
+            {/* Add Button and Mode Toggle - Responsive Layout */}
+            <div className="flex flex-col gap-4 w-full">
+              {/* Add Button - Positioned Above */}
               <button
                 onClick={() =>
                   mode === "learn"
                     ? setOpenContentWizard(true)
                     : setOpenQuestionWizard(true)
                 }
-                className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white rounded-2xl font-medium shadow-lg shadow-orange-500/25 hover:shadow-orange-500/40 transition-all duration-200 transform hover:scale-105 hover:cursor-pointer"
+                className="flex items-center justify-center gap-3 px-6 py-4 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white rounded-2xl font-semibold shadow-lg shadow-orange-500/25 hover:shadow-orange-500/40 transition-all duration-300 transform hover:scale-[1.02] hover:cursor-pointer w-full sm:w-auto sm:max-w-fit group"
               >
-                <svg
-                  className="w-5 h-5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 4v16m8-8H4"
-                  />
-                </svg>
-                Add New {mode === "learn" ? "Practice" : "Question"}
+                <div className="relative">
+                  <svg
+                    className="w-5 h-5 transition-transform duration-300 group-hover:rotate-90"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2.5}
+                      d="M12 4v16m8-8H4"
+                    />
+                  </svg>
+                  <div className="absolute inset-0 bg-white/20 rounded-full scale-0 group-hover:scale-100 transition-transform duration-300" />
+                </div>
+                <span className="text-lg">
+                  Add New {mode === "learn" ? "Practice" : "Question"}
+                </span>
               </button>
+
+              {/* Creative Switch Design for Mode Toggle */}
+              <div className="flex justify-center sm:justify-start">
+                <div className="relative">
+                  {/* Mobile Switch Design (sm screens and below) */}
+                  <div className="sm:hidden">
+                    <div className="flex items-center space-x-3">
+                      <span
+                        className={`text-sm font-medium transition-colors duration-300 ${
+                          mode === "learn"
+                            ? "text-orange-600 dark:text-orange-400"
+                            : "text-slate-400 dark:text-slate-500"
+                        }`}
+                      >
+                        Learn
+                      </span>
+                      <button
+                        onClick={() => {
+                          setMode(mode === "learn" ? "quiz" : "learn");
+                          setSelectedCategory(null);
+                        }}
+                        className="relative w-14 h-8 bg-slate-200 dark:bg-slate-700 rounded-full transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
+                      >
+                        <div
+                          className={`absolute top-1 w-6 h-6 bg-gradient-to-r from-orange-500 to-orange-600 rounded-full shadow-lg transition-all duration-300 transform ${
+                            mode === "learn" ? "left-1" : "left-7"
+                          }`}
+                        >
+                          <div className="absolute inset-0 rounded-full bg-white/20" />
+                        </div>
+                      </button>
+                      <span
+                        className={`text-sm font-medium transition-colors duration-300 ${
+                          mode === "quiz"
+                            ? "text-orange-600 dark:text-orange-400"
+                            : "text-slate-400 dark:text-slate-500"
+                        }`}
+                      >
+                        Quiz
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Desktop Button Design (sm screens and above) */}
+                  <div className="hidden sm:block">
+                    <div className="relative bg-white dark:bg-slate-800 rounded-2xl p-1 shadow-lg ring-1 ring-slate-200 dark:ring-slate-700">
+                      <div className="flex">
+                        <button
+                          onClick={() => {
+                            setMode("learn");
+                            setSelectedCategory(null);
+                          }}
+                          className={`relative px-6 py-3 rounded-xl text-sm font-medium transition-all duration-300 hover:cursor-pointer ${
+                            mode === "learn"
+                              ? "bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-lg shadow-orange-500/25 transform scale-105"
+                              : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50"
+                          }`}
+                        >
+                          Learn
+                        </button>
+                        <button
+                          onClick={() => {
+                            setMode("quiz");
+                            setSelectedCategory(null);
+                          }}
+                          className={`relative px-6 py-3 rounded-xl text-sm font-medium transition-all duration-300 hover:cursor-pointer ${
+                            mode === "quiz"
+                              ? "bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-lg shadow-orange-500/25 transform scale-105"
+                              : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50"
+                          }`}
+                        >
+                          Quiz
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 

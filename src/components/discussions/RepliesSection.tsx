@@ -491,6 +491,12 @@ export function RepliesSection({
       grandparent?: { userId: number; delta: number };
       root?: { userId: number; delta: number };
     };
+    diff?: {
+      addedUp?: number[];
+      removedUp?: number[];
+      addedDown?: number[];
+      removedDown?: number[];
+    };
   }
   const wsHandlers = useMemo(
     () => ({

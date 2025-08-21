@@ -392,62 +392,39 @@ export function DiscussionsPage() {
         author_level?: number;
         actor_points?: number;
         actor_points_delta?: number;
+        emitted_at?: string;
+        upvoterIds?: number[];
+        downvoterIds?: number[];
+        diff?: {
+          addedUp?: number[];
+          removedUp?: number[];
+          addedDown?: number[];
+          removedDown?: number[];
+        };
       }) => {
-        // Update vote counts & author enrichment (daily points now primarily from unified score:events)
         if (data?.postId) {
-          const patchFn = (draft: { data?: { posts?: ApiPost[] } }) => {
-            const post = draft?.data?.posts?.find((p) => p.id === data.postId);
-            if (post) {
-              post.upvotes = data.upvotes;
-              post.downvotes = data.downvotes;
-              // Only update userVote if provided (to avoid overriding optimistic state)
-              if (data.userVote !== undefined) {
-                post.userVote =
-                  data.userVote === "upvote"
-                    ? "upvote"
-                    : data.userVote === "downvote"
-                    ? "downvote"
-                    : null;
-              }
-              // Apply author points enrichment + flash
-              if (typeof data.author_points === "number") {
-                const prev = post.author.points;
-                post.author.points = data.author_points;
-                if (
-                  typeof data.author_points_delta === "number" &&
-                  data.author_points_delta !== 0 &&
-                  prev !== data.author_points
-                ) {
-                  (
-                    post as unknown as { __lastAuthorPointsDelta?: number }
-                  ).__lastAuthorPointsDelta = data.author_points_delta;
-                }
-                if (
-                  typeof data.author_level === "number" &&
-                  data.author_level !== post.author.level_id
-                ) {
-                  post.author.level_id = data.author_level;
-                }
-                // If this client user is the author, reflect author's delta in daily stats.
-                // Daily delta for author removed (handled by unified score events)
-              }
+          // Delegate to global cache patcher (updates all filtered caches)
+          // Lazy import to avoid circular deps
+          import("@/store/utils/applyPostVoteWsUpdate").then(
+            ({ applyPostVoteWsUpdate }) => {
+              applyPostVoteWsUpdate({
+                postId: data.postId,
+                userId: data.userId ?? -1,
+                voteType: data.voteType ?? data.userVote ?? null,
+                upvotes: data.upvotes,
+                downvotes: data.downvotes,
+                userVote: data.userVote,
+                previous_vote: undefined,
+                author_points: data.author_points,
+                author_points_delta: data.author_points_delta,
+                author_level: data.author_level,
+                emitted_at: data.emitted_at,
+                upvoterIds: data.upvoterIds,
+                downvoterIds: data.downvoterIds,
+                diff: data.diff,
+              });
             }
-          };
-          dispatch(
-            discussionsApi.util.updateQueryData(
-              "getPosts",
-              communityQueryArgs,
-              patchFn
-            )
           );
-          dispatch(
-            discussionsApi.util.updateQueryData(
-              "getMyPosts",
-              myPostsQueryArgs,
-              patchFn
-            )
-          );
-          // Actor daily delta removed (handled by unified score events)
         }
       },
       onScoreEvents: ({ events }) => {
