@@ -3,6 +3,7 @@ import { ArrowLeft, Play, Database } from "lucide-react";
 import { BEST_PRACTICE_CATEGORIES } from "@/components/bestPractices/constants";
 import { getCategoryIcon } from "@/components/bestPractices/iconMap";
 import type { BestPracticeCategoryKey } from "@/types/bestPractices";
+import { usePermissions } from "@/hooks/usePermissions";
 
 // Color gradients matching CategoryGrid exactly
 const COLOR_GRADIENTS: Record<
@@ -97,6 +98,7 @@ function getGradient(color?: string) {
 export function QuizNavPage() {
   const { categoryKey } = useParams();
   const navigate = useNavigate();
+  const { hasPermission } = usePermissions();
   const category = BEST_PRACTICE_CATEGORIES.find((c) => c.key === categoryKey);
 
   if (!category) {
@@ -163,9 +165,9 @@ export function QuizNavPage() {
           </div>
 
           {/* Main Content Grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8 lg:gap-10 max-w-6xl mx-auto">
+          <div className={`grid grid-cols-1 gap-6 sm:gap-8 lg:gap-10 max-w-6xl mx-auto ${hasPermission("MANAGE:QUIZZES") ? "lg:grid-cols-3" : ""}`}>
             {/* Take Quiz Card - Priority placement */}
-            <div className="lg:col-span-2">
+            <div className={hasPermission("MANAGE:QUIZZES") ? "lg:col-span-2" : ""}>
               <button
                 onClick={() =>
                   navigate(
@@ -197,40 +199,42 @@ export function QuizNavPage() {
               </button>
             </div>
 
-            {/* Question Bank Card */}
-            <div className="lg:col-span-1">
-              <button
-                onClick={() =>
-                  navigate(
-                    `/dashboard/best-practices/category/${category.key}/quiz/question-bank`
-                  )
-                }
-                className={`group w-full h-full bg-white/80 backdrop-blur-sm rounded-2xl sm:rounded-3xl p-6 sm:p-8 border border-white/50 shadow-lg hover:shadow-2xl transition-all duration-300 hover:scale-[1.02] ${gradient.hoverBorder} min-h-[200px] sm:min-h-[240px] lg:min-h-[280px] hover:cursor-pointer`}
-              >
-                <div className="flex flex-col items-center text-center space-y-4 sm:space-y-6 h-full justify-center">
-                  <div
-                    className={`w-14 h-14 sm:w-16 sm:h-16 lg:w-18 lg:h-18 rounded-2xl transition-all duration-300 group-hover:scale-110 group-hover:shadow-xl ${gradient.icon} ${gradient.hoverIcon} shadow-lg p-3.5 sm:p-4`}
-                  >
-                    <Database className="w-full h-full text-white" />
-                  </div>
-                  <div>
-                    <h3 className="text-lg sm:text-xl lg:text-xl font-bold text-slate-900 mb-2">
-                      Question Bank
-                    </h3>
-                    <p className="text-slate-600 text-sm sm:text-base leading-relaxed">
-                      Browse, create, and manage quiz questions for this
-                      category
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2 text-xs sm:text-sm text-slate-500 bg-slate-50 px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg">
+            {/* Question Bank Card - Only show for users with MANAGE:QUIZZES permission */}
+            {hasPermission("MANAGE:QUIZZES") && (
+              <div className="lg:col-span-1">
+                <button
+                  onClick={() =>
+                    navigate(
+                      `/dashboard/best-practices/category/${category.key}/quiz/question-bank`
+                    )
+                  }
+                  className={`group w-full h-full bg-white/80 backdrop-blur-sm rounded-2xl sm:rounded-3xl p-6 sm:p-8 border border-white/50 shadow-lg hover:shadow-2xl transition-all duration-300 hover:scale-[1.02] ${gradient.hoverBorder} min-h-[200px] sm:min-h-[240px] lg:min-h-[280px] hover:cursor-pointer`}
+                >
+                  <div className="flex flex-col items-center text-center space-y-4 sm:space-y-6 h-full justify-center">
                     <div
-                      className={`w-1.5 h-1.5 ${gradient.dotColor} rounded-full`}
-                    ></div>
-                    Content Management
+                      className={`w-14 h-14 sm:w-16 sm:h-16 lg:w-18 lg:h-18 rounded-2xl transition-all duration-300 group-hover:scale-110 group-hover:shadow-xl ${gradient.icon} ${gradient.hoverIcon} shadow-lg p-3.5 sm:p-4`}
+                    >
+                      <Database className="w-full h-full text-white" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg sm:text-xl lg:text-xl font-bold text-slate-900 mb-2">
+                        Question Bank
+                      </h3>
+                      <p className="text-slate-600 text-sm sm:text-base leading-relaxed">
+                        Browse, create, and manage quiz questions for this
+                        category
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs sm:text-sm text-slate-500 bg-slate-50 px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg">
+                      <div
+                        className={`w-1.5 h-1.5 ${gradient.dotColor} rounded-full`}
+                      ></div>
+                      Content Management
+                    </div>
                   </div>
-                </div>
-              </button>
-            </div>
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Quick Stats - Full width on large screens */}

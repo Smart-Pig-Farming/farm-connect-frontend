@@ -83,11 +83,17 @@ export function QuestionBankPage() {
   const [questions, setQuestions] = useState<QuizQuestionDraft[]>([]);
   const [editing, setEditing] = useState<QuizQuestionDraft | null>(null);
   const [openWizard, setOpenWizard] = useState(false);
-  const [deleteModal, setDeleteModal] = useState<{ show: boolean; question: QuizQuestionDraft | null }>({
+  const [deleteModal, setDeleteModal] = useState<{
+    show: boolean;
+    question: QuizQuestionDraft | null;
+  }>({
     show: false,
     question: null,
   });
-  const [viewModal, setViewModal] = useState<{ show: boolean; question: QuizQuestionDraft | null }>({
+  const [viewModal, setViewModal] = useState<{
+    show: boolean;
+    question: QuizQuestionDraft | null;
+  }>({
     show: false,
     question: null,
   });
@@ -109,7 +115,7 @@ export function QuestionBankPage() {
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   if (!category) {
@@ -288,119 +294,124 @@ export function QuestionBankPage() {
                           </span>
                         </div>
 
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold text-slate-900 mb-3 line-clamp-2 text-lg leading-relaxed">
-                          {q.prompt}
-                        </h3>
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-semibold text-slate-900 mb-3 line-clamp-2 text-lg leading-relaxed">
+                            {q.prompt}
+                          </h3>
 
-                        <div className="flex flex-wrap gap-2 mb-3">
-                          <span
-                            className={`px-3 py-1 rounded-full text-xs font-medium bg-${colors.light} text-${colors.accent} border border-${colors.accent}/20`}
-                          >
-                            {q.difficulty}
-                          </span>
-                          <span className="px-3 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-600 border border-slate-200">
-                            {q.type}
-                          </span>
-                          <span className="px-3 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-600 border border-slate-200">
-                            {q.choices.length} choices
-                          </span>
-                        </div>
+                          <div className="flex flex-wrap gap-2 mb-3">
+                            <span
+                              className={`px-3 py-1 rounded-full text-xs font-medium bg-${colors.light} text-${colors.accent} border border-${colors.accent}/20`}
+                            >
+                              {q.difficulty}
+                            </span>
+                            <span className="px-3 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-600 border border-slate-200">
+                              {q.type}
+                            </span>
+                            <span className="px-3 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-600 border border-slate-200">
+                              {q.choices.length} choices
+                            </span>
+                          </div>
 
-                        <div className="text-sm text-slate-500">
-                          {q.choices.filter((c) => c.correct).length} correct
-                          answer
-                          {q.choices.filter((c) => c.correct).length !== 1
-                            ? "s"
-                            : ""}
+                          <div className="text-sm text-slate-500">
+                            {q.choices.filter((c) => c.correct).length} correct
+                            answer
+                            {q.choices.filter((c) => c.correct).length !== 1
+                              ? "s"
+                              : ""}
+                          </div>
                         </div>
                       </div>
-                    </div>
 
-                    <div className="flex gap-2 flex-shrink-0">
-                      <button
-                        onClick={() => handleView(q)}
-                        className={`p-3 rounded-xl bg-blue-50 hover:bg-blue-500 text-blue-500 hover:text-white border border-blue-200 hover:border-blue-500 font-medium transition-all duration-200 hover:cursor-pointer hover:shadow-md`}
-                        title="View Question Details"
-                      >
-                        <FileText className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => {
-                          setEditing(q);
-                          setOpenWizard(true);
-                        }}
-                        className={`p-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-800 border border-slate-200 hover:border-slate-300 font-medium transition-all duration-200 hover:cursor-pointer hover:shadow-sm`}
-                        title="Edit Question"
-                      >
-                        <Edit3 className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(q)}
-                        className="p-3 rounded-xl bg-red-50 hover:bg-red-500 text-red-500 hover:text-white border border-red-200 hover:border-red-500 font-medium transition-all duration-200 hover:cursor-pointer hover:shadow-md"
-                        title="Delete Question"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* Pagination */}
-            {totalPages > 1 && (
-              <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-white/50 p-6 shadow-lg">
-                <div className="flex items-center justify-between">
-                  <div className="text-sm text-slate-600">
-                    Showing {startIndex + 1} to {Math.min(endIndex, questions.length)} of {questions.length} questions
-                  </div>
-                  
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => handlePageChange(currentPage - 1)}
-                      disabled={currentPage === 1}
-                      className={`px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 hover:cursor-pointer ${
-                        currentPage === 1
-                          ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
-                          : `bg-gradient-to-r ${colors.primary} text-white hover:shadow-md hover:scale-105`
-                      }`}
-                    >
-                      Previous
-                    </button>
-                    
-                    <div className="flex gap-1">
-                      {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                      <div className="flex gap-2 flex-shrink-0">
                         <button
-                          key={page}
-                          onClick={() => handlePageChange(page)}
-                          className={`w-10 h-10 rounded-lg text-sm font-medium transition-all duration-200 hover:cursor-pointer ${
-                            currentPage === page
-                              ? `bg-gradient-to-r ${colors.primary} text-white shadow-md`
-                              : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                          }`}
+                          onClick={() => handleView(q)}
+                          className={`p-3 rounded-xl bg-blue-50 hover:bg-blue-500 text-blue-500 hover:text-white border border-blue-200 hover:border-blue-500 font-medium transition-all duration-200 hover:cursor-pointer hover:shadow-md`}
+                          title="View Question Details"
                         >
-                          {page}
+                          <FileText className="w-4 h-4" />
                         </button>
-                      ))}
+                        <button
+                          onClick={() => {
+                            setEditing(q);
+                            setOpenWizard(true);
+                          }}
+                          className={`p-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-800 border border-slate-200 hover:border-slate-300 font-medium transition-all duration-200 hover:cursor-pointer hover:shadow-sm`}
+                          title="Edit Question"
+                        >
+                          <Edit3 className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(q)}
+                          className="p-3 rounded-xl bg-red-50 hover:bg-red-500 text-red-500 hover:text-white border border-red-200 hover:border-red-500 font-medium transition-all duration-200 hover:cursor-pointer hover:shadow-md"
+                          title="Delete Question"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
-                    
-                    <button
-                      onClick={() => handlePageChange(currentPage + 1)}
-                      disabled={currentPage === totalPages}
-                      className={`px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 hover:cursor-pointer ${
-                        currentPage === totalPages
-                          ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
-                          : `bg-gradient-to-r ${colors.primary} text-white hover:shadow-md hover:scale-105`
-                      }`}
-                    >
-                      Next
-                    </button>
+                  </div>
+                ))}
+              </div>
+
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-white/50 p-6 shadow-lg">
+                  <div className="flex items-center justify-between">
+                    <div className="text-sm text-slate-600">
+                      Showing {startIndex + 1} to{" "}
+                      {Math.min(endIndex, questions.length)} of{" "}
+                      {questions.length} questions
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => handlePageChange(currentPage - 1)}
+                        disabled={currentPage === 1}
+                        className={`px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 hover:cursor-pointer ${
+                          currentPage === 1
+                            ? "bg-slate-100 text-slate-400 cursor-not-allowed"
+                            : `bg-gradient-to-r ${colors.primary} text-white hover:shadow-md hover:scale-105`
+                        }`}
+                      >
+                        Previous
+                      </button>
+
+                      <div className="flex gap-1">
+                        {Array.from(
+                          { length: totalPages },
+                          (_, i) => i + 1
+                        ).map((page) => (
+                          <button
+                            key={page}
+                            onClick={() => handlePageChange(page)}
+                            className={`w-10 h-10 rounded-lg text-sm font-medium transition-all duration-200 hover:cursor-pointer ${
+                              currentPage === page
+                                ? `bg-gradient-to-r ${colors.primary} text-white shadow-md`
+                                : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                            }`}
+                          >
+                            {page}
+                          </button>
+                        ))}
+                      </div>
+
+                      <button
+                        onClick={() => handlePageChange(currentPage + 1)}
+                        disabled={currentPage === totalPages}
+                        className={`px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 hover:cursor-pointer ${
+                          currentPage === totalPages
+                            ? "bg-slate-100 text-slate-400 cursor-not-allowed"
+                            : `bg-gradient-to-r ${colors.primary} text-white hover:shadow-md hover:scale-105`
+                        }`}
+                      >
+                        Next
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            )}
-          </div>
+              )}
+            </div>
           )}
 
           {/* Question Wizard for Create */}
@@ -441,10 +452,11 @@ export function QuestionBankPage() {
                     Delete Question?
                   </h3>
                 </div>
-                
+
                 <div className="mb-4">
                   <p className="text-slate-600 mb-3 leading-relaxed">
-                    Are you sure you want to delete this question? This action cannot be undone.
+                    Are you sure you want to delete this question? This action
+                    cannot be undone.
                   </p>
                   <div className="bg-slate-50 rounded-lg p-3 border border-slate-200">
                     <p className="text-sm text-slate-700 line-clamp-2">
@@ -455,7 +467,9 @@ export function QuestionBankPage() {
 
                 <div className="flex gap-3">
                   <button
-                    onClick={() => setDeleteModal({ show: false, question: null })}
+                    onClick={() =>
+                      setDeleteModal({ show: false, question: null })
+                    }
                     className="flex-1 px-4 py-3 bg-slate-100 text-slate-700 rounded-xl font-medium hover:bg-slate-200 transition-colors hover:cursor-pointer"
                   >
                     Cancel
@@ -471,131 +485,151 @@ export function QuestionBankPage() {
             </div>
           )}
 
-        {/* Question Details Modal */}
-        {viewModal.show && viewModal.question && (
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-3xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
-              <div className="p-8">
-                <div className="flex items-center gap-4 mb-6">
-                  <div className={`w-12 h-12 rounded-full bg-gradient-to-r ${colors.primary} flex items-center justify-center`}>
-                    <FileText className="w-6 h-6 text-white" />
-                  </div>
-                  <h3 className="text-2xl font-bold text-slate-900">
-                    Question Details
-                  </h3>
-                </div>
-                
-                <div className="space-y-6">
-                  {/* Question Information */}
-                  <div className="bg-slate-50 rounded-2xl p-6 border border-slate-200">
-                    <h4 className="text-lg font-semibold text-slate-900 mb-4">
-                      Question
-                    </h4>
-                    <p className="text-slate-700 leading-relaxed text-lg">
-                      {viewModal.question.prompt}
-                    </p>
+          {/* Question Details Modal */}
+          {viewModal.show && viewModal.question && (
+            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+              <div className="bg-white rounded-3xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+                <div className="p-8">
+                  <div className="flex items-center gap-4 mb-6">
+                    <div
+                      className={`w-12 h-12 rounded-full bg-gradient-to-r ${colors.primary} flex items-center justify-center`}
+                    >
+                      <FileText className="w-6 h-6 text-white" />
+                    </div>
+                    <h3 className="text-2xl font-bold text-slate-900">
+                      Question Details
+                    </h3>
                   </div>
 
-                  {/* Question Metadata */}
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="bg-white rounded-xl p-4 border border-slate-200">
-                      <div className="text-sm text-slate-500 mb-1">Type</div>
-                      <div className="font-semibold text-slate-900 capitalize">
-                        {viewModal.question.type === 'mcq' ? 'Multiple Choice (Single)' :
-                         viewModal.question.type === 'multi' ? 'Multiple Choice (Multi)' :
-                         'True/False'}
-                      </div>
-                    </div>
-                    <div className="bg-white rounded-xl p-4 border border-slate-200">
-                      <div className="text-sm text-slate-500 mb-1">Difficulty</div>
-                      <div className={`font-semibold capitalize ${
-                        viewModal.question.difficulty === 'easy' ? 'text-green-600' :
-                        viewModal.question.difficulty === 'medium' ? 'text-yellow-600' :
-                        'text-red-600'
-                      }`}>
-                        {viewModal.question.difficulty}
-                      </div>
-                    </div>
-                    <div className="bg-white rounded-xl p-4 border border-slate-200">
-                      <div className="text-sm text-slate-500 mb-1">Correct Answers</div>
-                      <div className="font-semibold text-slate-900">
-                        {viewModal.question.choices.filter(c => c.correct).length} of {viewModal.question.choices.length}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Answer Choices */}
-                  <div className="bg-slate-50 rounded-2xl p-6 border border-slate-200">
-                    <h4 className="text-lg font-semibold text-slate-900 mb-4">
-                      Answer Choices
-                    </h4>
-                    <div className="space-y-3">
-                      {viewModal.question.choices.map((choice, index) => (
-                        <div 
-                          key={index}
-                          className={`p-4 rounded-xl border-2 transition-all ${
-                            choice.correct 
-                              ? 'bg-green-50 border-green-200 text-green-900' 
-                              : 'bg-white border-slate-200 text-slate-700'
-                          }`}
-                        >
-                          <div className="flex items-start gap-3">
-                            <div className={`w-6 h-6 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0 ${
-                              choice.correct 
-                                ? 'bg-green-500 text-white' 
-                                : 'bg-slate-300 text-slate-700'
-                            }`}>
-                              {String.fromCharCode(65 + index)}
-                            </div>
-                            <div className="flex-1">
-                              <p className="leading-relaxed">{choice.text}</p>
-                              {choice.correct && (
-                                <div className="text-sm text-green-600 font-medium mt-1">
-                                  ✓ Correct Answer
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Explanation */}
-                  {viewModal.question.explanation && (
-                    <div className="bg-blue-50 rounded-2xl p-6 border border-blue-200">
-                      <h4 className="text-lg font-semibold text-blue-900 mb-4">
-                        Explanation
+                  <div className="space-y-6">
+                    {/* Question Information */}
+                    <div className="bg-slate-50 rounded-2xl p-6 border border-slate-200">
+                      <h4 className="text-lg font-semibold text-slate-900 mb-4">
+                        Question
                       </h4>
-                      <p className="text-blue-800 leading-relaxed">
-                        {viewModal.question.explanation}
+                      <p className="text-slate-700 leading-relaxed text-lg">
+                        {viewModal.question.prompt}
                       </p>
                     </div>
-                  )}
-                </div>
 
-                <div className="flex gap-3 mt-8">
-                  <button
-                    onClick={() => setViewModal({ show: false, question: null })}
-                    className="flex-1 px-6 py-3 bg-slate-100 text-slate-700 rounded-xl font-medium hover:bg-slate-200 transition-colors hover:cursor-pointer"
-                  >
-                    Close
-                  </button>
-                  <button
-                    onClick={() => {
-                      setViewModal({ show: false, question: null });
-                      setEditing(viewModal.question);
-                      setOpenWizard(true);
-                    }}
-                    className={`flex-1 px-6 py-3 bg-gradient-to-r ${colors.primary} text-white rounded-xl font-medium hover:shadow-lg transition-all duration-200 hover:cursor-pointer`}
-                  >
-                    Edit Question
-                  </button>
+                    {/* Question Metadata */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="bg-white rounded-xl p-4 border border-slate-200">
+                        <div className="text-sm text-slate-500 mb-1">Type</div>
+                        <div className="font-semibold text-slate-900 capitalize">
+                          {viewModal.question.type === "mcq"
+                            ? "Multiple Choice (Single)"
+                            : viewModal.question.type === "multi"
+                            ? "Multiple Choice (Multi)"
+                            : "True/False"}
+                        </div>
+                      </div>
+                      <div className="bg-white rounded-xl p-4 border border-slate-200">
+                        <div className="text-sm text-slate-500 mb-1">
+                          Difficulty
+                        </div>
+                        <div
+                          className={`font-semibold capitalize ${
+                            viewModal.question.difficulty === "easy"
+                              ? "text-green-600"
+                              : viewModal.question.difficulty === "medium"
+                              ? "text-yellow-600"
+                              : "text-red-600"
+                          }`}
+                        >
+                          {viewModal.question.difficulty}
+                        </div>
+                      </div>
+                      <div className="bg-white rounded-xl p-4 border border-slate-200">
+                        <div className="text-sm text-slate-500 mb-1">
+                          Correct Answers
+                        </div>
+                        <div className="font-semibold text-slate-900">
+                          {
+                            viewModal.question.choices.filter((c) => c.correct)
+                              .length
+                          }{" "}
+                          of {viewModal.question.choices.length}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Answer Choices */}
+                    <div className="bg-slate-50 rounded-2xl p-6 border border-slate-200">
+                      <h4 className="text-lg font-semibold text-slate-900 mb-4">
+                        Answer Choices
+                      </h4>
+                      <div className="space-y-3">
+                        {viewModal.question.choices.map((choice, index) => (
+                          <div
+                            key={index}
+                            className={`p-4 rounded-xl border-2 transition-all ${
+                              choice.correct
+                                ? "bg-green-50 border-green-200 text-green-900"
+                                : "bg-white border-slate-200 text-slate-700"
+                            }`}
+                          >
+                            <div className="flex items-start gap-3">
+                              <div
+                                className={`w-6 h-6 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0 ${
+                                  choice.correct
+                                    ? "bg-green-500 text-white"
+                                    : "bg-slate-300 text-slate-700"
+                                }`}
+                              >
+                                {String.fromCharCode(65 + index)}
+                              </div>
+                              <div className="flex-1">
+                                <p className="leading-relaxed">{choice.text}</p>
+                                {choice.correct && (
+                                  <div className="text-sm text-green-600 font-medium mt-1">
+                                    ✓ Correct Answer
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Explanation */}
+                    {viewModal.question.explanation && (
+                      <div className="bg-blue-50 rounded-2xl p-6 border border-blue-200">
+                        <h4 className="text-lg font-semibold text-blue-900 mb-4">
+                          Explanation
+                        </h4>
+                        <p className="text-blue-800 leading-relaxed">
+                          {viewModal.question.explanation}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex gap-3 mt-8">
+                    <button
+                      onClick={() =>
+                        setViewModal({ show: false, question: null })
+                      }
+                      className="flex-1 px-6 py-3 bg-slate-100 text-slate-700 rounded-xl font-medium hover:bg-slate-200 transition-colors hover:cursor-pointer"
+                    >
+                      Close
+                    </button>
+                    <button
+                      onClick={() => {
+                        setViewModal({ show: false, question: null });
+                        setEditing(viewModal.question);
+                        setOpenWizard(true);
+                      }}
+                      className={`flex-1 px-6 py-3 bg-gradient-to-r ${colors.primary} text-white rounded-xl font-medium hover:shadow-lg transition-all duration-200 hover:cursor-pointer`}
+                    >
+                      Edit Question
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
         </div>
       </div>
     </div>

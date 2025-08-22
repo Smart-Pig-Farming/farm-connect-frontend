@@ -27,6 +27,7 @@ import {
   Trash2,
   X,
 } from "lucide-react";
+import { usePermissions } from "@/hooks/usePermissions";
 
 interface PracticeListViewProps {
   category: BestPracticeCategory;
@@ -46,6 +47,7 @@ export const PracticeListView = ({
   onDelete,
 }: PracticeListViewProps) => {
   const Icon = getCategoryIcon(category.key as "feeding_nutrition");
+  const { hasPermission } = usePermissions();
 
   // Search state
   const [searchTerm, setSearchTerm] = useState("");
@@ -460,37 +462,38 @@ export const PracticeListView = ({
 
                   {/* Read Status & Action Buttons - Bottom Right */}
                   <div className="absolute bottom-4 right-4 flex flex-col items-end gap-2">
-                    {/* Edit and Delete Action Buttons */}
-                    {(onEdit || onDelete) && (
-                      <div className="flex gap-2">
-                        {onEdit && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onEdit(content);
-                            }}
-                            className="group/btn flex items-center justify-center w-8 h-8 rounded-lg bg-white/80 dark:bg-slate-800/80 border border-slate-200/50 dark:border-slate-700/50 hover:border-blue-300 dark:hover:border-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all duration-200 backdrop-blur-sm hover:cursor-pointer"
-                            aria-label="Edit practice"
-                            title="Edit this practice"
-                          >
-                            <Edit3 className="w-4 h-4 text-slate-600 dark:text-slate-400 group-hover/btn:text-blue-600 dark:group-hover/btn:text-blue-400 transition-colors duration-200" />
-                          </button>
-                        )}
-                        {onDelete && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDeleteClick(content);
-                            }}
-                            className="group/btn flex items-center justify-center w-8 h-8 rounded-lg bg-white/80 dark:bg-slate-800/80 border border-slate-200/50 dark:border-slate-700/50 hover:border-red-300 dark:hover:border-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all duration-200 backdrop-blur-sm hover:cursor-pointer"
-                            aria-label="Delete practice"
-                            title="Delete this practice"
-                          >
-                            <Trash2 className="w-4 h-4 text-slate-600 dark:text-slate-400 group-hover/btn:text-red-600 dark:group-hover/btn:text-red-400 transition-colors duration-200" />
-                          </button>
-                        )}
-                      </div>
-                    )}
+                    {/* Edit and Delete Action Buttons - Only show for users with MANAGE:BEST_PRACTICES permission */}
+                    {hasPermission("MANAGE:BEST_PRACTICES") &&
+                      (onEdit || onDelete) && (
+                        <div className="flex gap-2">
+                          {onEdit && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onEdit(content);
+                              }}
+                              className="group/btn flex items-center justify-center w-8 h-8 rounded-lg bg-white/80 dark:bg-slate-800/80 border border-slate-200/50 dark:border-slate-700/50 hover:border-blue-300 dark:hover:border-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all duration-200 backdrop-blur-sm hover:cursor-pointer"
+                              aria-label="Edit practice"
+                              title="Edit this practice"
+                            >
+                              <Edit3 className="w-4 h-4 text-slate-600 dark:text-slate-400 group-hover/btn:text-blue-600 dark:group-hover/btn:text-blue-400 transition-colors duration-200" />
+                            </button>
+                          )}
+                          {onDelete && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteClick(content);
+                              }}
+                              className="group/btn flex items-center justify-center w-8 h-8 rounded-lg bg-white/80 dark:bg-slate-800/80 border border-slate-200/50 dark:border-slate-700/50 hover:border-red-300 dark:hover:border-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all duration-200 backdrop-blur-sm hover:cursor-pointer"
+                              aria-label="Delete practice"
+                              title="Delete this practice"
+                            >
+                              <Trash2 className="w-4 h-4 text-slate-600 dark:text-slate-400 group-hover/btn:text-red-600 dark:group-hover/btn:text-red-400 transition-colors duration-200" />
+                            </button>
+                          )}
+                        </div>
+                      )}
 
                     {/* Professional Read Status Indicator */}
                     <div

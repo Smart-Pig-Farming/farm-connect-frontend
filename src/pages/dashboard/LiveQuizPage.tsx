@@ -311,10 +311,12 @@ export function LiveQuizPage() {
             <h2 className="text-2xl lg:text-3xl font-bold text-slate-900 mb-2 leading-relaxed">
               {current.prompt}
             </h2>
-            
+
             {/* Simple Question Type Text */}
             <p className="text-sm text-slate-500 mb-6">
-              {current.type === "multi" ? "Select multiple options" : "Select one option"}
+              {current.type === "multi"
+                ? "Select multiple options"
+                : "Select one option"}
             </p>
 
             {/* Answer Choices */}
@@ -433,9 +435,10 @@ export function LiveQuizPage() {
                 Exit Quiz?
               </h3>
             </div>
-            
+
             <p className="text-slate-600 mb-6 leading-relaxed">
-              Are you sure you want to exit this quiz? Your progress will be lost and you'll need to start over.
+              Are you sure you want to exit this quiz? Your progress will be
+              lost and you'll need to start over.
             </p>
 
             <div className="flex gap-3">
@@ -448,7 +451,9 @@ export function LiveQuizPage() {
               <button
                 onClick={() => {
                   setShowExitModal(false);
-                  navigate(`/dashboard/best-practices/category/${category.key}/quiz`);
+                  navigate(
+                    `/dashboard/best-practices/category/${category.key}/quiz`
+                  );
                 }}
                 className="flex-1 px-4 py-3 bg-red-500 text-white rounded-xl font-medium hover:bg-red-600 transition-colors hover:cursor-pointer"
               >
@@ -471,9 +476,10 @@ export function LiveQuizPage() {
                 Submit Quiz?
               </h3>
             </div>
-            
+
             <p className="text-slate-600 mb-6 leading-relaxed">
-              Are you ready to submit your quiz? Once submitted, you won't be able to change your answers.
+              Are you ready to submit your quiz? Once submitted, you won't be
+              able to change your answers.
             </p>
 
             <div className="flex gap-3">

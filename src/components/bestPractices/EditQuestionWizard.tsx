@@ -845,15 +845,18 @@ const SaveStep = ({ draft }: { draft: QuizQuestionDraft }) => (
     <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-lg shadow-slate-200/50 dark:shadow-slate-900/50">
       <div className="text-center space-y-4">
         <div className="w-16 h-16 bg-orange-100 dark:bg-orange-900/30 rounded-full flex items-center justify-center mx-auto">
-          <span className="text-2xl text-orange-600 dark:text-orange-400">✓</span>
+          <span className="text-2xl text-orange-600 dark:text-orange-400">
+            ✓
+          </span>
         </div>
         <div>
           <h3 className="text-xl font-semibold text-slate-800 dark:text-slate-200 mb-2">
             Ready to Update
           </h3>
           <p className="text-slate-600 dark:text-slate-400">
-            Your quiz question changes are ready! Click "Update Question" to save the changes to the{" "}
-            {CATEGORY_MAP[draft.category]?.name} category.
+            Your quiz question changes are ready! Click "Update Question" to
+            save the changes to the {CATEGORY_MAP[draft.category]?.name}{" "}
+            category.
           </p>
         </div>
 

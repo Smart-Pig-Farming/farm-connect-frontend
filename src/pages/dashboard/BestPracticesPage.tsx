@@ -9,6 +9,7 @@ import {
   BEST_PRACTICES_MOCK,
 } from "@/data/bestPracticesMock";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { usePermissions } from "@/hooks/usePermissions";
 
 // Function to calculate practice counts by category
 function getPracticeCounts(): Record<string, number> {
@@ -33,6 +34,7 @@ export function BestPracticesPage() {
   const [openContentWizard, setOpenContentWizard] = useState(false);
   const [openQuestionWizard, setOpenQuestionWizard] = useState(false);
   const [contents, setContents] = useState<BestPracticeContentDraft[]>([]);
+  const { hasPermission } = usePermissions();
 
   // Calculate practice counts for CategoryGrid
   const practiceCounts = getPracticeCounts();
@@ -86,35 +88,37 @@ export function BestPracticesPage() {
 
             {/* Controls Row */}
             <div className="flex flex-col sm:flex-row gap-4 sm:items-stretch lg:items-center mb-8">
-              {/* Add Button */}
-              <button
-                onClick={() =>
-                  mode === "learn"
-                    ? setOpenContentWizard(true)
-                    : setOpenQuestionWizard(true)
-                }
-                className="flex items-center justify-center gap-3 px-6 py-4 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white rounded-2xl font-semibold shadow-lg shadow-orange-500/25 hover:shadow-orange-500/40 transition-all duration-300 transform hover:scale-[1.02] hover:cursor-pointer w-full sm:w-auto sm:max-w-fit group"
-              >
-                <div className="relative">
-                  <svg
-                    className="w-5 h-5 transition-transform duration-300 group-hover:rotate-90"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2.5}
-                      d="M12 4v16m8-8H4"
-                    />
-                  </svg>
-                  <div className="absolute inset-0 bg-white/20 rounded-full scale-0 group-hover:scale-100 transition-transform duration-300" />
-                </div>
-                <span className="text-lg">
-                  Add New {mode === "learn" ? "Practice" : "Question"}
-                </span>
-              </button>
+              {/* Add Button - Only show for users with MANAGE:BEST_PRACTICES permission */}
+              {hasPermission("MANAGE:BEST_PRACTICES") && (
+                <button
+                  onClick={() =>
+                    mode === "learn"
+                      ? setOpenContentWizard(true)
+                      : setOpenQuestionWizard(true)
+                  }
+                  className="flex items-center justify-center gap-3 px-6 py-4 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white rounded-2xl font-semibold shadow-lg shadow-orange-500/25 hover:shadow-orange-500/40 transition-all duration-300 transform hover:scale-[1.02] hover:cursor-pointer w-full sm:w-auto sm:max-w-fit group"
+                >
+                  <div className="relative">
+                    <svg
+                      className="w-5 h-5 transition-transform duration-300 group-hover:rotate-90"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2.5}
+                        d="M12 4v16m8-8H4"
+                      />
+                    </svg>
+                    <div className="absolute inset-0 bg-white/20 rounded-full scale-0 group-hover:scale-100 transition-transform duration-300" />
+                  </div>
+                  <span className="text-lg">
+                    Add New {mode === "learn" ? "Practice" : "Question"}
+                  </span>
+                </button>
+              )}
 
               {/* Mode Toggle */}
               <div className="flex justify-center sm:justify-start lg:ml-auto">

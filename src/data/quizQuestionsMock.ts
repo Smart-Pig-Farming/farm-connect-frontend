@@ -24,7 +24,7 @@ function loadAll(): QuizQuestionDraft[] {
       }
       return [];
     }
-  const parsed = JSON.parse(raw) as QuizQuestionDraft[];
+    const parsed = JSON.parse(raw) as QuizQuestionDraft[];
 
     // If parsed empty, force seed
     if (!parsed.length && QUESTION_BANK.length) {
@@ -34,7 +34,7 @@ function loadAll(): QuizQuestionDraft[] {
 
     // Merge in any missing static questions
     const existingIds = new Set(parsed.map((q) => q.id));
-  const merged = parsed.slice();
+    const merged = parsed.slice();
     let appended = 0;
     for (const staticQ of QUESTION_BANK) {
       if (!existingIds.has(staticQ.id)) {
