@@ -16,6 +16,11 @@ import {
   UserManagementPage,
 } from "@/pages/dashboard";
 import { PracticeDetailsPage } from "@/pages/dashboard/PracticeDetailsPage";
+import { PracticeListPage } from "@/pages/dashboard/PracticeListPage";
+import { QuizNavPage } from "@/pages/dashboard/QuizNavPage";
+import { QuestionBankPage } from "@/pages/dashboard/QuestionBankPage";
+import { QuizIntroPage } from "@/pages/dashboard/QuizIntroPage";
+import { LiveQuizPage } from "@/pages/dashboard/LiveQuizPage";
 import { DashboardLayout, ProtectedRoute } from "@/components/layout";
 
 function App() {
@@ -71,6 +76,56 @@ function App() {
             <ProtectedRoute>
               <DashboardLayout>
                 <PracticeDetailsPage />
+              </DashboardLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/dashboard/best-practices/category/:categoryKey"
+          element={
+            <ProtectedRoute>
+              <DashboardLayout>
+                <PracticeListPage />
+              </DashboardLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/dashboard/best-practices/category/:categoryKey/quiz"
+          element={
+            <ProtectedRoute>
+              <DashboardLayout>
+                <QuizNavPage />
+              </DashboardLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/dashboard/best-practices/category/:categoryKey/quiz/question-bank"
+          element={
+            <ProtectedRoute>
+              <DashboardLayout>
+                <QuestionBankPage />
+              </DashboardLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/dashboard/best-practices/category/:categoryKey/quiz/start"
+          element={
+            <ProtectedRoute>
+              <DashboardLayout>
+                <QuizIntroPage />
+              </DashboardLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/dashboard/best-practices/category/:categoryKey/quiz/live"
+          element={
+            <ProtectedRoute>
+              <DashboardLayout>
+                <LiveQuizPage />
               </DashboardLayout>
             </ProtectedRoute>
           }

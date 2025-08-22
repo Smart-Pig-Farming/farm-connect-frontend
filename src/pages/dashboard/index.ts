@@ -1,5 +1,10 @@
 export { DashboardOverviewPage } from "./DashboardOverviewPage";
 export { DiscussionsPage } from "./DiscussionsPage";
 export { BestPracticesPage } from "./BestPracticesPage";
+export { PracticeListPage } from "./PracticeListPage";
+export { QuizNavPage } from "./QuizNavPage";
+export { QuestionBankPage } from "./QuestionBankPage";
+export { QuizIntroPage } from "./QuizIntroPage";
+export { LiveQuizPage } from "./LiveQuizPage";
 export { default as UserManagementPage } from "./UserManagementPage";
 export { ProfilePage } from "./ProfilePage";

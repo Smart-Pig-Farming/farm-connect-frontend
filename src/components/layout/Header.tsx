@@ -135,9 +135,9 @@ export function Header({ sidebarCollapsed, isMobile = false }: HeaderProps) {
   return (
     <header
       className={`
-        sticky top-0 z-40 backdrop-blur-xl bg-white/85 
+        fixed top-0 left-0 right-0 z-50 backdrop-blur-xl bg-white/85
         border-b border-white/20 shadow-sm
-        transition-all duration-300 
+        transition-all duration-300
         ${sidebarCollapsed ? "lg:pl-3" : "lg:pl-4"}
         ${isMobile ? "pl-4" : ""}
       `}

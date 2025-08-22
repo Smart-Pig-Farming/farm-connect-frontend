@@ -1,7 +1,10 @@
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import type { BestPracticeContentDraft } from "@/types/bestPractices";
-import { fetchPracticeById } from "@/data/bestPracticesMock";
+import {
+  fetchPracticeById,
+  BEST_PRACTICES_MOCK,
+} from "@/data/bestPracticesMock";
 import { PracticeDetails } from "@/components/bestPractices/PracticeDetails";
 
 export function PracticeDetailsPage() {
@@ -16,6 +19,32 @@ export function PracticeDetailsPage() {
   );
   const [loading, setLoading] = useState(!passed);
   const [error, setError] = useState<string | null>(null);
+  const [siblings, setSiblings] = useState<BestPracticeContentDraft[]>([]);
+
+  // Build sibling list (same first category) once practice loaded
+  useEffect(() => {
+    if (!practice) return;
+    const primary = practice.categories[0];
+    const list = BEST_PRACTICES_MOCK.filter((p) => p.categories[0] === primary);
+    setSiblings(list);
+  }, [practice]);
+
+  const currentIndex = practice
+    ? siblings.findIndex((p) => p.id === practice.id)
+    : -1;
+  const hasPrev = currentIndex > 0;
+  const hasNext = currentIndex >= 0 && currentIndex < siblings.length - 1;
+
+  const goSibling = (offset: number) => {
+    if (currentIndex < 0) return;
+    const target = siblings[currentIndex + offset];
+    if (!target) return;
+    // Navigate replacing URL param but keep no state reliance
+    navigate(`/dashboard/best-practices/${target.id}`, {
+      state: { practice: target },
+    });
+    setPractice(target); // optimistic update
+  };
 
   useEffect(() => {
     if (practice || !practiceId) return;
@@ -35,8 +64,16 @@ export function PracticeDetailsPage() {
     <div className="min-h-screen">
       <div className="max-w-6xl mx-auto px-4 md:px-8 py-6 md:py-10">
         <button
-          onClick={() => navigate(-1)}
-          className="inline-flex items-center gap-2 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 mb-6 group"
+          onClick={() => {
+            if (practice?.categories?.[0]) {
+              navigate(
+                `/dashboard/best-practices/category/${practice.categories[0]}`
+              );
+            } else {
+              navigate("/dashboard/best-practices");
+            }
+          }}
+          className="inline-flex items-center gap-2 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 mb-6 group hover:cursor-pointer"
         >
           <svg
             className="w-4 h-4 transform group-hover:-translate-x-1 transition-transform"
@@ -94,7 +131,22 @@ export function PracticeDetailsPage() {
         )}
 
         {!loading && !error && practice && (
-          <PracticeDetails practice={practice} onClose={() => navigate(-1)} />
+          <PracticeDetails
+            practice={practice}
+            hasPrev={hasPrev}
+            hasNext={hasNext}
+            onPrev={() => goSibling(-1)}
+            onNext={() => goSibling(1)}
+            onClose={() => {
+              if (practice.categories?.[0]) {
+                navigate(
+                  `/dashboard/best-practices/category/${practice.categories[0]}`
+                );
+              } else {
+                navigate("/dashboard/best-practices");
+              }
+            }}
+          />
         )}
       </div>
     </div>

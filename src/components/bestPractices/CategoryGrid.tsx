@@ -1,7 +1,8 @@
-import { type FC } from "react";
+import { type FC, useMemo } from "react";
 import { BEST_PRACTICE_CATEGORIES } from "./constants";
 import type { BestPracticeCategory } from "@/types/bestPractices";
 import { getCategoryIcon } from "./iconMap";
+import { QUESTION_BANK_STATS } from "@/data/questionbank";
 
 // Map tailwind color stems to gradient classes (from -> to)
 const COLOR_GRADIENTS: Record<
@@ -71,14 +72,28 @@ function getGradient(color?: string) {
 interface CategoryGridProps {
   mode: "learn" | "quiz";
   onSelect: (cat: BestPracticeCategory) => void;
+  practiceCounts?: Record<string, number>; // existing content counts
+  quizCounts?: Record<string, number>; // optional override for quiz question counts
 }
 
-export const CategoryGrid: FC<CategoryGridProps> = ({ mode, onSelect }) => {
+export const CategoryGrid: FC<CategoryGridProps> = ({
+  mode,
+  onSelect,
+  practiceCounts = {},
+  quizCounts,
+}) => {
+  // derive quiz counts from stats if not provided
+  const derivedQuizCounts = useMemo(() => {
+    if (quizCounts) return quizCounts;
+    return QUESTION_BANK_STATS.byCategory as Record<string, number>;
+  }, [quizCounts]);
   return (
     <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4 mt-8">
       {BEST_PRACTICE_CATEGORIES.map((c) => {
         const Icon = getCategoryIcon(c.key as "feeding_nutrition");
         const grad = getGradient(c.color);
+        const count = practiceCounts[c.key] || 0;
+        const qCount = derivedQuizCounts[c.key] || 0;
         return (
           <button
             key={c.key}
@@ -110,7 +125,9 @@ export const CategoryGrid: FC<CategoryGridProps> = ({ mode, onSelect }) => {
               {/* Stats and arrow */}
               <div className="flex items-center justify-between pt-2">
                 <span className="text-xs text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded-full transition-all duration-300 group-hover:ring-1 group-hover:ring-inset group-hover:ring-current">
-                  {mode === "learn" ? "0 practices" : "0 questions"}
+                  {mode === "learn"
+                    ? `${count} practice${count !== 1 ? "s" : ""}`
+                    : `${qCount} question${qCount !== 1 ? "s" : ""}`}
                 </span>
                 <div
                   className={`flex items-center text-slate-400 transition-colors duration-300 ${grad.textHover}`}
