@@ -41,6 +41,8 @@ export interface BestPracticeContentDraft {
   status: "draft" | "saved";
   createdAt: number;
   updatedAt: number;
+  stepsCount?: number; // derived from backend list
+  benefitsCount?: number; // derived from backend list
 }
 
 export type QuizQuestionType = "mcq" | "multi" | "truefalse";

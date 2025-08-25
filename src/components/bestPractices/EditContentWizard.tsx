@@ -16,6 +16,8 @@ import type {
 } from "@/types/bestPractices";
 import { usePersistentDraft } from "./hooks/usePersistentDraft";
 import { reorder } from "./utils/reorder";
+import { useUpdateBestPracticeMutation } from "@/store/api/bestPracticesApi";
+import { getErrorMessage } from "@/utils/error";
 
 // Color gradients for categories - matching actual category keys in EditContentWizard
 const COLOR_GRADIENTS = {
@@ -78,8 +80,21 @@ const CATEGORY_MAP = BEST_PRACTICE_CATEGORIES.reduce((acc, category) => {
 interface EditContentWizardProps {
   open: boolean;
   onClose: () => void;
-  onSave: (draft: BestPracticeContentDraft) => void;
+  /** optional callback after successful update */
+  onSave?: (draft: BestPracticeContentDraft) => void;
   content: BestPracticeContentDraft; // The existing content to edit
+}
+
+interface BestPracticeUpdatePayload {
+  id: number | string;
+  title?: string;
+  description?: string;
+  steps?: Array<{ text: string; order: number }>;
+  benefits?: string[];
+  categories?: BestPracticeCategoryKey[];
+  is_published?: boolean;
+  mediaFile?: File; // new upload
+  media?: null; // explicit removal
 }
 
 type StepId = 0 | 1 | 2 | 3 | 4;
@@ -100,7 +115,8 @@ export const EditContentWizard = ({
     initial: () => ({ ...content, updatedAt: Date.now() }),
   });
   const [wizardStep, setWizardStep] = useState<StepId>(0);
-  const [saving, setSaving] = useState(false);
+  const [saving, setSaving] = useState(false); // local legacy flag
+  const [updatePractice, updateState] = useUpdateBestPracticeMutation();
   const [validationErrors, setValidationErrors] = useState<
     Record<string, string>
   >({});
@@ -260,14 +276,70 @@ export const EditContentWizard = ({
     setWizardStep((s) => (s - 1) as StepId);
   };
 
-  const handleSave = () => {
-    setSaving(true);
-    setTimeout(() => {
-      onSave({ ...draft, status: "saved" });
-      clearDraft();
-      setSaving(false);
+  const buildPayload = (
+    original: BestPracticeContentDraft,
+    current: BestPracticeContentDraft
+  ): BestPracticeUpdatePayload => {
+    const changed: BestPracticeUpdatePayload = { id: original.id };
+    if (original.title !== current.title) changed.title = current.title.trim();
+    if (original.description !== current.description)
+      changed.description = current.description.trim();
+    // compare steps (length or any text/order change)
+    const stepsChanged =
+      original.steps.length !== current.steps.length ||
+      original.steps.some(
+        (s, i) =>
+          s.text.trim() !== current.steps[i]?.text.trim() ||
+          s.order !== current.steps[i]?.order
+      );
+    if (stepsChanged)
+      changed.steps = current.steps.map((s) => ({
+        text: s.text.trim(),
+        order: s.order,
+      }));
+    const benefitsChanged =
+      original.benefits.length !== current.benefits.length ||
+      original.benefits.some((b, i) => b !== current.benefits[i]);
+    if (benefitsChanged) changed.benefits = current.benefits.slice();
+    const categoriesChanged =
+      original.categories.length !== current.categories.length ||
+      original.categories.some((c) => !current.categories.includes(c));
+    if (categoriesChanged) changed.categories = current.categories.slice();
+    // media logic
+    if (original.media && !current.media) {
+      changed.media = null; // explicit removal
+    } else if (current.media?.file) {
+      changed.mediaFile = current.media.file;
+    }
+    return changed;
+  };
+
+  const handleSave = async () => {
+    const errors = validateCurrentStep();
+    if (Object.keys(errors).length) {
+      setValidationErrors(errors);
+      return;
+    }
+    const payload = buildPayload(content, draft);
+    // If no changes & no new media, just close
+    if (Object.keys(payload).length === 1) {
       onClose();
-    }, 450);
+      return;
+    }
+    setSaving(true);
+    try {
+      await updatePractice({
+        id: payload.id,
+        data: payload as unknown as Record<string, unknown>,
+      }).unwrap();
+      if (onSave) onSave({ ...draft, status: "saved" });
+      clearDraft();
+      onClose();
+    } catch {
+      // stay open
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -364,6 +436,22 @@ export const EditContentWizard = ({
             </div>
           </div>
         </div>
+
+        {/* Error Banner */}
+        {updateState.isError && (
+          <div className="bg-red-50 text-red-700 px-4 py-3 text-sm border-b border-red-200 flex items-start gap-2">
+            <span className="font-medium">Update failed:</span>
+            <span>
+              {getErrorMessage((updateState.error as unknown) || updateState)}
+            </span>
+            <button
+              onClick={() => handleSave()}
+              className="ml-auto underline hover:opacity-80"
+            >
+              Retry
+            </button>
+          </div>
+        )}
 
         {/* Content Section */}
         <div className="flex-1 overflow-y-auto bg-gradient-to-br from-slate-50 to-orange-50/30 dark:from-slate-800 dark:to-slate-900">
@@ -648,19 +736,24 @@ export const EditContentWizard = ({
           {wizardStep < 4 ? (
             <button
               onClick={handleNext}
-              className="px-6 py-2 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-xl font-medium hover:from-orange-600 hover:to-orange-700 hover:cursor-pointer transition-all duration-200 shadow-lg"
+              disabled={saving || updateState.isLoading}
+              className="px-6 py-2 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-xl font-medium hover:from-orange-600 hover:to-orange-700 disabled:opacity-50 disabled:cursor-not-allowed hover:cursor-pointer transition-all duration-200 shadow-lg"
               aria-label="Next step"
             >
               Continue →
             </button>
           ) : (
             <button
-              disabled={saving}
+              disabled={saving || updateState.isLoading}
               onClick={handleSave}
               className="px-6 py-2 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-xl font-medium hover:from-green-600 hover:to-green-700 disabled:opacity-50 disabled:cursor-not-allowed hover:cursor-pointer transition-all duration-200 shadow-lg flex items-center gap-2"
             >
-              {saving && <Loader2 className="w-4 h-4 animate-spin" />}
-              {saving ? "Saving..." : "Update Practice"}
+              {(saving || updateState.isLoading) && (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              )}
+              {saving || updateState.isLoading
+                ? "Saving..."
+                : "Update Practice"}
             </button>
           )}
         </div>

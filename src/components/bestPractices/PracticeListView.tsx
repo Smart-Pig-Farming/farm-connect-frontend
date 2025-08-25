@@ -429,11 +429,26 @@ export const PracticeListView = ({
                     <div className="flex items-center gap-6 text-sm text-slate-500 dark:text-slate-400">
                       <div className="flex items-center gap-2">
                         <Blocks className="w-4 h-4" />
-                        <span>{content.steps.length} steps</span>
+                        <span>
+                          {"stepsCount" in content &&
+                          typeof (content as { stepsCount?: number })
+                            .stepsCount === "number"
+                            ? (content as { stepsCount?: number }).stepsCount
+                            : content.steps.length}{" "}
+                          steps
+                        </span>
                       </div>
                       <div className="flex items-center gap-2">
                         <Star className="w-4 h-4" />
-                        <span>{content.benefits.length} benefits</span>
+                        <span>
+                          {"benefitsCount" in content &&
+                          typeof (content as { benefitsCount?: number })
+                            .benefitsCount === "number"
+                            ? (content as { benefitsCount?: number })
+                                .benefitsCount
+                            : content.benefits.length}{" "}
+                          benefits
+                        </span>
                       </div>
                     </div>
                   </div>

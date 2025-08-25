@@ -13,6 +13,8 @@ export interface BestPracticeListItem {
   read: boolean;
   last_read_at: string | null;
   read_count: number;
+  steps_count?: number;
+  benefits_count?: number;
 }
 export interface BestPracticeDetail extends BestPracticeListItem {
   description: string;
@@ -57,7 +59,8 @@ function buildBestPracticeForm(data: Record<string, unknown>) {
   Object.entries(data).forEach(([k, v]) => {
     if (v === undefined || v === null) return;
     if (k === "categories" && Array.isArray(v)) {
-      v.forEach((c: string) => fd.append("categories[]", c));
+      // Send as single JSON string for robust backend parsing
+      fd.append("categories", JSON.stringify(v));
     } else if ((k === "steps" || k === "benefits") && Array.isArray(v)) {
       fd.append(k, JSON.stringify(v));
     } else if (k === "mediaFile" && v instanceof File) {

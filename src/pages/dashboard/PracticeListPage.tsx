@@ -20,6 +20,8 @@ interface ApiListItemShape {
   categories?: string[];
   media?: unknown;
   created_at?: string;
+  steps_count?: number;
+  benefits_count?: number;
 }
 function mapApiToDraft(item: ApiListItemShape): BestPracticeContentDraft {
   const allowed: Set<string> = new Set([
@@ -46,6 +48,9 @@ function mapApiToDraft(item: ApiListItemShape): BestPracticeContentDraft {
     status: "saved",
     createdAt: item.created_at ? Date.parse(item.created_at) : Date.now(),
     updatedAt: item.created_at ? Date.parse(item.created_at) : Date.now(),
+    // counts available for UI components if they choose to show summary
+    stepsCount: item.steps_count ?? 0,
+    benefitsCount: item.benefits_count ?? 0,
   };
 }
 

@@ -1,11 +1,96 @@
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import type { BestPracticeContentDraft } from "@/types/bestPractices";
-import {
-  fetchPracticeById,
-  BEST_PRACTICES_MOCK,
-} from "@/data/bestPracticesMock";
 import { PracticeDetails } from "@/components/bestPractices/PracticeDetails";
+import { useGetBestPracticeQuery } from "@/store/api/bestPracticesApi";
+
+// Adapt server response practice -> local draft shape
+function adaptPractice(api: unknown): BestPracticeContentDraft {
+  const obj = (api ?? {}) as Record<string, unknown>;
+  let stepsSrc: unknown = obj.steps_json;
+  if (typeof stepsSrc === "string") {
+    try {
+      const parsed = JSON.parse(stepsSrc);
+      if (Array.isArray(parsed)) stepsSrc = parsed;
+      else stepsSrc = [];
+    } catch {
+      stepsSrc = [];
+    }
+  }
+  if (!Array.isArray(stepsSrc)) stepsSrc = [];
+  const stepsArr = stepsSrc as unknown[];
+  const steps = stepsArr.map((raw, i) => {
+    if (raw && typeof raw === "object") {
+      const rec = raw as Record<string, unknown>;
+      const id = typeof rec.id === "string" ? rec.id : crypto.randomUUID();
+      const text = typeof rec.text === "string" ? rec.text : "";
+      const order = typeof rec.order === "number" ? rec.order : i;
+      return { id, text, order };
+    }
+    return { id: crypto.randomUUID(), text: String(raw ?? ""), order: i };
+  });
+  let benefitsArr: unknown = obj.benefits_json;
+  if (typeof benefitsArr === "string") {
+    try {
+      const parsed = JSON.parse(benefitsArr);
+      if (Array.isArray(parsed)) benefitsArr = parsed;
+      else benefitsArr = [];
+    } catch {
+      benefitsArr = [];
+    }
+  }
+  const benefits = Array.isArray(benefitsArr)
+    ? (benefitsArr as unknown[]).map((b) => String(b))
+    : [];
+  return {
+    id: String(obj.id ?? ""),
+    title: (obj.title as string) || "",
+    description: (obj.description as string) || "",
+    steps,
+    benefits,
+    categories: Array.isArray(obj.categories)
+      ? (obj.categories as string[]).filter(
+          (c): c is import("@/types/bestPractices").BestPracticeCategoryKey =>
+            [
+              "feeding_nutrition",
+              "disease_control",
+              "growth_weight",
+              "environment_management",
+              "breeding_insemination",
+              "farrowing_management",
+              "record_management",
+              "marketing_finance",
+            ].includes(c)
+        )
+      : [],
+    media: (() => {
+      const mediaRaw = (obj as Record<string, unknown>).media as
+        | Record<string, unknown>
+        | undefined;
+      if (!mediaRaw) return null;
+      const kind = typeof mediaRaw.kind === "string" ? mediaRaw.kind : "image";
+      const url = typeof mediaRaw.url === "string" ? mediaRaw.url : undefined;
+      const thumb =
+        typeof mediaRaw.thumbnail_url === "string"
+          ? mediaRaw.thumbnail_url
+          : undefined;
+      const originalName =
+        typeof mediaRaw.originalName === "string"
+          ? mediaRaw.originalName
+          : undefined;
+      return {
+        kind: kind as "image" | "video",
+        previewUrl: url || thumb,
+        alt: originalName || (obj.title as string) || "",
+      };
+    })(),
+    status: "saved",
+    createdAt: obj.created_at ? Date.parse(String(obj.created_at)) : Date.now(),
+    updatedAt: obj.updated_at ? Date.parse(String(obj.updated_at)) : Date.now(),
+    stepsCount: steps.length,
+    benefitsCount: benefits.length,
+  };
+}
 
 export function PracticeDetailsPage() {
   const { practiceId } = useParams();
@@ -13,52 +98,44 @@ export function PracticeDetailsPage() {
   const location = useLocation() as {
     state?: { practice?: BestPracticeContentDraft };
   };
-  const passed: BestPracticeContentDraft | undefined = location.state?.practice;
+  const optimistic: BestPracticeContentDraft | undefined =
+    location.state?.practice;
   const [practice, setPractice] = useState<BestPracticeContentDraft | null>(
-    passed || null
+    optimistic || null
   );
-  const [loading, setLoading] = useState(!passed);
-  const [error, setError] = useState<string | null>(null);
-  const [siblings, setSiblings] = useState<BestPracticeContentDraft[]>([]);
 
-  // Build sibling list (same first category) once practice loaded
+  const numericId = practiceId ? Number(practiceId) : undefined;
+  const { data, isFetching, isError, error } = useGetBestPracticeQuery(
+    numericId!,
+    {
+      skip: !numericId,
+    }
+  );
+
+  // When API data arrives, adapt & store
   useEffect(() => {
-    if (!practice) return;
-    const primary = practice.categories[0];
-    const list = BEST_PRACTICES_MOCK.filter((p) => p.categories[0] === primary);
-    setSiblings(list);
-  }, [practice]);
+    if (data?.practice) {
+      setPractice(adaptPractice(data.practice));
+    }
+  }, [data]);
 
-  const currentIndex = practice
-    ? siblings.findIndex((p) => p.id === practice.id)
-    : -1;
-  const hasPrev = currentIndex > 0;
-  const hasNext = currentIndex >= 0 && currentIndex < siblings.length - 1;
-
-  const goSibling = (offset: number) => {
-    if (currentIndex < 0) return;
-    const target = siblings[currentIndex + offset];
-    if (!target) return;
-    // Navigate replacing URL param but keep no state reliance
-    navigate(`/dashboard/best-practices/${target.id}`, {
-      state: { practice: target },
-    });
-    setPractice(target); // optimistic update
+  // Navigation from API navigation object
+  const nav = data?.navigation;
+  const hasPrev = !!nav?.prevId;
+  const hasNext = !!nav?.nextId;
+  const goPrev = () => {
+    if (nav?.prevId) navigate(`/dashboard/best-practices/${nav.prevId}`);
+  };
+  const goNext = () => {
+    if (nav?.nextId) navigate(`/dashboard/best-practices/${nav.nextId}`);
   };
 
-  useEffect(() => {
-    if (practice || !practiceId) return;
-    setLoading(true);
-    fetchPracticeById(practiceId)
-      .then((p) => {
-        if (!p) {
-          setError("Practice not found");
-        }
-        setPractice(p);
-      })
-      .catch((e) => setError(e?.message || "Failed to load practice"))
-      .finally(() => setLoading(false));
-  }, [practiceId, practice]);
+  const loading = isFetching && !practice; // show skeleton only if nothing yet
+  const resolvedError: string | null =
+    isError && !practice
+      ? (error as unknown as { data?: { error?: string } })?.data?.error ||
+        "Failed to load practice"
+      : null;
 
   return (
     <div className="min-h-screen">
@@ -118,9 +195,9 @@ export function PracticeDetailsPage() {
           </div>
         )}
 
-        {error && !loading && (
+        {resolvedError && !loading && (
           <div className="p-10 border border-red-300 dark:border-red-700 rounded-xl bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300">
-            <p className="font-medium mb-4">{error}</p>
+            <p className="font-medium mb-4">{resolvedError}</p>
             <button
               onClick={() => navigate("/dashboard/best-practices")}
               className="px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-semibold hover:bg-red-700 dark:bg-red-500 dark:hover:bg-red-600"
@@ -130,13 +207,13 @@ export function PracticeDetailsPage() {
           </div>
         )}
 
-        {!loading && !error && practice && (
+        {!loading && !resolvedError && practice && (
           <PracticeDetails
             practice={practice}
             hasPrev={hasPrev}
             hasNext={hasNext}
-            onPrev={() => goSibling(-1)}
-            onNext={() => goSibling(1)}
+            onPrev={goPrev}
+            onNext={goNext}
             onClose={() => {
               if (practice.categories?.[0]) {
                 navigate(
