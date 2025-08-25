@@ -4,6 +4,7 @@ import { BEST_PRACTICE_CATEGORIES } from "@/components/bestPractices/constants";
 import { getCategoryIcon } from "@/components/bestPractices/iconMap";
 import type { BestPracticeCategoryKey } from "@/types/bestPractices";
 import { usePermissions } from "@/hooks/usePermissions";
+import { useGetQuizTagStatsQuery } from "@/store/api/quizApi";
 
 // Color gradients matching CategoryGrid exactly
 const COLOR_GRADIENTS: Record<
@@ -100,6 +101,23 @@ export function QuizNavPage() {
   const navigate = useNavigate();
   const { hasPermission } = usePermissions();
   const category = BEST_PRACTICE_CATEGORIES.find((c) => c.key === categoryKey);
+  const { data: tagStats, isLoading: loadingTagStats } =
+    useGetQuizTagStatsQuery();
+  const tagNameMap: Record<string, string> = {
+    feeding_nutrition: "Feeding & Nutrition",
+    disease_control: "Disease Control",
+    growth_weight_mgmt: "Growth & Weight Mgmt",
+    environment_mgmt: "Environment Mgmt",
+    breeding_insemination: "Breeding & Insemination",
+    farrowing_mgmt: "Farrowing Mgmt",
+    record_farm_mgmt: "Record & Farm Mgmt",
+    marketing_finance: "Marketing & Finance",
+  };
+  const expectedTagName = category
+    ? tagNameMap[category.key as string]
+    : undefined;
+  const matchedTag = tagStats?.tags.find((t) => t.tag_name === expectedTagName);
+  const questionCount = matchedTag ? matchedTag.question_count : 0;
 
   if (!category) {
     return (
@@ -165,9 +183,15 @@ export function QuizNavPage() {
           </div>
 
           {/* Main Content Grid */}
-          <div className={`grid grid-cols-1 gap-6 sm:gap-8 lg:gap-10 max-w-6xl mx-auto ${hasPermission("MANAGE:QUIZZES") ? "lg:grid-cols-3" : ""}`}>
+          <div
+            className={`grid grid-cols-1 gap-6 sm:gap-8 lg:gap-10 max-w-6xl mx-auto ${
+              hasPermission("MANAGE:QUIZZES") ? "lg:grid-cols-3" : ""
+            }`}
+          >
             {/* Take Quiz Card - Priority placement */}
-            <div className={hasPermission("MANAGE:QUIZZES") ? "lg:col-span-2" : ""}>
+            <div
+              className={hasPermission("MANAGE:QUIZZES") ? "lg:col-span-2" : ""}
+            >
               <button
                 onClick={() =>
                   navigate(
@@ -242,7 +266,7 @@ export function QuizNavPage() {
             <div className="grid grid-cols-3 gap-4 sm:gap-6 lg:gap-8 text-center">
               <div className="flex flex-col items-center space-y-1 sm:space-y-2">
                 <div className="text-xl sm:text-2xl lg:text-3xl font-bold text-slate-900">
-                  10
+                  {loadingTagStats ? "…" : questionCount}
                 </div>
                 <div className="text-xs sm:text-sm lg:text-base text-slate-600 leading-tight">
                   Questions Available

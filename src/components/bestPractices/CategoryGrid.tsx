@@ -2,7 +2,19 @@ import { type FC, useMemo } from "react";
 import { BEST_PRACTICE_CATEGORIES } from "./constants";
 import type { BestPracticeCategory } from "@/types/bestPractices";
 import { getCategoryIcon } from "./iconMap";
-import { QUESTION_BANK_STATS } from "@/data/questionbank";
+import { useGetQuizTagStatsQuery } from "@/store/api/quizApi";
+
+// mapping backend tag display names to category keys
+const QUIZ_TAG_NAME_MAP: Record<string, string> = {
+  feeding_nutrition: "Feeding & Nutrition",
+  disease_control: "Disease Control",
+  growth_weight_mgmt: "Growth & Weight Mgmt",
+  environment_mgmt: "Environment Mgmt",
+  breeding_insemination: "Breeding & Insemination",
+  farrowing_mgmt: "Farrowing Mgmt",
+  record_farm_mgmt: "Record & Farm Mgmt",
+  marketing_finance: "Marketing & Finance",
+};
 
 // Map tailwind color stems to gradient classes (from -> to)
 const COLOR_GRADIENTS: Record<
@@ -82,11 +94,25 @@ export const CategoryGrid: FC<CategoryGridProps> = ({
   practiceCounts = {},
   quizCounts,
 }) => {
-  // derive quiz counts from stats if not provided
+  // fetch live quiz tag stats (question counts) unless override provided
+  const {
+    data: tagStatsData,
+    isLoading: loadingTagStats,
+    isError: tagStatsError,
+    error: tagStatsErrorObj,
+  } = useGetQuizTagStatsQuery(undefined, { skip: !!quizCounts });
   const derivedQuizCounts = useMemo(() => {
     if (quizCounts) return quizCounts;
-    return QUESTION_BANK_STATS.byCategory as Record<string, number>;
-  }, [quizCounts]);
+    const map: Record<string, number> = {};
+    if (tagStatsData?.tags) {
+      for (const cKey of Object.keys(QUIZ_TAG_NAME_MAP)) {
+        const tagName = QUIZ_TAG_NAME_MAP[cKey];
+        const found = tagStatsData.tags.find((t) => t.tag_name === tagName);
+        if (found) map[cKey] = found.question_count;
+      }
+    }
+    return map;
+  }, [quizCounts, tagStatsData]);
   return (
     <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4 mt-8">
       {BEST_PRACTICE_CATEGORIES.map((c) => {
@@ -94,6 +120,37 @@ export const CategoryGrid: FC<CategoryGridProps> = ({
         const grad = getGradient(c.color);
         const count = practiceCounts[c.key] || 0;
         const qCount = derivedQuizCounts[c.key] || 0;
+        const showQuizCounts = mode === "quiz";
+        const quizCountContent = (() => {
+          if (!showQuizCounts)
+            return `${count} practice${count !== 1 ? "s" : ""}`;
+          if (quizCounts) return `${qCount} question${qCount !== 1 ? "s" : ""}`; // override provided
+          if (loadingTagStats)
+            return (
+              <span className="inline-flex items-center gap-1">
+                <span className="w-3 h-3 rounded-full bg-slate-300 dark:bg-slate-600 animate-pulse" />
+                <span>Loading…</span>
+              </span>
+            );
+          if (tagStatsError) {
+            // best-effort extraction without any casts
+            let msg: string | undefined;
+            if (
+              typeof tagStatsErrorObj === "object" &&
+              tagStatsErrorObj !== null
+            ) {
+              const errObj = tagStatsErrorObj as Record<string, unknown>;
+              if (typeof errObj.error === "string") {
+                msg = errObj.error;
+              } else if (errObj.data && typeof errObj.data === "object") {
+                const dataObj = errObj.data as Record<string, unknown>;
+                if (typeof dataObj.error === "string") msg = dataObj.error;
+              }
+            }
+            return <span title={msg || "Failed to load quiz stats"}>—</span>;
+          }
+          return `${qCount} question${qCount !== 1 ? "s" : ""}`;
+        })();
         return (
           <button
             key={c.key}
@@ -124,10 +181,8 @@ export const CategoryGrid: FC<CategoryGridProps> = ({
 
               {/* Stats and arrow */}
               <div className="flex items-center justify-between pt-2">
-                <span className="text-xs text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded-full transition-all duration-300 group-hover:ring-1 group-hover:ring-inset group-hover:ring-current">
-                  {mode === "learn"
-                    ? `${count} practice${count !== 1 ? "s" : ""}`
-                    : `${qCount} question${qCount !== 1 ? "s" : ""}`}
+                <span className="text-xs text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded-full transition-all duration-300 group-hover:ring-1 group-hover:ring-inset group-hover:ring-current min-w-[72px] text-center">
+                  {quizCountContent}
                 </span>
                 <div
                   className={`flex items-center text-slate-400 transition-colors duration-300 ${grad.textHover}`}
