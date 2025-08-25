@@ -363,7 +363,11 @@ export const PracticeListView = ({
                 markRead(content.id);
                 onContentClick?.(content);
                 navigate(`/dashboard/best-practices/${content.id}`, {
-                  state: { practice: content },
+                  state: {
+                    practice: content,
+                    originCategory: category.key,
+                    ctx: { category: category.key },
+                  },
                 });
               }}
               className="group relative bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl rounded-2xl border border-white/20 dark:border-slate-700/50 shadow-xl hover:shadow-2xl hover:shadow-orange-500/10 transition-all duration-500 cursor-pointer overflow-hidden"

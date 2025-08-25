@@ -321,7 +321,11 @@ export const CategoryView = ({
                 onContentClick?.(content);
                 markRead(content.id);
                 navigate(`/dashboard/best-practices/${content.id}`, {
-                  state: { practice: content },
+                  state: {
+                    practice: content,
+                    originCategory: category.key as BestPracticeCategoryKey,
+                    ctx: { category: category.key },
+                  },
                 });
               }}
               className="relative group bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-4 sm:p-6 md:p-7 hover:shadow-lg hover:border-slate-300 dark:hover:border-slate-600 transition-all duration-200 cursor-pointer"

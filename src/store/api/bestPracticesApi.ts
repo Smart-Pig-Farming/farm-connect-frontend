@@ -53,6 +53,14 @@ export interface ListQueryParams {
   created_by?: number;
 }
 
+// Detail context filters (subset used for navigation continuity)
+export interface DetailContextFilters {
+  search?: string;
+  category?: string;
+  published?: boolean;
+  created_by?: number;
+}
+
 // Helpers: build FormData for create/update
 function buildBestPracticeForm(data: Record<string, unknown>) {
   const fd = new FormData();
@@ -116,10 +124,19 @@ export const bestPracticesApi = baseApi.injectEndpoints({
         practice: BestPracticeDetail;
         navigation: { prevId: number | null; nextId: number | null };
       },
-      number | string
+      { id: number | string; ctx?: DetailContextFilters } | (number | string)
     >({
-      query: (id) => `/best-practices/${id}`,
-      providesTags: (_res, _err, id) => [{ type: "BestPractice", id }],
+      query: (arg) => {
+        if (typeof arg === "number" || typeof arg === "string") {
+          return `/best-practices/${arg}`;
+        }
+        const { id, ctx } = arg;
+        return { url: `/best-practices/${id}`, params: ctx };
+      },
+      providesTags: (_res, _err, arg) => {
+        const id = typeof arg === "object" ? arg.id : arg;
+        return [{ type: "BestPractice", id }];
+      },
     }),
     createBestPractice: builder.mutation<
       unknown,

@@ -1,8 +1,13 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import type { BestPracticeContentDraft } from "@/types/bestPractices";
 import { PracticeDetails } from "@/components/bestPractices/PracticeDetails";
-import { useGetBestPracticeQuery } from "@/store/api/bestPracticesApi";
+import {
+  useGetBestPracticeQuery,
+  type DetailContextFilters,
+} from "@/store/api/bestPracticesApi";
+import { useSelector } from "react-redux";
+import type { RootState } from "@/store";
 
 // Adapt server response practice -> local draft shape
 function adaptPractice(api: unknown): BestPracticeContentDraft {
@@ -95,8 +100,12 @@ function adaptPractice(api: unknown): BestPracticeContentDraft {
 export function PracticeDetailsPage() {
   const { practiceId } = useParams();
   const navigate = useNavigate();
-  const location = useLocation() as {
-    state?: { practice?: BestPracticeContentDraft };
+  const location = useLocation() as ReturnType<typeof useLocation> & {
+    state?: {
+      practice?: BestPracticeContentDraft;
+      ctx?: DetailContextFilters;
+      originCategory?: string;
+    };
   };
   const optimistic: BestPracticeContentDraft | undefined =
     location.state?.practice;
@@ -105,12 +114,85 @@ export function PracticeDetailsPage() {
   );
 
   const numericId = practiceId ? Number(practiceId) : undefined;
+
+  // Derive context filters (priority: location.state.ctx -> query params -> practice categories (category))
+  const locationSearch =
+    (location as unknown as { search?: string }).search ||
+    window.location.search ||
+    "";
+  const derivedCtx: DetailContextFilters | undefined = useMemo(() => {
+    const fromState = location.state?.ctx;
+    if (fromState) return fromState;
+    const searchParams = new URLSearchParams(locationSearch);
+    const p: DetailContextFilters = {};
+    const cat = searchParams.get("category");
+    if (cat) p.category = cat;
+    const search = searchParams.get("search");
+    if (search) p.search = search;
+    const createdBy = searchParams.get("created_by");
+    if (createdBy && !isNaN(Number(createdBy)))
+      p.created_by = Number(createdBy);
+    const published = searchParams.get("published");
+    if (published) p.published = published === "true";
+    return Object.keys(p).length ? p : undefined;
+  }, [location.state, locationSearch]);
+
   const { data, isFetching, isError, error } = useGetBestPracticeQuery(
-    numericId!,
-    {
-      skip: !numericId,
-    }
+    numericId
+      ? { id: numericId, ctx: derivedCtx }
+      : (0 as unknown as { id: number }),
+    { skip: !numericId }
   );
+
+  // Access cached list (any variant) for client-side prev/next when available
+  // We look for list caches in RTK Query state keyed by endpoint 'listBestPractices'
+  interface ListCacheData {
+    items: Array<{ id: number; created_at: string }>;
+  }
+  interface QueryCacheEntry {
+    data?: ListCacheData;
+  }
+  interface ApiSliceState {
+    queries?: Record<string, QueryCacheEntry>;
+  }
+  const listCacheEntries = useSelector((state: RootState) => {
+    const apiSlice = (state as unknown as { api?: ApiSliceState }).api;
+    if (!apiSlice?.queries) return [] as ListCacheData[];
+    const out: ListCacheData[] = [];
+    for (const [key, entry] of Object.entries(apiSlice.queries)) {
+      if (key.startsWith("listBestPractices") && entry.data?.items)
+        out.push(entry.data);
+    }
+    return out;
+  });
+
+  const clientNav = useMemo(() => {
+    if (!numericId || !listCacheEntries.length)
+      return { prevId: null, nextId: null };
+    // Merge all cached pages preserving order as in newest -> oldest
+    const merged: Array<{ id: number; created_at: string }> = [];
+    const seen = new Set<number>();
+    for (const entry of listCacheEntries) {
+      for (const it of entry.items) {
+        if (!seen.has(it.id)) {
+          merged.push(it);
+          seen.add(it.id);
+        }
+      }
+    }
+    // Sort to ensure correct order: created_at DESC then id DESC
+    merged.sort((a, b) => {
+      const ta = Date.parse(a.created_at);
+      const tb = Date.parse(b.created_at);
+      if (tb !== ta) return tb - ta;
+      return b.id - a.id;
+    });
+    const idx = merged.findIndex((m) => m.id === numericId);
+    if (idx === -1) return { prevId: null, nextId: null };
+    const prev = idx > 0 ? merged[idx - 1].id : null; // newer
+    const next = idx < merged.length - 1 ? merged[idx + 1].id : null; // older
+    return { prevId: prev, nextId: next };
+  }, [numericId, listCacheEntries]);
 
   // When API data arrives, adapt & store
   useEffect(() => {
@@ -120,14 +202,23 @@ export function PracticeDetailsPage() {
   }, [data]);
 
   // Navigation from API navigation object
+  // Combine clientNav with server nav (client takes precedence if exists)
   const nav = data?.navigation;
-  const hasPrev = !!nav?.prevId;
-  const hasNext = !!nav?.nextId;
+  const effectivePrevId = clientNav.prevId ?? nav?.prevId ?? null;
+  const effectiveNextId = clientNav.nextId ?? nav?.nextId ?? null;
+  const hasPrev = !!effectivePrevId;
+  const hasNext = !!effectiveNextId;
   const goPrev = () => {
-    if (nav?.prevId) navigate(`/dashboard/best-practices/${nav.prevId}`);
+    if (effectivePrevId)
+      navigate(`/dashboard/best-practices/${effectivePrevId}`, {
+        state: { ctx: derivedCtx },
+      });
   };
   const goNext = () => {
-    if (nav?.nextId) navigate(`/dashboard/best-practices/${nav.nextId}`);
+    if (effectiveNextId)
+      navigate(`/dashboard/best-practices/${effectiveNextId}`, {
+        state: { ctx: derivedCtx },
+      });
   };
 
   const loading = isFetching && !practice; // show skeleton only if nothing yet
@@ -142,13 +233,30 @@ export function PracticeDetailsPage() {
       <div className="max-w-6xl mx-auto px-4 md:px-8 py-6 md:py-10">
         <button
           onClick={() => {
-            if (practice?.categories?.[0]) {
-              navigate(
-                `/dashboard/best-practices/category/${practice.categories[0]}`
-              );
-            } else {
-              navigate("/dashboard/best-practices");
+            const originCategory = location.state?.originCategory;
+            if (originCategory) {
+              navigate(`/dashboard/best-practices/category/${originCategory}`);
+              return;
             }
+            if (derivedCtx?.category) {
+              navigate(
+                `/dashboard/best-practices/category/${derivedCtx.category}`
+              );
+              return;
+            }
+            if (practice?.categories?.length) {
+              // Prefer whichever category matches derivedCtx or fallback to first
+              const match =
+                derivedCtx?.category &&
+                (practice.categories as string[]).includes(derivedCtx.category)
+                  ? derivedCtx.category
+                  : practice.categories[0];
+              if (match) {
+                navigate(`/dashboard/best-practices/category/${match}`);
+                return;
+              }
+            }
+            navigate("/dashboard/best-practices");
           }}
           className="inline-flex items-center gap-2 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 mb-6 group hover:cursor-pointer"
         >
