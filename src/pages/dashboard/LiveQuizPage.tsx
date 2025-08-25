@@ -73,7 +73,10 @@ export function LiveQuizPage() {
   const [questions, setQuestions] = useState<QuizQuestionDraft[]>([]);
   const [index, setIndex] = useState(0);
   const [answers, setAnswers] = useState<AnswerMap>({});
-  const [seconds, setSeconds] = useState(0);
+  // Countdown timer (10 minutes)
+  const QUIZ_DURATION = 10 * 60; // 600 seconds
+  const [remaining, setRemaining] = useState(QUIZ_DURATION);
+  const [timeExpired, setTimeExpired] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [showExitModal, setShowExitModal] = useState(false);
   const [showSubmitModal, setShowSubmitModal] = useState(false);
@@ -85,9 +88,20 @@ export function LiveQuizPage() {
 
   useEffect(() => {
     if (submitted) return;
-    const id = setInterval(() => setSeconds((s) => s + 1), 1000);
+    if (remaining <= 0) return;
+    const id = setInterval(() => {
+      setRemaining((r) => (r > 0 ? r - 1 : 0));
+    }, 1000);
     return () => clearInterval(id);
-  }, [submitted]);
+  }, [submitted, remaining]);
+
+  // Auto submit on time expiry
+  useEffect(() => {
+    if (!submitted && remaining === 0) {
+      setSubmitted(true);
+      setTimeExpired(true);
+    }
+  }, [remaining, submitted]);
 
   const current = questions[index];
   const total = questions.length;
@@ -137,6 +151,7 @@ export function LiveQuizPage() {
     const percentage = score.total
       ? Math.round((score.correct / score.total) * 100)
       : 0;
+    const elapsed = QUIZ_DURATION - remaining; // seconds used
     const isPassing = percentage >= 70;
 
     return (
@@ -176,7 +191,7 @@ export function LiveQuizPage() {
                 <div className="flex items-center justify-center gap-2 text-sm text-slate-500">
                   <Clock className="w-4 h-4" />
                   <span>
-                    Completed in {Math.floor(seconds / 60)}m {seconds % 60}s
+                    {timeExpired ? "Time limit reached" : "Completed in"} {Math.floor(elapsed / 60)}m {elapsed % 60}s
                   </span>
                 </div>
               </div>
@@ -261,6 +276,9 @@ export function LiveQuizPage() {
   }
 
   const progress = ((index + 1) / total) * 100;
+  const lastMinute = remaining <= 60;
+  const minutes = Math.floor(remaining / 60);
+  const seconds = remaining % 60;
   const answeredCurrent = answers[current.id] && answers[current.id].length > 0;
 
   return (
@@ -278,11 +296,18 @@ export function LiveQuizPage() {
               >
                 Exit Quiz
               </button>
-              <div className="flex items-center gap-2 text-sm text-slate-600 bg-white/60 backdrop-blur-sm px-3 py-1.5 rounded-lg">
-                <Clock className="w-4 h-4" />
+              <div
+                className={`flex items-center gap-2 text-sm bg-white/70 backdrop-blur-sm px-3 py-1.5 rounded-lg transition-all ${
+                  lastMinute
+                    ? "text-red-600 ring-2 ring-red-400 animate-pulse"
+                    : "text-slate-600"
+                }`}
+                aria-live={lastMinute ? "assertive" : undefined}
+                aria-label={`Time remaining ${minutes} minutes ${seconds} seconds`}
+              >
+                <Clock className={`w-4 h-4 ${lastMinute ? "text-red-600" : ""}`} />
                 <span>
-                  {Math.floor(seconds / 60)}:
-                  {String(seconds % 60).padStart(2, "0")}
+                  {minutes}:{String(seconds).padStart(2, "0")}
                 </span>
               </div>
             </div>
