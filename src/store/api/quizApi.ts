@@ -98,6 +98,7 @@ export interface QuizStatsResponse {
     attempts: number;
     average_percent: number;
     success_rate: number;
+    user_average_percent?: number | null;
     best_attempt?: UserBestAttempt | null;
   };
 }

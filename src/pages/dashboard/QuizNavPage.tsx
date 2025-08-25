@@ -1,10 +1,16 @@
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Play, Database } from "lucide-react";
+import { ArrowLeft, Play, Database, Info } from "lucide-react";
 import { BEST_PRACTICE_CATEGORIES } from "@/components/bestPractices/constants";
 import { getCategoryIcon } from "@/components/bestPractices/iconMap";
 import type { BestPracticeCategoryKey } from "@/types/bestPractices";
 import { usePermissions } from "@/hooks/usePermissions";
-import { useGetQuizTagStatsQuery } from "@/store/api/quizApi";
+import {
+  useGetQuizTagStatsQuery,
+  useListQuizzesQuery,
+  useGetQuizStatsQuery,
+} from "@/store/api/quizApi";
+import { useEffect, useMemo } from "react";
+import { toast } from "sonner";
 
 // Color gradients matching CategoryGrid exactly
 const COLOR_GRADIENTS: Record<
@@ -101,8 +107,12 @@ export function QuizNavPage() {
   const navigate = useNavigate();
   const { hasPermission } = usePermissions();
   const category = BEST_PRACTICE_CATEGORIES.find((c) => c.key === categoryKey);
-  const { data: tagStats, isLoading: loadingTagStats } =
-    useGetQuizTagStatsQuery();
+  const {
+    data: tagStats,
+    isLoading: loadingTagStats,
+    isError: tagStatsError,
+    refetch: refetchTagStats,
+  } = useGetQuizTagStatsQuery();
   const tagNameMap: Record<string, string> = {
     feeding_nutrition: "Feeding & Nutrition",
     disease_control: "Disease Control",
@@ -118,6 +128,50 @@ export function QuizNavPage() {
     : undefined;
   const matchedTag = tagStats?.tags.find((t) => t.tag_name === expectedTagName);
   const questionCount = matchedTag ? matchedTag.question_count : 0;
+  const tagId = matchedTag?.tag_id;
+
+  // Fetch one active quiz for this category (most recent) to compute stats / best attempt
+  const {
+    data: quizzesData,
+    isLoading: loadingQuizList,
+    isError: quizListError,
+    refetch: refetchQuizList,
+  } = useListQuizzesQuery(
+    tagId ? { tag_id: tagId, limit: 1, active: true } : undefined,
+    { skip: !tagId }
+  );
+  const quizId = quizzesData?.items?.[0]?.id;
+  const {
+    data: quizStats,
+    isLoading: loadingQuizStats,
+    isError: quizStatsError,
+    refetch: refetchQuizStats,
+  } = useGetQuizStatsQuery({ id: quizId as number }, { skip: !quizId });
+  const averagePercent = quizStats?.stats?.average_percent ?? null;
+  const bestPercent = quizStats?.stats?.best_attempt?.score_percent ?? null;
+  const userAveragePercent = quizStats?.stats?.user_average_percent ?? null;
+
+  // Toast errors (debounced via memo key)
+  const errorKey = useMemo(
+    () => [tagStatsError, quizListError, quizStatsError].map(Boolean).join("|"),
+    [tagStatsError, quizListError, quizStatsError]
+  );
+  useEffect(() => {
+    if (tagStatsError)
+      toast.error("Failed to load question counts", {
+        id: "quiznav-tag-error",
+      });
+    if (quizListError)
+      toast.error("Failed to load quizzes", { id: "quiznav-list-error" });
+    if (quizStatsError)
+      toast.error("Failed to load quiz stats", { id: "quiznav-stats-error" });
+  }, [errorKey, tagStatsError, quizListError, quizStatsError]);
+
+  const noQuizConfigured =
+    !loadingQuizList &&
+    !quizListError &&
+    quizzesData &&
+    quizzesData.items.length === 0;
 
   if (!category) {
     return (
@@ -263,32 +317,153 @@ export function QuizNavPage() {
 
           {/* Quick Stats - Full width on large screens */}
           <div className="mt-8 sm:mt-12 lg:mt-16 bg-white/60 backdrop-blur-sm rounded-2xl sm:rounded-3xl p-4 sm:p-6 lg:p-8 border border-white/50 shadow-lg max-w-5xl mx-auto">
-            <div className="grid grid-cols-3 gap-4 sm:gap-6 lg:gap-8 text-center">
-              <div className="flex flex-col items-center space-y-1 sm:space-y-2">
-                <div className="text-xl sm:text-2xl lg:text-3xl font-bold text-slate-900">
-                  {loadingTagStats ? "…" : questionCount}
+            {/* Error Banner if any (non-blocking) */}
+            {(tagStatsError || quizListError || quizStatsError) && (
+              <div className="mb-4 flex flex-wrap items-center gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-xs sm:text-sm text-red-700">
+                <span className="font-medium">Some data failed to load.</span>
+                <div className="flex gap-2">
+                  {tagStatsError && (
+                    <button
+                      onClick={() => refetchTagStats()}
+                      className="underline hover:text-red-800 hover:cursor-pointer"
+                    >
+                      Retry counts
+                    </button>
+                  )}
+                  {quizListError && (
+                    <button
+                      onClick={() => refetchQuizList()}
+                      className="underline hover:text-red-800 hover:cursor-pointer"
+                    >
+                      Retry quizzes
+                    </button>
+                  )}
+                  {quizStatsError && quizId && (
+                    <button
+                      onClick={() => refetchQuizStats()}
+                      className="underline hover:text-red-800 hover:cursor-pointer"
+                    >
+                      Retry stats
+                    </button>
+                  )}
                 </div>
-                <div className="text-xs sm:text-sm lg:text-base text-slate-600 leading-tight">
+              </div>
+            )}
+            <div className="grid grid-cols-4 gap-4 sm:gap-6 lg:gap-8 text-center">
+              {/* Questions Available */}
+              <div className="flex flex-col items-center space-y-1 sm:space-y-2">
+                <div className="h-10 flex items-center justify-center">
+                  {loadingTagStats ? (
+                    <div className="w-12 h-6 rounded-md bg-slate-200 animate-pulse" />
+                  ) : (
+                    <span className="text-xl sm:text-2xl lg:text-3xl font-bold text-slate-900">
+                      {tagStatsError ? "—" : questionCount}
+                    </span>
+                  )}
+                </div>
+                <div
+                  className="text-xs sm:text-sm lg:text-base text-slate-600 leading-tight flex items-center gap-1"
+                  title="Total number of questions available in this category's bank (used to build quizzes)"
+                >
                   Questions Available
+                  <Info
+                    className="w-3.5 h-3.5 text-slate-400"
+                    aria-hidden="true"
+                  />
                 </div>
               </div>
+              {/* Average Score or No Quiz */}
               <div className="flex flex-col items-center space-y-1 sm:space-y-2 border-l border-r border-slate-200">
-                <div className="text-xl sm:text-2xl lg:text-3xl font-bold text-slate-900">
-                  5 min
+                <div className="h-10 flex items-center justify-center">
+                  {loadingQuizList || loadingQuizStats ? (
+                    <div className="w-12 h-6 rounded-md bg-slate-200 animate-pulse" />
+                  ) : noQuizConfigured ? (
+                    <span className="text-xs text-slate-400">No quiz</span>
+                  ) : (
+                    <span className="text-xl sm:text-2xl lg:text-3xl font-bold text-slate-900">
+                      {quizListError || quizStatsError
+                        ? "—"
+                        : averagePercent !== null
+                        ? `${averagePercent}%`
+                        : "—"}
+                    </span>
+                  )}
                 </div>
-                <div className="text-xs sm:text-sm lg:text-base text-slate-600 leading-tight">
-                  Average Quiz Time
+                <div
+                  className="text-xs sm:text-sm lg:text-base text-slate-600 leading-tight flex items-center gap-1"
+                  title="Average score (%) across all users' submitted attempts for this quiz"
+                >
+                  Global Average Score
+                  <Info
+                    className="w-3.5 h-3.5 text-slate-400"
+                    aria-hidden="true"
+                  />
                 </div>
               </div>
-              <div className="flex flex-col items-center space-y-1 sm:space-y-2">
-                <div className="text-xl sm:text-2xl lg:text-3xl font-bold text-slate-900">
-                  85%
+              {/* Your Avg Score */}
+              <div className="flex flex-col items-center space-y-1 sm:space-y-2 border-r border-slate-200">
+                <div className="h-10 flex items-center justify-center">
+                  {loadingQuizList || loadingQuizStats ? (
+                    <div className="w-12 h-6 rounded-md bg-slate-200 animate-pulse" />
+                  ) : noQuizConfigured ? (
+                    <span className="text-xs text-slate-400">No quiz</span>
+                  ) : (
+                    <span className="text-xl sm:text-2xl lg:text-3xl font-bold text-slate-900">
+                      {quizListError || quizStatsError
+                        ? "—"
+                        : userAveragePercent !== null
+                        ? `${userAveragePercent}%`
+                        : "—"}
+                    </span>
+                  )}
                 </div>
-                <div className="text-xs sm:text-sm lg:text-base text-slate-600 leading-tight">
-                  Success Rate
+                <div
+                  className="text-xs sm:text-sm lg:text-base text-slate-600 leading-tight flex items-center gap-1"
+                  title="Average (%) of YOUR submitted attempts"
+                >
+                  Your Avg Score
+                  <Info
+                    className="w-3.5 h-3.5 text-slate-400"
+                    aria-hidden="true"
+                  />
+                </div>
+              </div>
+              {/* Your Best Score */}
+              <div className="flex flex-col items-center space-y-1 sm:space-y-2">
+                <div className="h-10 flex items-center justify-center">
+                  {loadingQuizStats ? (
+                    <div className="w-12 h-6 rounded-md bg-slate-200 animate-pulse" />
+                  ) : noQuizConfigured ? (
+                    <span className="text-xs text-slate-400">No quiz</span>
+                  ) : (
+                    <span className="text-xl sm:text-2xl lg:text-3xl font-bold text-slate-900">
+                      {quizStatsError
+                        ? "—"
+                        : bestPercent !== null
+                        ? `${bestPercent}%`
+                        : "—"}
+                    </span>
+                  )}
+                </div>
+                <div
+                  className="text-xs sm:text-sm lg:text-base text-slate-600 leading-tight flex items-center gap-1"
+                  title="Highest score from your submitted attempts (most recent breaks ties)"
+                >
+                  Your Best Score
+                  <Info
+                    className="w-3.5 h-3.5 text-slate-400"
+                    aria-hidden="true"
+                  />
                 </div>
               </div>
             </div>
+            {/* Secondary inline helper if no quiz configured */}
+            {noQuizConfigured && (
+              <div className="mt-4 text-center text-xs sm:text-sm text-slate-500">
+                No active quiz found for this category yet. Managers can create
+                one in the Question Bank.
+              </div>
+            )}
           </div>
         </div>
       </div>
