@@ -4,10 +4,6 @@ import type {
   BestPracticeContentDraft,
 } from "@/types/bestPractices";
 import { getCategoryIcon } from "./iconMap";
-import {
-  fetchPracticesPage,
-  BEST_PRACTICES_PAGE_SIZE,
-} from "@/data/bestPracticesMock";
 import { useNavigate } from "react-router-dom";
 import type { BestPracticeCategoryKey } from "@/types/bestPractices";
 import ClipLoader from "react-spinners/ClipLoader";
@@ -36,6 +32,9 @@ interface PracticeListViewProps {
   onContentClick?: (content: BestPracticeContentDraft) => void;
   onEdit?: (content: BestPracticeContentDraft) => void;
   onDelete?: (content: BestPracticeContentDraft) => void;
+  onLoadMore?: () => void;
+  hasMore?: boolean;
+  loadingMore?: boolean;
 }
 
 export const PracticeListView = ({
@@ -45,6 +44,9 @@ export const PracticeListView = ({
   onContentClick,
   onEdit,
   onDelete,
+  onLoadMore,
+  hasMore,
+  loadingMore,
 }: PracticeListViewProps) => {
   const Icon = getCategoryIcon(category.key as "feeding_nutrition");
   const { hasPermission } = usePermissions();
@@ -161,13 +163,9 @@ export const PracticeListView = ({
 
   const g = categoryGradients[colorStem] || categoryGradients.orange;
 
-  // Infinite scroll state (only for learn mode)
+  // Items managed externally; local copy for search filtering
   const [items, setItems] = useState<BestPracticeContentDraft[]>(contents);
-  // No inline selected now; navigation to dedicated page
-  const [page, setPage] = useState(1); // parent may have provided page 0
-  const [hasMore, setHasMore] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [loadError, setLoadError] = useState<string | null>(null);
+  // (optional) could surface load errors from parent later
   const loaderRef = useRef<HTMLDivElement | null>(null);
   const navigate = useNavigate();
 
@@ -220,32 +218,12 @@ export const PracticeListView = ({
   // Reset items when category or external contents change
   useEffect(() => {
     setItems(contents);
-    setPage(1);
-    setHasMore(true);
   }, [contents, category.key]);
 
   const loadMore = useCallback(() => {
-    if (!hasMore || loadingMore) return;
-    setLoadingMore(true);
-    setLoadError(null);
-    fetchPracticesPage(
-      page,
-      BEST_PRACTICES_PAGE_SIZE,
-      category.key as BestPracticeCategoryKey
-    )
-      .then((res) => {
-        setItems((prev) => [
-          ...prev,
-          ...res.data.filter((n) => !prev.some((p) => p.id === n.id)),
-        ]);
-        setHasMore(res.hasMore);
-        setPage((p) => p + 1);
-      })
-      .catch((e) => {
-        setLoadError(e?.message || "Failed to load more practices");
-      })
-      .finally(() => setLoadingMore(false));
-  }, [page, hasMore, loadingMore, category.key]);
+    if (loadingMore || !hasMore) return;
+    onLoadMore?.();
+  }, [onLoadMore, loadingMore, hasMore]);
 
   useEffect(() => {
     if (!loaderRef.current) return;
@@ -764,71 +742,32 @@ export const PracticeListView = ({
           </div>
         )}
 
-        {loadError && (
+        {!loadingMore && !hasMore && filteredContents.length > 0 && (
           <div className="text-center py-8">
             <div className="max-w-sm mx-auto">
-              {/* Simple Error Icon */}
-              <div className="w-12 h-12 mx-auto mb-4 bg-red-100 dark:bg-red-900/30 rounded-xl flex items-center justify-center">
-                <AlertTriangle className="w-6 h-6 text-red-600 dark:text-red-400" />
+              {/* Simple Success Icon */}
+              <div className="w-12 h-12 mx-auto mb-4 bg-emerald-100 dark:bg-emerald-900/30 rounded-xl flex items-center justify-center">
+                <CheckCircle className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
               </div>
 
-              {/* Error Message */}
+              {/* Success Message */}
               <h4 className="text-lg font-medium text-slate-900 dark:text-slate-100 mb-2">
-                Loading Error
+                All Caught Up!
               </h4>
               <p className="text-slate-600 dark:text-slate-400 text-sm mb-6">
-                {loadError}
+                You've viewed all {filteredContents.length} available practices.
               </p>
 
-              {/* Simple Actions */}
-              <div className="space-y-3">
-                <button
-                  onClick={loadMore}
-                  className="px-6 py-2.5 bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-lg font-medium hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors w-full hover:cursor-pointer"
-                >
-                  Try Again
-                </button>
-                <button
-                  onClick={onBack}
-                  className={`px-6 py-2.5 ${g.subtle} bg-slate-50 dark:bg-slate-800 rounded-lg font-medium hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors w-full hover:cursor-pointer`}
-                >
-                  Back to Categories
-                </button>
-              </div>
+              {/* Simple Action */}
+              <button
+                onClick={onBack}
+                className={`px-6 py-2.5 ${g.subtle} bg-slate-50 dark:bg-slate-800 rounded-lg font-medium hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors hover:cursor-pointer`}
+              >
+                Explore More Categories
+              </button>
             </div>
           </div>
         )}
-
-        {!loadingMore &&
-          !loadError &&
-          !hasMore &&
-          filteredContents.length > 0 && (
-            <div className="text-center py-8">
-              <div className="max-w-sm mx-auto">
-                {/* Simple Success Icon */}
-                <div className="w-12 h-12 mx-auto mb-4 bg-emerald-100 dark:bg-emerald-900/30 rounded-xl flex items-center justify-center">
-                  <CheckCircle className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
-                </div>
-
-                {/* Success Message */}
-                <h4 className="text-lg font-medium text-slate-900 dark:text-slate-100 mb-2">
-                  All Caught Up!
-                </h4>
-                <p className="text-slate-600 dark:text-slate-400 text-sm mb-6">
-                  You've viewed all {filteredContents.length} available
-                  practices.
-                </p>
-
-                {/* Simple Action */}
-                <button
-                  onClick={onBack}
-                  className={`px-6 py-2.5 ${g.subtle} bg-slate-50 dark:bg-slate-800 rounded-lg font-medium hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors hover:cursor-pointer`}
-                >
-                  Explore More Categories
-                </button>
-              </div>
-            </div>
-          )}
       </div>
 
       {/* Enhanced Custom CSS for Animations */}

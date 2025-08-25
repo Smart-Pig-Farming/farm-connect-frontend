@@ -19,6 +19,7 @@ import "./api/authApi";
 import "./api/userApi";
 import "./api/permissionsApi";
 import "./api/discussionsApi";
+import "./api/bestPracticesApi";
 
 // Import regular slices
 import authSlice from "./slices/authSlice";

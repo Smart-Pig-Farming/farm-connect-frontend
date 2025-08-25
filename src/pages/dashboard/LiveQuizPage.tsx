@@ -191,7 +191,8 @@ export function LiveQuizPage() {
                 <div className="flex items-center justify-center gap-2 text-sm text-slate-500">
                   <Clock className="w-4 h-4" />
                   <span>
-                    {timeExpired ? "Time limit reached" : "Completed in"} {Math.floor(elapsed / 60)}m {elapsed % 60}s
+                    {timeExpired ? "Time limit reached" : "Completed in"}{" "}
+                    {Math.floor(elapsed / 60)}m {elapsed % 60}s
                   </span>
                 </div>
               </div>
@@ -305,7 +306,9 @@ export function LiveQuizPage() {
                 aria-live={lastMinute ? "assertive" : undefined}
                 aria-label={`Time remaining ${minutes} minutes ${seconds} seconds`}
               >
-                <Clock className={`w-4 h-4 ${lastMinute ? "text-red-600" : ""}`} />
+                <Clock
+                  className={`w-4 h-4 ${lastMinute ? "text-red-600" : ""}`}
+                />
                 <span>
                   {minutes}:{String(seconds).padStart(2, "0")}
                 </span>

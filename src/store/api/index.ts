@@ -2,4 +2,5 @@
 export * from "./authApi";
 export * from "./userApi";
 export * from "./rolesApi";
+export * from "./bestPracticesApi";
 export { baseApi } from "./baseApi";

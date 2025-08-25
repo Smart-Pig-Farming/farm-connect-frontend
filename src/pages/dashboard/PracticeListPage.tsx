@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { PracticeListView } from "@/components/bestPractices/PracticeListView";
 import { EditContentWizard } from "@/components/bestPractices/EditContentWizard";
@@ -6,12 +6,48 @@ import { BEST_PRACTICE_CATEGORIES } from "@/components/bestPractices/constants";
 import type {
   BestPracticeCategory,
   BestPracticeContentDraft,
+  BestPracticeCategoryKey,
 } from "@/types/bestPractices";
-import {
-  fetchPracticesPage,
-  BEST_PRACTICES_PAGE_SIZE,
-} from "@/data/bestPracticesMock";
+import { useListBestPracticesQuery } from "@/store/api/bestPracticesApi";
 import { BookOpen } from "lucide-react";
+
+// Map API list item shape to draft shape used by existing components
+interface ApiListItemShape {
+  id: number | string;
+  title: string;
+  excerpt?: string;
+  description?: string;
+  categories?: string[];
+  media?: unknown;
+  created_at?: string;
+}
+function mapApiToDraft(item: ApiListItemShape): BestPracticeContentDraft {
+  const allowed: Set<string> = new Set([
+    "feeding_nutrition",
+    "disease_control",
+    "growth_weight",
+    "environment_management",
+    "breeding_insemination",
+    "farrowing_management",
+    "record_management",
+    "marketing_finance",
+  ]);
+  const cats = (item.categories || []).filter(
+    (c): c is BestPracticeCategoryKey => allowed.has(c)
+  ) as BestPracticeCategoryKey[];
+  return {
+    id: String(item.id),
+    title: item.title,
+    description: item.excerpt || item.description || "",
+    steps: [],
+    benefits: [],
+    categories: cats,
+    media: null,
+    status: "saved",
+    createdAt: item.created_at ? Date.parse(item.created_at) : Date.now(),
+    updatedAt: item.created_at ? Date.parse(item.created_at) : Date.now(),
+  };
+}
 
 // Dedicated practice list route page: /dashboard/best-practices/category/:categoryKey
 export function PracticeListPage() {
@@ -19,15 +55,24 @@ export function PracticeListPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const modeParam = searchParams.get("mode");
-  const [contents, setContents] = useState<BestPracticeContentDraft[]>([]);
+  const [cursor, setCursor] = useState<string>("");
+  const [items, setItems] = useState<BestPracticeContentDraft[]>([]);
+
+  const category: BestPracticeCategory | undefined =
+    BEST_PRACTICE_CATEGORIES.find((c) => c.key === categoryKey);
+
+  const { data: listData, isFetching } = useListBestPracticesQuery(
+    category
+      ? { category: category.key, limit: 12, cursor }
+      : { limit: 12, cursor }
+  );
 
   // Edit modal state
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingContent, setEditingContent] =
     useState<BestPracticeContentDraft | null>(null);
 
-  const category: BestPracticeCategory | undefined =
-    BEST_PRACTICE_CATEGORIES.find((c) => c.key === categoryKey);
+  // category already defined above
 
   useEffect(() => {
     if (!category) return;
@@ -38,13 +83,28 @@ export function PracticeListPage() {
       });
       return;
     }
-    if (contents.length === 0) {
-      fetchPracticesPage(0, BEST_PRACTICES_PAGE_SIZE, category.key).then((r) =>
-        setContents(r.data)
-      );
-    }
+    // When category changes reset list
+    setItems([]);
+    setCursor("");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [categoryKey, modeParam]);
+
+  // Merge incoming page
+  useEffect(() => {
+    if (listData?.items) {
+      setItems((prev) =>
+        cursor
+          ? [...prev, ...listData.items.map(mapApiToDraft)]
+          : listData.items.map(mapApiToDraft)
+      );
+    }
+  }, [listData, cursor]);
+
+  const loadMore = useCallback(() => {
+    if (listData?.pageInfo?.hasNextPage && listData.pageInfo.nextCursor) {
+      setCursor(listData.pageInfo.nextCursor);
+    }
+  }, [listData]);
 
   if (!category) {
     return (
@@ -72,7 +132,7 @@ export function PracticeListPage() {
     );
   }
 
-  const filteredContents = contents.filter((c) =>
+  const filteredContents = items.filter((c) =>
     c.categories.includes(category.key)
   );
 
@@ -83,16 +143,14 @@ export function PracticeListPage() {
   };
 
   const handleDelete = (content: BestPracticeContentDraft) => {
-    // Remove from state - the confirmation is handled in PracticeListView
-    setContents((prev) => prev.filter((c) => c.id !== content.id));
-    // TODO: Call backend API to delete
-    console.log("Deleted practice:", content.title);
+    // TODO: call delete mutation then remove
+    setItems((prev) => prev.filter((c) => c.id !== content.id));
   };
 
   // Handle edit save
   const handleEditSave = (updatedContent: BestPracticeContentDraft) => {
     // Update the content in the list
-    setContents((prev) =>
+    setItems((prev) =>
       prev.map((c) => (c.id === updatedContent.id ? updatedContent : c))
     );
     // Close the modal
@@ -132,6 +190,9 @@ export function PracticeListPage() {
             onBack={() => navigate("/dashboard/best-practices")}
             onEdit={handleEdit}
             onDelete={handleDelete}
+            onLoadMore={loadMore}
+            loadingMore={isFetching}
+            hasMore={!!listData?.pageInfo?.hasNextPage}
           />
         </div>
       </div>

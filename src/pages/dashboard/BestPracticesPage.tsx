@@ -1,28 +1,12 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { CategoryGrid } from "@/components/bestPractices/CategoryGrid";
 import { ContentWizard } from "@/components/bestPractices/ContentWizard";
 import { QuestionWizard } from "@/components/bestPractices/QuestionWizard";
-import type { BestPracticeContentDraft } from "@/types/bestPractices";
-import {
-  fetchPracticesPage,
-  BEST_PRACTICES_PAGE_SIZE,
-  BEST_PRACTICES_MOCK,
-} from "@/data/bestPracticesMock";
+import { useGetBestPracticeCategoriesQuery } from "@/store/api/bestPracticesApi";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { usePermissions } from "@/hooks/usePermissions";
 
-// Function to calculate practice counts by category
-function getPracticeCounts(): Record<string, number> {
-  const counts: Record<string, number> = {};
-
-  BEST_PRACTICES_MOCK.forEach((practice) => {
-    practice.categories.forEach((category) => {
-      counts[category] = (counts[category] || 0) + 1;
-    });
-  });
-
-  return counts;
-}
+// Live practice counts will come from backend categories endpoint
 
 export function BestPracticesPage() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -33,27 +17,23 @@ export function BestPracticesPage() {
   const navigate = useNavigate();
   const [openContentWizard, setOpenContentWizard] = useState(false);
   const [openQuestionWizard, setOpenQuestionWizard] = useState(false);
-  const [contents, setContents] = useState<BestPracticeContentDraft[]>([]);
   const { hasPermission } = usePermissions();
 
-  // Calculate practice counts for CategoryGrid
-  const practiceCounts = getPracticeCounts();
+  const { data: catData } = useGetBestPracticeCategoriesQuery();
+  const practiceCounts = useMemo(() => {
+    const map: Record<string, number> = {};
+    catData?.categories.forEach((c) => (map[c.key] = c.count));
+    return map;
+  }, [catData]);
 
-  const handleSaveContent = (draft: BestPracticeContentDraft) =>
-    setContents((prev) => [...prev, draft]);
+  const handleSaveContent = () => {
+    // After create mutation we might refetch categories automatically via tag invalidation
+  };
   // Quiz creation pending category route integration
   const handleSaveQuestion = () => {};
   // category selection now triggers navigation
 
-  // Initial mock load (first page) to show content prior to adding real data source
-  useEffect(() => {
-    if (contents.length === 0) {
-      fetchPracticesPage(0, BEST_PRACTICES_PAGE_SIZE).then((r) =>
-        setContents(r.data)
-      );
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // Placeholder: existing contents state remains for wizard preview only (will be replaced by API after create)
 
   // Keep URL in sync when mode changes
   useEffect(() => {
