@@ -113,14 +113,15 @@ export function QuizNavPage() {
     isError: tagStatsError,
     refetch: refetchTagStats,
   } = useGetQuizTagStatsQuery();
+  // Keys must align with BEST_PRACTICE_CATEGORIES to resolve counts
   const tagNameMap: Record<string, string> = {
     feeding_nutrition: "Feeding & Nutrition",
     disease_control: "Disease Control",
-    growth_weight_mgmt: "Growth & Weight Mgmt",
-    environment_mgmt: "Environment Mgmt",
+    growth_weight: "Growth & Weight Mgmt",
+    environment_management: "Environment Mgmt",
     breeding_insemination: "Breeding & Insemination",
-    farrowing_mgmt: "Farrowing Mgmt",
-    record_farm_mgmt: "Record & Farm Mgmt",
+    farrowing_management: "Farrowing Mgmt",
+    record_management: "Record & Farm Mgmt",
     marketing_finance: "Marketing & Finance",
   };
   const expectedTagName = category

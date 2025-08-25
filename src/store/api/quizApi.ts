@@ -23,6 +23,7 @@ export interface QuizQuestionOption {
   id: number;
   text: string;
   order_index: number /* is_correct masked unless manager */;
+  is_correct?: boolean; // only present for managers
 }
 export interface QuizQuestion {
   id: number;
@@ -100,6 +101,17 @@ export interface QuizStatsResponse {
     success_rate: number;
     user_average_percent?: number | null;
     best_attempt?: UserBestAttempt | null;
+  };
+}
+// Quiz questions list (offset pagination)
+export interface QuizQuestionsListResponse {
+  items: QuizQuestion[];
+  pageInfo: {
+    total: number;
+    limit: number;
+    offset: number;
+    hasNextPage: boolean;
+    nextOffset: number | null;
   };
 }
 // Tag stats (aggregated across quizzes) shape
@@ -216,6 +228,169 @@ export const quizApi = baseApi.injectEndpoints({
       query: () => "/quizzes/stats",
       providesTags: () => [{ type: "Quiz", id: "TAG_STATS" }],
     }),
+    listQuizQuestions: builder.query<
+      QuizQuestionsListResponse,
+      {
+        quizId: number | string;
+        limit?: number;
+        offset?: number;
+        search?: string;
+        difficulty?: string; // comma-separated list allowed
+        type?: string; // comma-separated list allowed
+      }
+    >({
+      query: ({
+        quizId,
+        limit = 20,
+        offset = 0,
+        search,
+        difficulty,
+        type,
+      }) => ({
+        url: `/quizzes/${quizId}/questions`,
+        params: { limit, offset, search, difficulty, type },
+      }),
+      providesTags: (_r, _e, a) => [
+        { type: "Quiz" as const, id: a.quizId },
+        { type: "Quiz" as const, id: `QUESTIONS-${a.quizId}` },
+      ],
+      serializeQueryArgs: ({ queryArgs }) =>
+        JSON.stringify({
+          quizId: queryArgs.quizId,
+          limit: queryArgs.limit,
+          search: queryArgs.search || "",
+          difficulty: queryArgs.difficulty || "",
+          type: queryArgs.type || "",
+        }),
+      merge: (_current, incoming) => incoming, // offset pages handled externally (we refetch per page)
+      forceRefetch({ currentArg, previousArg }) {
+        return (
+          currentArg?.offset !== previousArg?.offset ||
+          currentArg?.limit !== previousArg?.limit ||
+          currentArg?.search !== previousArg?.search ||
+          currentArg?.difficulty !== previousArg?.difficulty ||
+          currentArg?.type !== previousArg?.type
+        );
+      },
+    }),
+    createQuizQuestion: builder.mutation<
+      { question: QuizQuestion },
+      {
+        quizId: number | string;
+        text: string;
+        explanation?: string;
+        order_index?: number;
+        options: { text: string; is_correct?: boolean; order_index?: number }[];
+      }
+    >({
+      query: ({ quizId, ...body }) => ({
+        url: `/quizzes/${quizId}/questions`,
+        method: "POST",
+        body,
+      }),
+      invalidatesTags: (_r, _e, a) => [
+        { type: "Quiz", id: a.quizId },
+        { type: "Quiz", id: `QUESTIONS-${a.quizId}` },
+        { type: "Quiz", id: "TAG_STATS" },
+      ],
+      async onQueryStarted(_arg, { queryFulfilled }) {
+        try {
+          await queryFulfilled;
+          toast.success("Question created");
+        } catch (e) {
+          // @ts-expect-error dynamic error shape from baseQuery
+          toast.error(getErrorMessage(e?.error || e));
+        }
+      },
+    }),
+    updateQuizQuestion: builder.mutation<
+      { question: QuizQuestion },
+      {
+        id: number | string;
+        quizId?: number | string; // for invalidation
+        text?: string;
+        explanation?: string;
+        order_index?: number;
+        type?: string;
+        difficulty?: string;
+        options?: {
+          text: string;
+          is_correct?: boolean;
+          order_index?: number;
+        }[];
+      }
+    >({
+      query: ({ id, ...body }) => ({
+        url: `/quizzes/question/${id}`,
+        method: "PATCH",
+        body,
+      }),
+      invalidatesTags: (_r, _e, a) =>
+        [
+          { type: "Quiz", id: `QUESTION-${a.id}` },
+          a.quizId ? { type: "Quiz", id: a.quizId } : undefined,
+          a.quizId ? { type: "Quiz", id: `QUESTIONS-${a.quizId}` } : undefined,
+          { type: "Quiz", id: "TAG_STATS" },
+        ].filter((t): t is { type: "Quiz"; id: string | number } => !!t),
+      async onQueryStarted(_arg, { queryFulfilled }) {
+        try {
+          await queryFulfilled;
+          toast.success("Question updated");
+        } catch (e) {
+          // @ts-expect-error dynamic error shape from baseQuery
+          toast.error(getErrorMessage(e?.error || e));
+        }
+      },
+    }),
+    deleteQuizQuestion: builder.mutation<
+      void,
+      { id: number | string; quizId?: number | string }
+    >({
+      query: ({ id }) => ({
+        url: `/quizzes/question/${id}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: (_r, _e, a) => [
+        { type: "Quiz", id: a.quizId || "LIST" },
+        { type: "Quiz", id: `QUESTIONS-${a.quizId}` },
+        { type: "Quiz", id: "TAG_STATS" },
+      ],
+      async onQueryStarted(_arg, { queryFulfilled }) {
+        try {
+          await queryFulfilled;
+          toast.success("Question deleted");
+        } catch (e) {
+          // @ts-expect-error dynamic error shape from baseQuery
+          toast.error(getErrorMessage(e?.error || e));
+        }
+      },
+    }),
+    createQuiz: builder.mutation<
+      { quiz: QuizListItem },
+      {
+        title: string;
+        description?: string;
+        passing_score: number;
+        duration: number;
+        best_practice_tag_id: number;
+        is_active?: boolean;
+      }
+    >({
+      query: (body) => ({ url: "/quizzes", method: "POST", body }),
+      invalidatesTags: () => [
+        { type: "Quiz", id: "LIST" },
+        { type: "Quiz", id: "TAG_STATS" },
+      ],
+      async onQueryStarted(_arg, { queryFulfilled }) {
+        try {
+          await queryFulfilled;
+          toast.success("Quiz created");
+        } catch (e) {
+          // @ts-expect-error dynamic error shape
+          toast.error(getErrorMessage(e?.error || e));
+        }
+      },
+    }),
   }),
 });
 
@@ -227,4 +402,9 @@ export const {
   useGetAttemptQuery,
   useGetQuizStatsQuery,
   useGetQuizTagStatsQuery,
+  useListQuizQuestionsQuery,
+  useCreateQuizQuestionMutation,
+  useUpdateQuizQuestionMutation,
+  useDeleteQuizQuestionMutation,
+  useCreateQuizMutation,
 } = quizApi;

@@ -702,8 +702,9 @@ const AnswerChoicesStep = ({
                   {draft.choices.length > 2 && (
                     <button
                       onClick={() => removeChoice(choice.id)}
-                      className="w-8 h-8 rounded-lg bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/50 hover:cursor-pointer transition-all duration-200 opacity-0 group-hover:opacity-100 flex items-center justify-center"
-                      aria-label="Remove choice"
+                      className="w-8 h-8 rounded-lg bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/50 hover:cursor-pointer transition-all duration-200 flex items-center justify-center"
+                      aria-label={`Remove choice ${String.fromCharCode(65 + idx)}`}
+                      title={`Delete option ${String.fromCharCode(65 + idx)}`}
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>

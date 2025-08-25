@@ -14,10 +14,15 @@ import { getCategoryIcon } from "@/components/bestPractices/iconMap";
 import type { QuizQuestionDraft } from "@/types/bestPractices";
 import type { BestPracticeCategoryKey } from "@/types/bestPractices";
 import {
-  getQuestionsByCategory,
-  deleteQuestion,
-  upsertQuestion,
-} from "@/data/quizQuestionsMock";
+  useListQuizzesQuery,
+  useListQuizQuestionsQuery,
+  useCreateQuizQuestionMutation,
+  useUpdateQuizQuestionMutation,
+  useDeleteQuizQuestionMutation,
+  useCreateQuizMutation,
+  useGetQuizTagStatsQuery,
+} from "@/store/api/quizApi";
+import { toast } from "sonner";
 import { QuestionWizard } from "@/components/bestPractices/QuestionWizard";
 import { EditQuestionWizard } from "@/components/bestPractices/EditQuestionWizard";
 
@@ -80,7 +85,7 @@ export function QuestionBankPage() {
   const { categoryKey } = useParams();
   const navigate = useNavigate();
   const category = BEST_PRACTICE_CATEGORIES.find((c) => c.key === categoryKey);
-  const [questions, setQuestions] = useState<QuizQuestionDraft[]>([]);
+  const [questions] = useState<QuizQuestionDraft[]>([]); // deprecated local storage
   const [editing, setEditing] = useState<QuizQuestionDraft | null>(null);
   const [openWizard, setOpenWizard] = useState(false);
   const [deleteModal, setDeleteModal] = useState<{
@@ -98,25 +103,130 @@ export function QuestionBankPage() {
     question: null,
   });
   const [currentPage, setCurrentPage] = useState(1);
-  const questionsPerPage = 10;
+  const pageSize = 10;
+  // Filters & search state
+  const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [difficultyFilter, setDifficultyFilter] = useState<string[]>([]); // values: easy, medium, hard
+  const [typeFilter, setTypeFilter] = useState<string[]>([]); // values: mcq, multi, truefalse (legacy 'boolean' mapped)
+  // Map any legacy 'boolean' value (old UI) to new enum 'truefalse'
+  useEffect(() => {
+    if (typeFilter.some((t) => t === "boolean")) {
+      setTypeFilter((prev) =>
+        prev.map((t) => (t === "boolean" ? "truefalse" : t))
+      );
+    }
+  }, [typeFilter]);
+  // Debounce search
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search.trim()), 350);
+    return () => clearTimeout(t);
+  }, [search]);
+  // Map category key to display name used by quiz tag names
+  const tagNameMap: Record<string, string> = {
+    feeding_nutrition: "Feeding & Nutrition",
+    disease_control: "Disease Control",
+    growth_weight: "Growth & Weight Mgmt",
+    environment_management: "Environment Mgmt",
+    breeding_insemination: "Breeding & Insemination",
+    farrowing_management: "Farrowing Mgmt",
+    record_management: "Record & Farm Mgmt",
+    marketing_finance: "Marketing & Finance",
+  };
+  const expectedTagName = category ? tagNameMap[category.key] : undefined;
+  interface QuizTagStat {
+    tag_id: number;
+    tag_name: string;
+    quiz_count: number;
+    question_count: number;
+  }
+  // More reliable resolution: get tag stats -> derive tag_id -> fetch quiz by tag_id
+  const { data: tagStats } = useGetQuizTagStatsQuery();
+  const resolvedTagId = tagStats?.tags.find(
+    (t: QuizTagStat) => t.tag_name === expectedTagName
+  )?.tag_id;
+  // When no quiz exists yet we may auto-create one and store its id
+  const [forcedQuizId, setForcedQuizId] = useState<number | null>(null);
+  const {
+    data: quizzesData,
+    isError: quizListError,
+    isFetching: isFetchingQuiz,
+  } = useListQuizzesQuery(
+    {
+      active: true,
+      tag_id: resolvedTagId,
+      limit: 1,
+    },
+    { skip: !resolvedTagId }
+  );
+  const quizId = quizzesData?.items?.[0]?.id;
+  const effectiveQuizId = quizId || forcedQuizId || 0;
+  const offset = (currentPage - 1) * pageSize;
+  const {
+    data: backendQuestions,
+    isError: listError,
+    isFetching,
+  } = useListQuizQuestionsQuery(
+    {
+      quizId: effectiveQuizId,
+      limit: pageSize,
+      offset,
+      search: debouncedSearch || undefined,
+      difficulty:
+        difficultyFilter.length > 0 ? difficultyFilter.join(",") : undefined,
+      type: typeFilter.length > 0 ? typeFilter.join(",") : undefined,
+    },
+    { skip: !effectiveQuizId }
+  );
+  const totalBackend = backendQuestions?.pageInfo.total || 0;
+  const usingBackend = !!effectiveQuizId && !!backendQuestions;
+
+  // Wait for quizId; no local data fallback now
 
   useEffect(() => {
-    if (category) {
-      setQuestions(getQuestionsByCategory(category.key));
-      setCurrentPage(1); // Reset to first page when category changes
-    }
-  }, [categoryKey, category]);
+    if (quizListError) toast.error("Failed to load quizzes");
+    if (listError) toast.error("Failed to load questions");
+  }, [quizListError, listError]);
 
-  // Pagination calculations
-  const totalPages = Math.ceil(questions.length / questionsPerPage);
-  const startIndex = (currentPage - 1) * questionsPerPage;
-  const endIndex = startIndex + questionsPerPage;
-  const currentQuestions = questions.slice(startIndex, endIndex);
+  // Pagination calculations (backend vs local)
+  const totalPages = usingBackend
+    ? Math.max(1, Math.ceil(totalBackend / pageSize))
+    : Math.max(1, Math.ceil(questions.length / pageSize));
+  const startIndex = offset;
+  const currentQuestions: QuizQuestionDraft[] = usingBackend
+    ? backendQuestions!.items.map(
+        (
+          q: (typeof backendQuestions.items)[number] & { question_id?: number }
+        ) => ({
+          id: String(q.question_id ?? q.id),
+          category: category!.key as BestPracticeCategoryKey,
+          prompt: q.text,
+          type: q.type as QuizQuestionDraft["type"],
+          choices: q.options.map((o) => ({
+            id: String(o.id),
+            text: o.text,
+            correct: !!o.is_correct,
+          })),
+          explanation: q.explanation || undefined,
+          difficulty: q.difficulty as "easy" | "medium" | "hard",
+          media: undefined,
+          status: "saved" as const,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        })
+      )
+    : questions.slice(startIndex, startIndex + pageSize);
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
+
+  // Mutation hooks must be declared before any conditional returns
+  const [createQuestion] = useCreateQuizQuestionMutation();
+  const [updateQuestion] = useUpdateQuizQuestionMutation();
+  const [deleteQuestionMutation] = useDeleteQuizQuestionMutation();
+  const [createQuiz, { isLoading: isCreatingQuiz }] = useCreateQuizMutation();
 
   if (!category) {
     return (
@@ -147,28 +257,61 @@ export function QuestionBankPage() {
 
   const colors = getCategoryColors(category.color);
   const CategoryIcon = getCategoryIcon(category.key as BestPracticeCategoryKey);
-
-  const handleDelete = (question: QuizQuestionDraft) => {
+  const handleDelete = (question: QuizQuestionDraft) =>
     setDeleteModal({ show: true, question });
-  };
 
   const handleView = (question: QuizQuestionDraft) => {
     setViewModal({ show: true, question });
   };
 
-  const confirmDelete = () => {
-    if (deleteModal.question) {
-      deleteQuestion(deleteModal.question.id);
-      setQuestions((q) => q.filter((x) => x.id !== deleteModal.question!.id));
+  const confirmDelete = async () => {
+    if (deleteModal.question && effectiveQuizId) {
+      try {
+        await deleteQuestionMutation({
+          id: deleteModal.question.id,
+          quizId: effectiveQuizId,
+        });
+      } catch {
+        /* mutation toast handles error */
+      }
     }
     setDeleteModal({ show: false, question: null });
   };
 
-  const handleSave = (draft: QuizQuestionDraft) => {
-    upsertQuestion(draft);
-    setQuestions(getQuestionsByCategory(category.key));
-    setOpenWizard(false);
-    setEditing(null);
+  const handleSave = async (draft: QuizQuestionDraft) => {
+    if (!effectiveQuizId) {
+      toast.error("Quiz not found for this category");
+      return;
+    }
+    const opts = draft.choices.map((c, i) => ({
+      text: c.text,
+      is_correct: c.correct,
+      order_index: i,
+    }));
+    try {
+      if (editing) {
+        await updateQuestion({
+          id: editing.id,
+          quizId: effectiveQuizId,
+          text: draft.prompt,
+          explanation: draft.explanation,
+          type: draft.type,
+          difficulty: draft.difficulty,
+          options: opts,
+        });
+      } else {
+        await createQuestion({
+          quizId: effectiveQuizId,
+          text: draft.prompt,
+          explanation: draft.explanation,
+          options: opts,
+        });
+      }
+      setOpenWizard(false);
+      setEditing(null);
+    } catch {
+      /* mutation layer toasts errors */
+    }
   };
 
   return (
@@ -205,20 +348,69 @@ export function QuestionBankPage() {
               </div>
 
               <button
-                onClick={() => {
+                onClick={async () => {
+                  if (!effectiveQuizId) {
+                    if (isCreatingQuiz) return;
+                    if (!resolvedTagId) {
+                      toast.error("Category tag not resolved yet");
+                      return;
+                    }
+                    try {
+                      const title = `${category.name} Quiz`;
+                      const res = await createQuiz({
+                        title,
+                        description: `Auto-created quiz for ${category.name} question bank`,
+                        passing_score: 70,
+                        duration: 15,
+                        best_practice_tag_id: resolvedTagId,
+                        is_active: true,
+                      }).unwrap();
+                      const newId = (res as { quiz?: { id?: number } })?.quiz
+                        ?.id;
+                      if (newId) {
+                        setForcedQuizId(newId);
+                        toast.success(
+                          "Quiz initialized. You can add a question now."
+                        );
+                        setEditing(null);
+                        setOpenWizard(true);
+                      } else {
+                        toast.error("Quiz creation response missing id");
+                      }
+                    } catch (e: unknown) {
+                      const apiErr = e as
+                        | { data?: { error?: string } }
+                        | undefined;
+                      toast.error(
+                        apiErr?.data?.error || "Failed to create quiz"
+                      );
+                    }
+                    return;
+                  }
                   setEditing(null);
                   setOpenWizard(true);
                 }}
-                className={`flex items-center gap-2 px-6 py-3 bg-gradient-to-r ${colors.primary} text-white rounded-2xl font-semibold shadow-lg hover:shadow-xl hover:scale-[1.02] transition-all duration-300 hover:cursor-pointer`}
+                disabled={!effectiveQuizId && isCreatingQuiz}
+                className={`flex items-center gap-2 px-6 py-3 rounded-2xl font-semibold shadow-lg transition-all duration-300 hover:cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
+                  effectiveQuizId
+                    ? `bg-gradient-to-r ${colors.primary} text-white hover:shadow-xl hover:scale-[1.02]`
+                    : "bg-slate-200 text-slate-500"
+                }`}
               >
-                <Plus className="w-5 h-5" />
-                <span className="hidden sm:inline">Add Question</span>
+                {isCreatingQuiz ? (
+                  <span className="text-sm animate-pulse">Init...</span>
+                ) : (
+                  <>
+                    <Plus className="w-5 h-5" />
+                    <span className="hidden sm:inline">Add Question</span>
+                  </>
+                )}
               </button>
             </div>
 
-            {/* Stats */}
-            <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-white/50 shadow-lg">
-              <div className="flex items-center gap-6">
+            {/* Stats & Filters */}
+            <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-white/50 shadow-lg space-y-6">
+              <div className="flex flex-col lg:flex-row lg:items-center gap-6 justify-between">
                 <div className="flex items-center gap-3">
                   <div
                     className={`w-10 h-10 rounded-xl bg-gradient-to-r ${colors.primary} p-2`}
@@ -227,17 +419,14 @@ export function QuestionBankPage() {
                   </div>
                   <div>
                     <div className="text-2xl font-bold text-slate-900">
-                      {questions.length}
+                      {usingBackend ? totalBackend : 0}
                     </div>
                     <div className="text-sm text-slate-600">
                       Total Questions
                     </div>
                   </div>
                 </div>
-
-                <div className="h-8 w-px bg-slate-200"></div>
-
-                <div className="text-sm text-slate-600">
+                <div className="text-sm text-slate-600 flex-1">
                   Manage quiz questions for the{" "}
                   <span className="font-medium text-slate-900">
                     {category.name}
@@ -245,11 +434,221 @@ export function QuestionBankPage() {
                   category
                 </div>
               </div>
+              {!effectiveQuizId && !isFetchingQuiz && !isCreatingQuiz && (
+                <div className="rounded-xl border-2 border-amber-300 bg-amber-50 px-4 py-3 text-amber-700 text-sm flex items-start gap-3">
+                  <span className="font-semibold">Quiz not found:</span>
+                  <span>
+                    No active quiz yet. Click "Add Question" to auto-create a
+                    quiz and start adding questions.
+                  </span>
+                </div>
+              )}
+              {isCreatingQuiz && (
+                <div className="rounded-xl border-2 border-indigo-300 bg-indigo-50 px-4 py-3 text-indigo-700 text-sm flex items-start gap-3 animate-pulse">
+                  <span className="font-semibold">Initializing quiz...</span>
+                  <span>Setting up a new quiz for this category.</span>
+                </div>
+              )}
+
+              {/* Primary Search Section */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-semibold text-slate-800">
+                    Search & Filter Questions
+                  </h3>
+                  {(difficultyFilter.length > 0 ||
+                    typeFilter.length > 0 ||
+                    debouncedSearch) && (
+                    <span className="text-xs text-slate-500 bg-slate-100 px-2 py-1 rounded-full">
+                      {difficultyFilter.length +
+                        typeFilter.length +
+                        (debouncedSearch ? 1 : 0)}{" "}
+                      filter(s) active
+                    </span>
+                  )}
+                </div>
+
+                {/* Search Bar - Primary Focus */}
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={search}
+                    onChange={(e) => {
+                      setCurrentPage(1);
+                      setSearch(e.target.value);
+                    }}
+                    placeholder="Search questions by content, tags, or keywords..."
+                    className="w-full rounded-2xl border-2 border-slate-200 bg-white px-6 py-4 pr-12 text-base font-medium placeholder:text-slate-400 focus:outline-none focus:ring-4 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all duration-200 shadow-sm hover:shadow-md"
+                  />
+                  <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                    {debouncedSearch ? (
+                      <button
+                        onClick={() => {
+                          setSearch("");
+                          setDebouncedSearch("");
+                        }}
+                        className="text-slate-400 hover:text-slate-600 text-sm font-medium px-3 py-1.5 rounded-lg hover:bg-slate-100 transition-colors"
+                      >
+                        ✕ Clear
+                      </button>
+                    ) : null}
+                  </div>
+                </div>
+              </div>
+
+              {/* Secondary Filter Section */}
+              <div className="space-y-6 pt-2 border-t border-slate-100">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* Difficulty Filter */}
+                  <div className="space-y-3">
+                    <h4 className="text-sm font-semibold text-slate-700 tracking-wide flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-slate-400"></span>
+                      Difficulty Level
+                    </h4>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {(["easy", "medium", "hard"] as const).map((d) => {
+                        const active = difficultyFilter.includes(d);
+                        const difficultyColors = {
+                          easy: active
+                            ? "bg-green-500 text-white border-green-500 shadow-green-200/50"
+                            : "bg-green-50 text-green-700 border-green-200 hover:bg-green-100 hover:border-green-300",
+                          medium: active
+                            ? "bg-amber-500 text-white border-amber-500 shadow-amber-200/50"
+                            : "bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100 hover:border-amber-300",
+                          hard: active
+                            ? "bg-red-500 text-white border-red-500 shadow-red-200/50"
+                            : "bg-red-50 text-red-700 border-red-200 hover:bg-red-100 hover:border-red-300",
+                        };
+
+                        return (
+                          <button
+                            key={d}
+                            onClick={() => {
+                              setCurrentPage(1);
+                              setDifficultyFilter((prev) =>
+                                prev.includes(d)
+                                  ? prev.filter((x) => x !== d)
+                                  : [...prev, d]
+                              );
+                            }}
+                            className={`
+                              px-4 py-2.5 rounded-full text-sm font-medium border-2 
+                              transition-all duration-200 ease-out hover:cursor-pointer 
+                              transform hover:scale-105 active:scale-95
+                              ${
+                                active
+                                  ? "shadow-lg"
+                                  : "shadow-sm hover:shadow-md"
+                              }
+                              ${difficultyColors[d]}
+                              focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-400
+                              min-w-[80px]
+                            `}
+                          >
+                            {d.charAt(0).toUpperCase() + d.slice(1)}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Type Filter */}
+                  <div className="space-y-3">
+                    <h4 className="text-sm font-semibold text-slate-700 tracking-wide flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-slate-400"></span>
+                      Question Type
+                    </h4>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {(
+                        [
+                          { key: "mcq", label: "Single Choice", icon: "●" },
+                          { key: "multi", label: "Multiple Choice", icon: "☰" },
+                          { key: "truefalse", label: "True/False", icon: "⚖" },
+                        ] as const
+                      ).map((t) => {
+                        const active = typeFilter.includes(t.key);
+                        return (
+                          <button
+                            key={t.key}
+                            onClick={() => {
+                              setCurrentPage(1);
+                              setTypeFilter((prev) =>
+                                prev.includes(t.key)
+                                  ? prev.filter((x) => x !== t.key)
+                                  : [...prev, t.key]
+                              );
+                            }}
+                            className={`
+                              px-4 py-2.5 rounded-full text-sm font-medium border-2 
+                              transition-all duration-200 ease-out hover:cursor-pointer
+                              transform hover:scale-105 active:scale-95
+                              flex items-center gap-2
+                              ${
+                                active
+                                  ? "shadow-lg"
+                                  : "shadow-sm hover:shadow-md"
+                              }
+                              ${
+                                active
+                                  ? "bg-indigo-500 text-white border-indigo-500 shadow-indigo-200/50"
+                                  : "bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100 hover:border-indigo-300"
+                              }
+                              focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-400
+                              min-w-[120px] sm:min-w-[140px]
+                            `}
+                          >
+                            <span className="text-xs opacity-80">{t.icon}</span>
+                            <span className="hidden sm:inline">{t.label}</span>
+                            <span className="sm:hidden">
+                              {t.label.split(" ")[0]}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Clear All Filters */}
+                {(difficultyFilter.length > 0 ||
+                  typeFilter.length > 0 ||
+                  debouncedSearch) && (
+                  <div className="flex justify-center lg:justify-start">
+                    <button
+                      onClick={() => {
+                        setSearch("");
+                        setDebouncedSearch("");
+                        setDifficultyFilter([]);
+                        setTypeFilter([]);
+                        setCurrentPage(1);
+                      }}
+                      className="
+                        px-6 py-2.5 rounded-full text-sm font-medium 
+                        bg-slate-100 text-slate-600 border-2 border-slate-200 
+                        hover:bg-slate-200 hover:border-slate-300 hover:cursor-pointer
+                        transition-all duration-200 ease-out
+                        transform hover:scale-105 active:scale-95
+                        shadow-sm hover:shadow-md
+                        focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-400
+                        flex items-center gap-2
+                      "
+                    >
+                      <span>✕</span>
+                      Reset All Filters
+                    </button>
+                  </div>
+                )}
+              </div>
+              {(isFetching || isFetchingQuiz) && (
+                <div className="text-xs text-slate-500 animate-pulse">
+                  Loading...
+                </div>
+              )}
             </div>
           </div>
 
           {/* Questions List */}
-          {questions.length === 0 ? (
+          {(usingBackend ? totalBackend === 0 : questions.length === 0) ? (
             <div className="text-center py-16">
               <div className="bg-white/80 backdrop-blur-sm rounded-3xl p-12 border border-white/50 shadow-lg max-w-md mx-auto">
                 <div
@@ -257,22 +656,75 @@ export function QuestionBankPage() {
                 >
                   <FileQuestion className="w-full h-full text-white" />
                 </div>
-                <h3 className="text-xl font-bold text-slate-900 mb-3">
-                  No Questions Yet
-                </h3>
-                <p className="text-slate-600 mb-8">
-                  Start building your question bank by adding your first quiz
-                  question.
-                </p>
-                <button
-                  onClick={() => {
-                    setEditing(null);
-                    setOpenWizard(true);
-                  }}
-                  className={`px-8 py-3 bg-gradient-to-r ${colors.primary} text-white rounded-2xl font-semibold shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02] hover:cursor-pointer`}
-                >
-                  Create First Question
-                </button>
+                {effectiveQuizId ? (
+                  <>
+                    <h3 className="text-xl font-bold text-slate-900 mb-3">
+                      No Questions Yet
+                    </h3>
+                    <p className="text-slate-600 mb-8">
+                      Start building your question bank by adding your first
+                      quiz question.
+                    </p>
+                    <button
+                      onClick={() => {
+                        setEditing(null);
+                        setOpenWizard(true);
+                      }}
+                      className={`px-8 py-3 bg-gradient-to-r ${colors.primary} text-white rounded-2xl font-semibold shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02] hover:cursor-pointer`}
+                    >
+                      Create First Question
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <h3 className="text-xl font-bold text-slate-900 mb-3">
+                      Quiz Not Initialized
+                    </h3>
+                    <p className="text-slate-600 mb-6">
+                      Click below (or "Add Question") to auto-create a quiz for
+                      this category.
+                    </p>
+                    <button
+                      onClick={async () => {
+                        if (isCreatingQuiz) return;
+                        if (!resolvedTagId) {
+                          toast.error("Category tag not resolved yet");
+                          return;
+                        }
+                        try {
+                          const res = await createQuiz({
+                            title: `${category.name} Quiz`,
+                            description: `Auto-created quiz for ${category.name} question bank`,
+                            passing_score: 70,
+                            duration: 15,
+                            best_practice_tag_id: resolvedTagId,
+                            is_active: true,
+                          }).unwrap();
+                          const newId = (res as { quiz?: { id?: number } })
+                            ?.quiz?.id;
+                          if (newId) {
+                            setForcedQuizId(newId);
+                            toast.success(
+                              "Quiz initialized. Add your first question."
+                            );
+                            setEditing(null);
+                            setOpenWizard(true);
+                          }
+                        } catch (e: unknown) {
+                          const apiErr = e as
+                            | { data?: { error?: string } }
+                            | undefined;
+                          toast.error(
+                            apiErr?.data?.error || "Failed to create quiz"
+                          );
+                        }
+                      }}
+                      className={`px-8 py-3 bg-gradient-to-r ${colors.primary} text-white rounded-2xl font-semibold shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02] hover:cursor-pointer`}
+                    >
+                      Initialize Quiz
+                    </button>
+                  </>
+                )}
               </div>
             </div>
           ) : (
@@ -359,9 +811,25 @@ export function QuestionBankPage() {
                 <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-white/50 p-6 shadow-lg">
                   <div className="flex items-center justify-between">
                     <div className="text-sm text-slate-600">
-                      Showing {startIndex + 1} to{" "}
-                      {Math.min(endIndex, questions.length)} of{" "}
-                      {questions.length} questions
+                      {usingBackend ? (
+                        <>
+                          Showing {startIndex + 1} to{" "}
+                          {Math.min(
+                            startIndex + currentQuestions.length,
+                            totalBackend
+                          )}{" "}
+                          of {totalBackend} questions
+                        </>
+                      ) : (
+                        <>
+                          Showing {startIndex + 1} to{" "}
+                          {Math.min(
+                            startIndex + currentQuestions.length,
+                            questions.length
+                          )}{" "}
+                          of {questions.length} questions
+                        </>
+                      )}
                     </div>
 
                     <div className="flex items-center gap-2">

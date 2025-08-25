@@ -5,14 +5,16 @@ import { getCategoryIcon } from "./iconMap";
 import { useGetQuizTagStatsQuery } from "@/store/api/quizApi";
 
 // mapping backend tag display names to category keys
+// Map category keys -> backend tag display names.
+// Keys must match BEST_PRACTICE_CATEGORIES 'key' values exactly.
 const QUIZ_TAG_NAME_MAP: Record<string, string> = {
   feeding_nutrition: "Feeding & Nutrition",
   disease_control: "Disease Control",
-  growth_weight_mgmt: "Growth & Weight Mgmt",
-  environment_mgmt: "Environment Mgmt",
+  growth_weight: "Growth & Weight Mgmt",
+  environment_management: "Environment Mgmt",
   breeding_insemination: "Breeding & Insemination",
-  farrowing_mgmt: "Farrowing Mgmt",
-  record_farm_mgmt: "Record & Farm Mgmt",
+  farrowing_management: "Farrowing Mgmt",
+  record_management: "Record & Farm Mgmt",
   marketing_finance: "Marketing & Finance",
 };
 
