@@ -28,6 +28,8 @@ export interface QuizQuestionOption {
 export interface QuizQuestion {
   id: number;
   text: string;
+  // Backend may provide prompt alias (we normalize)
+  prompt?: string;
   explanation?: string | null;
   order_index: number;
   type: string;
@@ -45,6 +47,7 @@ export interface StartAttemptResponse {
     started_at: string;
     expires_at: string;
     duration_seconds: number;
+    status?: string;
   };
   quiz: {
     id: number;
@@ -53,6 +56,11 @@ export interface StartAttemptResponse {
     passing_score: number;
   };
   questions: QuizQuestion[];
+  requested_question_count?: number;
+  served_question_count?: number;
+  partial_set?: boolean;
+  shortfall?: number;
+  reused?: boolean;
 }
 export interface SubmitAttemptResponse {
   attempt: {
@@ -64,7 +72,11 @@ export interface SubmitAttemptResponse {
     passed: boolean;
     submitted_at: string;
     time_exceeded: boolean;
+    total_questions?: number;
+    status?: string;
   };
+  // Returned by backend for immediate review (optional)
+  breakdown?: AttemptBreakdownEntry[];
 }
 export interface AttemptAnswer {
   id: number;
@@ -83,8 +95,21 @@ export interface AttemptDetail {
   submitted_at?: string;
   answers?: AttemptAnswer[];
 }
+export interface AttemptBreakdownEntry {
+  question_id: number;
+  prompt: string;
+  type: string;
+  difficulty?: string;
+  explanation?: string | null;
+  selected_option_ids: number[];
+  correct_option_ids: number[];
+  correct: boolean;
+}
 export interface AttemptDetailResponse {
   attempt: AttemptDetail;
+  questions?: QuizQuestion[]; // served questions when resuming
+  answers?: Record<string, number[]>; // map question_id -> selected option ids
+  breakdown?: AttemptBreakdownEntry[];
 }
 export interface UserBestAttempt {
   id: number;
@@ -185,11 +210,29 @@ export const quizApi = baseApi.injectEndpoints({
       invalidatesTags: (_r, _e, arg) => [{ type: "Quiz", id: arg.id }],
       async onQueryStarted(_arg, { queryFulfilled }) {
         try {
-          await queryFulfilled;
-        } catch (e) {
-          // error shape unknown; best-effort extraction
-          // @ts-expect-error dynamic error object
-          toast.error(getErrorMessage(e?.error || e));
+          await queryFulfilled; // success - no toast (UI handles state)
+        } catch (e: unknown) {
+          // Best-effort extraction without widening types globally
+          let root: unknown = e;
+          if (
+            root &&
+            typeof root === "object" &&
+            "error" in (root as Record<string, unknown>)
+          ) {
+            root = (root as Record<string, unknown>).error;
+          }
+          // @ts-expect-error dynamic error shape from server
+          const code = root?.data?.code;
+          const msg = getErrorMessage(root as unknown as Error);
+          if (code === "NO_QUESTIONS") {
+            toast.info("Quiz has no active questions yet.");
+          } else if (code === "INSUFFICIENT_QUESTIONS") {
+            toast.error(
+              "Quiz needs more active questions before it can start."
+            );
+          } else if (msg && !/Failed to start attempt/i.test(msg)) {
+            toast.error(msg);
+          }
         }
       },
     }),
@@ -209,6 +252,29 @@ export const quizApi = baseApi.injectEndpoints({
           else toast.info("Quiz submitted");
         } catch (e) {
           // @ts-expect-error dynamic error object
+          toast.error(getErrorMessage(e?.error || e));
+        }
+      },
+    }),
+    saveAttemptAnswer: builder.mutation<
+      void,
+      {
+        quizId: number | string;
+        attemptId: number | string;
+        question_id: number;
+        option_ids: number[];
+      }
+    >({
+      query: ({ quizId, attemptId, question_id, option_ids }) => ({
+        url: `/quizzes/${quizId}/attempts/${attemptId}/answers`,
+        method: "PATCH",
+        body: { question_id, option_ids },
+      }),
+      async onQueryStarted(_arg, { queryFulfilled }) {
+        try {
+          await queryFulfilled;
+        } catch (e) {
+          // @ts-expect-error dynamic error shape
           toast.error(getErrorMessage(e?.error || e));
         }
       },
@@ -399,6 +465,7 @@ export const {
   useGetQuizQuery,
   useStartAttemptMutation,
   useSubmitAttemptMutation,
+  useSaveAttemptAnswerMutation,
   useGetAttemptQuery,
   useGetQuizStatsQuery,
   useGetQuizTagStatsQuery,

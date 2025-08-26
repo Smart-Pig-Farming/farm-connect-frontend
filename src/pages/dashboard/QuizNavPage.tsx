@@ -460,9 +460,9 @@ export function QuizNavPage() {
             </div>
             {/* Secondary inline helper if no quiz configured */}
             {noQuizConfigured && (
-              <div className="mt-4 text-center text-xs sm:text-sm text-slate-500">
-                No active quiz found for this category yet. Managers can create
-                one in the Question Bank.
+              <div className="mt-8 text-center text-xs sm:text-sm text-slate-500">
+                No active quiz found for this category yet. Administrators can
+                create one in the Question Bank.
               </div>
             )}
           </div>
