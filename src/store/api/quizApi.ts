@@ -14,6 +14,7 @@ export interface QuizListItem {
   created_at: string;
   creator?: { id: number; firstname?: string; lastname?: string };
   bestPracticeTag?: { id: number; name: string };
+  tags?: { id: number; name: string }[]; // additional categories (many-to-many)
 }
 export interface QuizListResponse {
   items: QuizListItem[];
@@ -77,6 +78,15 @@ export interface SubmitAttemptResponse {
   };
   // Returned by backend for immediate review (optional)
   breakdown?: AttemptBreakdownEntry[];
+  // Scoring metadata (present when quiz completion awarded points)
+  scoring?: {
+    points_delta: number; // points awarded for this completion
+    user_points: number | null; // new total user points (unscaled)
+    user_level: number | null; // new user level (post-award)
+    level_label?: string | null; // human label for level
+    next_level_at?: number | null; // threshold for next level
+    awarded_event_type?: string; // QUIZ_COMPLETED_PASS | QUIZ_COMPLETED_FAIL
+  } | null;
 }
 export interface AttemptAnswer {
   id: number;
@@ -186,16 +196,28 @@ export const quizApi = baseApi.injectEndpoints({
       {
         limit?: number;
         cursor?: string;
-        tag_id?: number;
+        tag_id?: number; // legacy primary-only filter
+        any_tag_id?: number; // new inclusive filter
         search?: string;
         active?: boolean;
       } | void
     >({
       query: (args) => {
-        if (args) {
-          return { url: "/quizzes", params: args };
+        if (!args) return { url: "/quizzes" };
+        const { any_tag_id, tag_id, ...rest } = args;
+        const params: Record<string, unknown> = { ...rest };
+        // any_tag_id supersedes legacy tag_id
+        if (any_tag_id != null) params.any_tag_id = any_tag_id;
+        else if (tag_id != null) params.tag_id = tag_id;
+        // Normalize active boolean to string for consistency (backend accepts both now)
+        if (typeof params.active === "boolean") {
+          params.active = params.active ? "true" : "false";
         }
-        return { url: "/quizzes" };
+        // Drop undefined/null
+        for (const k of Object.keys(params)) {
+          if (params[k] == null) delete params[k];
+        }
+        return { url: "/quizzes", params };
       },
       providesTags: (r) =>
         r
@@ -251,6 +273,40 @@ export const quizApi = baseApi.injectEndpoints({
           } else if (msg && !/Failed to start attempt/i.test(msg)) {
             toast.error(msg);
           }
+        }
+      },
+    }),
+    startAttemptByTag: builder.mutation<
+      StartAttemptResponse & {
+        aggregated?: boolean;
+        aggregated_tag_id?: number;
+        aggregated_quiz_ids?: number[];
+      },
+      {
+        tag_id?: number;
+        any_tag_id?: number;
+        question_count?: number;
+        shuffle?: boolean;
+      }
+    >({
+      query: ({ tag_id, any_tag_id, question_count, shuffle }) => {
+        const params: Record<string, unknown> = {};
+        if (any_tag_id != null) params.any_tag_id = any_tag_id;
+        else if (tag_id != null) params.tag_id = tag_id;
+        return {
+          url: "/quizzes/attempts/by-tag",
+          method: "POST",
+          params,
+          body: { question_count, shuffle },
+        };
+      },
+      async onQueryStarted(_arg, { queryFulfilled }) {
+        try {
+          await queryFulfilled;
+        } catch (e: unknown) {
+          // @ts-expect-error dynamic
+          const msg = getErrorMessage(e?.error || e);
+          if (msg) toast.error(msg);
         }
       },
     }),
@@ -364,6 +420,61 @@ export const quizApi = baseApi.injectEndpoints({
         );
       },
     }),
+    // Aggregate questions across all quizzes that contain a given tag (inclusive)
+    listQuestionsByTag: builder.query<
+      QuizQuestionsListResponse,
+      {
+        tag_id?: number; // primary-only
+        any_tag_id?: number; // inclusive many-to-many
+        limit?: number;
+        offset?: number;
+        search?: string;
+        difficulty?: string;
+        type?: string;
+      }
+    >({
+      query: ({
+        tag_id,
+        any_tag_id,
+        limit = 20,
+        offset = 0,
+        search,
+        difficulty,
+        type,
+      }) => {
+        const params: Record<string, unknown> = {
+          limit,
+          offset,
+          search,
+          difficulty,
+          type,
+        };
+        if (any_tag_id != null) params.any_tag_id = any_tag_id;
+        else if (tag_id != null) params.tag_id = tag_id;
+        for (const k of Object.keys(params))
+          if (params[k] == null) delete params[k];
+        return { url: "/quizzes/questions/by-tag", params };
+      },
+      serializeQueryArgs: ({ queryArgs }) =>
+        JSON.stringify({
+          tag_id: queryArgs.tag_id,
+          any_tag_id: queryArgs.any_tag_id,
+          limit: queryArgs.limit,
+          search: queryArgs.search || "",
+          difficulty: queryArgs.difficulty || "",
+          type: queryArgs.type || "",
+        }),
+      merge: (_c, i) => i,
+      forceRefetch({ currentArg, previousArg }) {
+        return (
+          currentArg?.offset !== previousArg?.offset ||
+          currentArg?.limit !== previousArg?.limit ||
+          currentArg?.search !== previousArg?.search ||
+          currentArg?.difficulty !== previousArg?.difficulty ||
+          currentArg?.type !== previousArg?.type
+        );
+      },
+    }),
     createQuizQuestion: builder.mutation<
       { question: QuizQuestion },
       {
@@ -463,8 +574,10 @@ export const quizApi = baseApi.injectEndpoints({
         description?: string;
         passing_score: number;
         duration: number;
-        best_practice_tag_id: number;
+        best_practice_tag_id?: number; // legacy optional
         is_active?: boolean;
+        tag_ids: number[]; // full set including primary
+        primary_tag_id?: number; // optional explicit primary (falls back to first tag_ids[0])
       }
     >({
       query: (body) => ({ url: "/quizzes", method: "POST", body }),
@@ -482,6 +595,40 @@ export const quizApi = baseApi.injectEndpoints({
         }
       },
     }),
+    updateQuiz: builder.mutation<
+      { quiz: QuizListItem },
+      {
+        id: number | string;
+        title?: string;
+        description?: string;
+        passing_score?: number;
+        duration?: number;
+        is_active?: boolean;
+        best_practice_tag_id?: number; // legacy
+        tag_ids?: number[]; // replace full set
+        primary_tag_id?: number;
+      }
+    >({
+      query: ({ id, ...body }) => ({
+        url: `/quizzes/${id}`,
+        method: "PATCH",
+        body,
+      }),
+      invalidatesTags: (_r, _e, a) => [
+        { type: "Quiz", id: a.id },
+        { type: "Quiz", id: "LIST" },
+        { type: "Quiz", id: "TAG_STATS" },
+      ],
+      async onQueryStarted(_arg, { queryFulfilled }) {
+        try {
+          await queryFulfilled;
+          toast.success("Quiz updated");
+        } catch (e) {
+          // @ts-expect-error dynamic error shape
+          toast.error(getErrorMessage(e?.error || e));
+        }
+      },
+    }),
   }),
 });
 
@@ -489,6 +636,7 @@ export const {
   useListQuizzesQuery,
   useGetQuizQuery,
   useStartAttemptMutation,
+  useStartAttemptByTagMutation,
   useSubmitAttemptMutation,
   useSaveAttemptAnswerMutation,
   useGetAttemptQuery,
@@ -496,8 +644,10 @@ export const {
   useGetQuizTagStatsQuery,
   useGetAttemptReviewQuery,
   useListQuizQuestionsQuery,
+  useListQuestionsByTagQuery,
   useCreateQuizQuestionMutation,
   useUpdateQuizQuestionMutation,
   useDeleteQuizQuestionMutation,
   useCreateQuizMutation,
+  useUpdateQuizMutation,
 } = quizApi;

@@ -1,4 +1,5 @@
 import { useParams, useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
 import { useGetAttemptReviewQuery } from "@/store/api/quizApi";
 import { Loader2, ArrowLeft, CheckCircle2, XCircle, Info } from "lucide-react";
 import { BEST_PRACTICE_CATEGORIES } from "@/components/bestPractices/constants";
@@ -61,9 +62,65 @@ export function QuizAttemptReviewPage() {
   } = useParams();
   const quizId = Number(quizIdParam);
   const attemptId = Number(attemptIdParam);
+  const [attemptQuizId, setAttemptQuizId] = useState<number | null>(null);
   const navigate = useNavigate();
   const category = BEST_PRACTICE_CATEGORIES.find((c) => c.key === categoryKey);
   const colors = getCategoryColors(category?.color);
+
+  // Resolve canonical quiz id from localStorage if attempt was started in aggregated mode.
+  useEffect(() => {
+    if (!attemptId) return;
+    // 1. Direct key using current (possibly original) quizId.
+    if (quizId) {
+      try {
+        const direct = localStorage.getItem(`quiz_attempt_${quizId}`);
+        if (direct) {
+          const parsed: { attemptId?: number; attemptQuizId?: number } =
+            JSON.parse(direct);
+          if (parsed?.attemptId === attemptId && parsed?.attemptQuizId) {
+            setAttemptQuizId(parsed.attemptQuizId);
+            return; // found
+          }
+        }
+      } catch {
+        // ignore JSON parse or storage errors
+      }
+    }
+    // 2. Scan all quiz_attempt_ keys to find matching attemptId.
+    try {
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (!k || !k.startsWith("quiz_attempt_")) continue;
+        try {
+          const raw = localStorage.getItem(k);
+          if (!raw) continue;
+          const parsed: { attemptId?: number; attemptQuizId?: number } =
+            JSON.parse(raw);
+          if (parsed?.attemptId === attemptId && parsed?.attemptQuizId) {
+            setAttemptQuizId(parsed.attemptQuizId);
+            // Migration: ensure canonical key stored (in case we matched via legacy key)
+            const canonicalKey = `quiz_attempt_${parsed.attemptQuizId}`;
+            if (!localStorage.getItem(canonicalKey)) {
+              localStorage.setItem(
+                canonicalKey,
+                JSON.stringify({
+                  ...parsed,
+                  attemptQuizId: parsed.attemptQuizId,
+                })
+              );
+            }
+            break;
+          }
+        } catch {
+          // ignore malformed entry
+        }
+      }
+    } catch {
+      // ignore storage iteration issues
+    }
+  }, [attemptId, quizId]);
+
+  const activeQuizId = attemptQuizId || quizId;
 
   const {
     data: reviewData,
@@ -71,8 +128,8 @@ export function QuizAttemptReviewPage() {
     isError: attemptError,
     refetch,
   } = useGetAttemptReviewQuery(
-    { quizId, attemptId },
-    { skip: !quizId || !attemptId }
+    { quizId: activeQuizId, attemptId },
+    { skip: !activeQuizId || !attemptId }
   );
 
   const breakdown = reviewData?.breakdown || [];
@@ -150,6 +207,14 @@ export function QuizAttemptReviewPage() {
         </div>
 
         <div className="grid gap-6 md:grid-cols-3 mb-10">
+          {attemptQuizId && attemptQuizId !== quizId && (
+            <div className="col-span-full -mt-4">
+              <div className="rounded-xl bg-amber-50 border border-amber-200 px-4 py-3 text-xs text-amber-700 font-medium">
+                This review was mapped to its canonical quiz (ID {attemptQuizId}
+                ) for an aggregated attempt.
+              </div>
+            </div>
+          )}
           <div className="col-span-full md:col-span-1 bg-white/80 backdrop-blur-sm rounded-3xl p-6 border border-white/50 shadow">
             <h2 className="text-sm font-semibold text-slate-500 tracking-wide mb-4">
               Summary

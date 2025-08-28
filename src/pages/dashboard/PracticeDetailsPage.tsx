@@ -9,6 +9,7 @@ import {
 import { useSelector } from "react-redux";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { processScoreEvents } from "@/store/utils/scoreEventsClient";
+import type { ScoreEventWs } from "@/hooks/useWebSocket";
 import { useAppDispatch } from "@/store/hooks";
 import type { RootState } from "@/store";
 
@@ -206,17 +207,19 @@ export function PracticeDetailsPage() {
     }
   }, [data]);
 
-  // Subscribe to score events to catch BEST_PRACTICE_FIRST_READ awarded elsewhere (another tab/device)
+  // Subscribe to score events to catch best practice first read & quiz completions elsewhere
   useWebSocket(
     {
       onScoreEvents: ({ events }) => {
         if (!events?.length) return;
-        const bpEvents = events.filter(
-          (e) => e.type === "BEST_PRACTICE_FIRST_READ"
+        const relevant = events.filter(
+          (e) =>
+            e.type === "BEST_PRACTICE_FIRST_READ" ||
+            e.type === "QUIZ_COMPLETED_PASS" ||
+            e.type === "QUIZ_COMPLETED_FAIL"
         );
-        if (bpEvents.length) {
-          // @ts-expect-error ScoreEventWs shape matches expected input
-          processScoreEvents(bpEvents, {
+        if (relevant.length) {
+          processScoreEvents(relevant as ScoreEventWs[], {
             dispatch,
             currentUserId: authUserId,
             applyDaily: true,

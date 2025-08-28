@@ -144,7 +144,7 @@ export const bestPracticesApi = baseApi.injectEndpoints({
         const id = typeof arg === "object" ? arg.id : arg;
         return [{ type: "BestPractice", id }];
       },
-      async onQueryStarted(arg, { queryFulfilled, dispatch }) {
+      async onQueryStarted(_arg, { queryFulfilled, dispatch }) {
         try {
           const { data } = await queryFulfilled;
           if (data?.scoring?.awarded_first_read && data.scoring.points_delta) {
@@ -155,7 +155,11 @@ export const bestPracticesApi = baseApi.injectEndpoints({
                 scoreApi.util.updateQueryData(
                   "getMyStats",
                   { period: "daily" },
-                  (draft: (MyStats & { __pointsFlashDelta?: number }) | undefined) => {
+                  (
+                    draft:
+                      | (MyStats & { __pointsFlashDelta?: number })
+                      | undefined
+                  ) => {
                     if (!draft) return;
                     draft.points += data.scoring!.points_delta;
                     draft.__pointsFlashDelta =

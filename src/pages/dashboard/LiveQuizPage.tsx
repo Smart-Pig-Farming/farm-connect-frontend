@@ -17,11 +17,17 @@ import {
   useGetQuizTagStatsQuery,
   useListQuizzesQuery,
   useStartAttemptMutation,
+  useStartAttemptByTagMutation,
   useSaveAttemptAnswerMutation,
   useSubmitAttemptMutation,
   useGetAttemptQuery,
 } from "@/store/api/quizApi";
 import { toast } from "sonner";
+import { useGetMyScoreQuery } from "@/store/api/scoreApi";
+import { useSelector, useDispatch } from "react-redux";
+import type { RootState, AppDispatch } from "@/store";
+import useWebSocket, { type ScoreEventWs } from "@/hooks/useWebSocket";
+import { processScoreEvents } from "@/store/utils/scoreEventsClient";
 import type { BestPracticeCategoryKey } from "@/types/bestPractices";
 
 interface AnswerMap {
@@ -107,26 +113,34 @@ export function LiveQuizPage() {
     isError: quizListError,
     refetch: refetchQuizzes,
   } = useListQuizzesQuery(
-    tagId ? { tag_id: tagId, limit: 1, active: true } : undefined,
+    tagId ? { any_tag_id: tagId, limit: 1, active: true } : undefined,
     { skip: !tagId }
   );
   const quizId = quizzesData?.items?.[0]?.id;
+  // Canonical quiz id that backend uses for aggregated attempts (may differ from quizId above)
+  const [attemptQuizId, setAttemptQuizId] = useState<number | null>(null);
 
   const PASSING_SCORE = quizzesData?.items?.[0]?.passing_score ?? 70; // percentage
   // Backend sends quiz.duration in minutes; we derive seconds only after attempt start using expires_at.
   const QUIZ_DURATION_MINUTES = quizzesData?.items?.[0]?.duration ?? 10;
 
   // Attempt lifecycle
-  const [startAttempt, { isLoading: startingAttempt }] =
+  const [startAttempt, { isLoading: startingAttemptBase }] =
     useStartAttemptMutation();
+  const [startAttemptByTag, { isLoading: startingAttemptAgg }] =
+    useStartAttemptByTagMutation();
+  const startingAttempt = startingAttemptBase || startingAttemptAgg;
   const [saveAnswer] = useSaveAttemptAnswerMutation();
   const [submitAttempt, { isLoading: submittingAttempt }] =
     useSubmitAttemptMutation();
   const [attemptId, setAttemptId] = useState<number | null>(null);
   const { data: attemptDetail, isFetching: fetchingAttempt } =
     useGetAttemptQuery(
-      { quizId: quizId as number, attemptId: attemptId as number },
-      { skip: !quizId || !attemptId }
+      {
+        quizId: (attemptQuizId || quizId) as number,
+        attemptId: attemptId as number,
+      },
+      { skip: !(attemptQuizId || quizId) || !attemptId }
     );
 
   interface UIQuestionChoice {
@@ -145,7 +159,14 @@ export function LiveQuizPage() {
   ): "mcq" | "multi" | "truefalse" => {
     if (!raw) return "mcq";
     const lower = raw.toLowerCase();
-    if (lower === "multiple") return "multi"; // multi-select
+    // Accept all historical / backend enum variants that should map to multi-select
+    if (
+      lower === "multi" ||
+      lower === "multiple" ||
+      lower === "multiple-select" ||
+      lower === "multiple_select"
+    )
+      return "multi";
     if (lower === "truefalse" || lower === "true_false" || lower === "boolean")
       return "truefalse";
     return "mcq";
@@ -168,6 +189,25 @@ export function LiveQuizPage() {
     time_exceeded: boolean;
     total_questions?: number;
   } | null>(null);
+  // Scoring metadata returned from submit mutation (points + level info)
+  const [scoringMeta, setScoringMeta] = useState<{
+    points_delta: number;
+    user_points: number | null;
+    user_level: number | null;
+    level_label?: string | null;
+    next_level_at?: number | null;
+    awarded_event_type?: string;
+  } | null>(null);
+  // Level tracking & auth
+  const { data: myScore } = useGetMyScoreQuery();
+  const initialLevelRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (myScore && initialLevelRef.current == null) {
+      initialLevelRef.current = myScore.level;
+    }
+  }, [myScore]);
+  const dispatch = useDispatch();
+  const authUserId = useSelector((s: RootState) => s.auth.user?.id);
   const [showExitModal, setShowExitModal] = useState(false);
   const [showSubmitModal, setShowSubmitModal] = useState(false);
   const [startError, setStartError] = useState<string | null>(null);
@@ -273,20 +313,76 @@ export function LiveQuizPage() {
     });
   }, [quizId, attemptId, startInvoked, startingAttempt, questions.length]);
 
-  // Resume attempt from localStorage
+  // Aggregated start decision: if tag has >1 quiz or selected quiz has too few questions vs tag aggregate count
+  // Aggregated mode always used now; legacy per-quiz start removed.
+
+  // Resume attempt from localStorage (handles aggregated attempts with canonical quiz id)
   useEffect(() => {
-    if (!quizId) return;
-    const key = `quiz_attempt_${quizId}`;
-    const stored = localStorage.getItem(key);
-    if (stored) {
-      const parsed = JSON.parse(stored) as { attemptId: number };
-      if (parsed.attemptId) setAttemptId(parsed.attemptId);
-      if (parsed.attemptId) setQuestionSource((prev) => prev || "localStorage");
+    // Try canonical id key first
+    if (attemptQuizId) {
+      const key = `quiz_attempt_${attemptQuizId}`;
+      const stored = localStorage.getItem(key);
+      if (stored) {
+        try {
+          const parsed: { attemptId?: number } = JSON.parse(stored);
+          if (parsed?.attemptId) {
+            setAttemptId(parsed.attemptId);
+            setQuestionSource((p) => p || "localStorage");
+            return;
+          }
+        } catch {
+          // ignore JSON parse errors
+        }
+      }
     }
-  }, [quizId]);
+    // Fallback legacy key
+    if (quizId) {
+      const key = `quiz_attempt_${quizId}`;
+      const stored = localStorage.getItem(key);
+      if (stored) {
+        try {
+          const parsed: { attemptId?: number; attemptQuizId?: number } =
+            JSON.parse(stored);
+          if (parsed?.attemptId) {
+            setAttemptId(parsed.attemptId);
+            if (parsed?.attemptQuizId) setAttemptQuizId(parsed.attemptQuizId);
+            setQuestionSource((p) => p || "localStorage");
+            return;
+          }
+        } catch {
+          // ignore
+        }
+      }
+    }
+    // Scan all for matching aggregated tag id
+    if (tagId != null) {
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (!k || !k.startsWith("quiz_attempt_")) continue;
+        const raw = localStorage.getItem(k);
+        if (!raw) continue;
+        try {
+          const parsed: {
+            aggregated_tag_id?: number;
+            attemptId?: number;
+            attemptQuizId?: number;
+          } = JSON.parse(raw);
+          if (parsed?.aggregated_tag_id === tagId && parsed?.attemptId) {
+            if (parsed.attemptQuizId) setAttemptQuizId(parsed.attemptQuizId);
+            setAttemptId(parsed.attemptId);
+            setQuestionSource((p) => p || "localStorage");
+            break;
+          }
+        } catch {
+          // ignore
+        }
+      }
+    }
+  }, [quizId, tagId, attemptQuizId]);
 
   const handleSubmit = useCallback(async () => {
-    if (!quizId || !attemptId) return;
+    const activeQuizId = attemptQuizId || quizId;
+    if (!activeQuizId || !attemptId) return;
     try {
       const payloadAnswers = Object.entries(answers).map(
         ([qId, optionIds]) => ({
@@ -295,7 +391,7 @@ export function LiveQuizPage() {
         })
       );
       const res = await submitAttempt({
-        quizId,
+        quizId: activeQuizId,
         attemptId,
         answers: payloadAnswers,
       }).unwrap();
@@ -307,7 +403,24 @@ export function LiveQuizPage() {
         time_exceeded: res.attempt.time_exceeded,
         total_questions: res.attempt.total_questions,
       });
-      localStorage.removeItem(`quiz_attempt_${quizId}`);
+      if (res.scoring?.points_delta) {
+        setScoringMeta(res.scoring);
+        const prevLevel = initialLevelRef.current;
+        if (
+          typeof prevLevel === "number" &&
+          res.scoring.user_level &&
+          res.scoring.user_level > prevLevel
+        ) {
+          toast.success(
+            `Level Up! You reached Level ${res.scoring.user_level}`,
+            { duration: 4500 }
+          );
+        }
+        if (res.scoring.user_level) {
+          initialLevelRef.current = res.scoring.user_level;
+        }
+      }
+      localStorage.removeItem(`quiz_attempt_${activeQuizId}`);
       toast.success(
         res.attempt.passed ? "Quiz submitted & passed" : "Quiz submitted"
       );
@@ -319,7 +432,28 @@ export function LiveQuizPage() {
           : null;
       toast.error(message || "Failed to submit quiz");
     }
-  }, [quizId, attemptId, answers, submitAttempt]);
+  }, [quizId, attemptQuizId, attemptId, answers, submitAttempt]);
+
+  // WebSocket subscription for quiz completion events (updates daily points in other tabs)
+  useWebSocket(
+    {
+      onScoreEvents: ({ events }) => {
+        if (!events?.length) return;
+        const quizEvents = events.filter(
+          (e) =>
+            e.type === "QUIZ_COMPLETED_PASS" || e.type === "QUIZ_COMPLETED_FAIL"
+        );
+        if (quizEvents.length) {
+          processScoreEvents(quizEvents as ScoreEventWs[], {
+            dispatch: dispatch as AppDispatch,
+            currentUserId: authUserId,
+            applyDaily: true,
+          });
+        }
+      },
+    },
+    { autoConnect: true }
+  );
 
   // Start or resume attempt: always fetch questions snapshot (prevents empty resume state)
   useEffect(() => {
@@ -360,7 +494,11 @@ export function LiveQuizPage() {
     (async () => {
       try {
         console.log("[LiveQuizPage] Calling startAttempt mutation...");
-        const res = await startAttempt({ id: quizId }).unwrap();
+        // Always use aggregated start when a tagId is resolved so pooled questions are served
+        const res = await startAttemptByTag({
+          any_tag_id: tagId,
+          question_count: 10,
+        }).unwrap();
         console.log(
           "[LiveQuizPage] startAttempt SUCCESS - Full response:",
           res
@@ -382,11 +520,20 @@ export function LiveQuizPage() {
           attemptId: res.attempt?.id,
           expiresAt: res.attempt?.expires_at,
         });
-        if (!attemptId) {
-          setAttemptId(res.attempt.id);
+        if (res?.attempt?.quiz_id && res.attempt.quiz_id !== attemptQuizId) {
+          setAttemptQuizId(res.attempt.quiz_id);
+        }
+        if (!attemptId) setAttemptId(res.attempt.id);
+        const storageQuizId = res.attempt.quiz_id || quizId;
+        if (storageQuizId) {
           localStorage.setItem(
-            `quiz_attempt_${quizId}`,
-            JSON.stringify({ attemptId: res.attempt.id })
+            `quiz_attempt_${storageQuizId}`,
+            JSON.stringify({
+              attemptId: res.attempt.id,
+              attemptQuizId: res.attempt.quiz_id,
+              aggregated: res.aggregated,
+              aggregated_tag_id: tagId,
+            })
           );
         }
         const mapped: UIQuestion[] = Array.isArray(res.questions)
@@ -774,27 +921,29 @@ export function LiveQuizPage() {
 
   // Auto submit on time expiry
   useEffect(() => {
+    const activeQuiz = attemptQuizId || quizId;
     if (
       !submitted &&
       remaining === 0 &&
       remaining !== null &&
       attemptId &&
-      quizId
+      activeQuiz
     ) {
       setTimeExpired(true);
       handleSubmit();
     }
-  }, [remaining, submitted, attemptId, quizId, handleSubmit]);
+  }, [remaining, submitted, attemptId, quizId, attemptQuizId, handleSubmit]);
 
   const current = questions[index];
   const total = questions.length;
 
   const persistAnswer = useCallback(
     async (qId: string, nextSelected: string[]) => {
-      if (!attemptId || !quizId) return;
+      const activeQuizId = attemptQuizId || quizId;
+      if (!attemptId || !activeQuizId) return;
       try {
         await saveAnswer({
-          quizId,
+          quizId: activeQuizId,
           attemptId,
           question_id: Number(qId),
           option_ids: nextSelected.map(Number),
@@ -803,7 +952,7 @@ export function LiveQuizPage() {
         toast.error("Failed to save answer");
       }
     },
-    [attemptId, quizId, saveAnswer]
+    [attemptId, quizId, attemptQuizId, saveAnswer]
   );
 
   if (progressiveStartContent) return progressiveStartContent;
@@ -1087,6 +1236,22 @@ export function LiveQuizPage() {
               <p className="text-slate-600">
                 Great job on completing the {category.name} quiz
               </p>
+              {scoringMeta?.points_delta ? (
+                <div
+                  className="mt-4 inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm font-medium shadow-sm relative overflow-hidden"
+                  style={{ animation: "pointsFlash 1.1s ease-out forwards" }}
+                >
+                  <span className="font-semibold">
+                    +{scoringMeta.points_delta}
+                  </span>
+                  <span>points</span>
+                  {scoringMeta.user_level && (
+                    <span className="ml-2 text-emerald-600/80">
+                      L{scoringMeta.user_level}
+                    </span>
+                  )}
+                </div>
+              ) : null}
             </div>
 
             {/* Score Card */}
@@ -1166,11 +1331,13 @@ export function LiveQuizPage() {
               >
                 Back to Quiz Center
               </button>
-              {quizId && attemptId && submitResult && (
+              {(attemptQuizId || quizId) && attemptId && submitResult && (
                 <button
                   onClick={() =>
                     navigate(
-                      `/dashboard/best-practices/category/${category.key}/quiz/review/${quizId}/${attemptId}`
+                      `/dashboard/best-practices/category/${
+                        category.key
+                      }/quiz/review/${attemptQuizId || quizId}/${attemptId}`
                     )
                   }
                   className="px-8 py-3 bg-white border border-slate-200 text-slate-700 rounded-2xl font-semibold hover:bg-slate-50 transition-all duration-300 hover:cursor-pointer"
@@ -1341,7 +1508,10 @@ export function LiveQuizPage() {
         localStorage.removeItem(`quiz_attempt_${quizId}`);
         // Trigger start explicitly
         try {
-          const res = await startAttempt({ id: quizId }).unwrap();
+          const res = await startAttemptByTag({
+            any_tag_id: tagId,
+            question_count: 10,
+          }).unwrap();
           if (!res) return;
           setAttemptId(res.attempt.id);
           localStorage.setItem(

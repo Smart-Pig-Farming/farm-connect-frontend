@@ -99,7 +99,11 @@ export const EditQuestionWizard = ({
   >({});
   const [selectedCategories, setSelectedCategories] = useState<
     BestPracticeCategoryKey[]
-  >([draft.category]);
+  >(
+    draft.categories && draft.categories.length > 0
+      ? draft.categories
+      : [draft.category]
+  );
   const totalSteps = 4;
 
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -115,12 +119,18 @@ export const EditQuestionWizard = ({
     }
   }, [open]);
 
-  // Initialize selectedCategories based on draft category
+  // Sync categories from draft if present, ensure primary = first
   useEffect(() => {
-    if (draft.category && !selectedCategories.includes(draft.category)) {
+    if (draft.categories && draft.categories.length > 0) {
+      setSelectedCategories(draft.categories);
+      if (draft.category !== draft.categories[0]) {
+        setDraft((d) => ({ ...d, category: draft.categories![0] }));
+      }
+    } else if (draft.category && !selectedCategories.includes(draft.category)) {
       setSelectedCategories([draft.category]);
     }
-  }, [draft.category, selectedCategories]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draft.categories, draft.category]);
 
   if (!open) return null;
 
@@ -134,9 +144,10 @@ export const EditQuestionWizard = ({
       : [...selectedCategories, categoryKey];
 
     setSelectedCategories(newSelected);
-    // Update the primary category (for backwards compatibility)
     if (newSelected.length > 0) {
-      update({ category: newSelected[0] });
+      update({ category: newSelected[0], categories: newSelected });
+    } else {
+      update({ categories: [] });
     }
   };
 
@@ -243,7 +254,7 @@ export const EditQuestionWizard = ({
   const handleSave = () => {
     setSaving(true);
     setTimeout(() => {
-      onSave({ ...draft, status: "saved" });
+      onSave({ ...draft, status: "saved", categories: selectedCategories });
       clearDraft();
       setSaving(false);
       onClose();
@@ -459,6 +470,11 @@ const QuestionSetupStep = ({
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
                     <span className="font-medium text-sm">{category.name}</span>
+                    {isSelected && selectedCategories[0] === category.key && (
+                      <span className="text-[10px] px-2 py-0.5 bg-white/30 rounded-full font-semibold tracking-wide">
+                        PRIMARY
+                      </span>
+                    )}
                   </div>
                 </div>
               </button>
@@ -749,152 +765,174 @@ const ReviewStep = ({
 }: {
   draft: QuizQuestionDraft;
   update: (patch: Partial<QuizQuestionDraft>) => void;
-}) => (
-  <div className="space-y-6">
-    <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-lg shadow-slate-200/50 dark:shadow-slate-900/50">
-      <div className="space-y-6">
-        <div>
-          <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200 mb-4">
-            Review Your Changes
-          </h3>
+}) => {
+  const categoryKeys: BestPracticeCategoryKey[] =
+    Array.isArray(draft.categories) && draft.categories.length > 0
+      ? draft.categories
+      : [draft.category];
+  return (
+    <div className="space-y-6">
+      <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-lg shadow-slate-200/50 dark:shadow-slate-900/50">
+        <div className="space-y-6">
+          <div>
+            <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200 mb-4">
+              Review Your Changes
+            </h3>
 
-          {/* Question Preview */}
-          <div className="bg-slate-50 dark:bg-slate-700 rounded-xl p-4 space-y-4">
-            <div>
-              <div className="flex items-center gap-2 mb-2">
-                <span className="text-xs px-2 py-1 bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 rounded-full">
-                  {CATEGORY_MAP[draft.category]?.name || draft.category}
-                </span>
-                <span
-                  className={`text-xs px-2 py-1 rounded-full ${
-                    draft.difficulty === "easy"
-                      ? "bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400"
-                      : draft.difficulty === "medium"
-                      ? "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-400"
-                      : "bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400"
-                  }`}
-                >
-                  {draft.difficulty}
-                </span>
-                <span className="text-xs px-2 py-1 bg-slate-200 dark:bg-slate-600 text-slate-600 dark:text-slate-300 rounded-full">
-                  {draft.type === "mcq"
-                    ? "Multiple Choice"
-                    : draft.type === "multi"
-                    ? "Multiple Select"
-                    : "True/False"}
-                </span>
-              </div>
-              <p className="text-slate-900 dark:text-slate-100 font-medium">
-                {draft.prompt}
-              </p>
-            </div>
-
-            <div className="space-y-2">
-              {draft.choices.map((choice, idx) => (
-                <div
-                  key={choice.id}
-                  className={`flex items-center gap-3 p-3 rounded-lg ${
-                    choice.correct
-                      ? "bg-green-100 dark:bg-green-900/30 border border-green-200 dark:border-green-800"
-                      : "bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600"
-                  }`}
-                >
-                  <span className="w-6 h-6 bg-slate-200 dark:bg-slate-600 text-slate-600 dark:text-slate-300 rounded-full flex items-center justify-center text-xs font-bold">
-                    {String.fromCharCode(65 + idx)}
-                  </span>
-                  <span className="flex-1 text-sm text-slate-900 dark:text-slate-100">
-                    {choice.text}
-                  </span>
-                  {choice.correct && (
-                    <span className="text-green-600 dark:text-green-400 text-xs font-medium">
-                      ✓ Correct
+            {/* Question Preview */}
+            <div className="bg-slate-50 dark:bg-slate-700 rounded-xl p-4 space-y-4">
+              <div>
+                <div className="flex flex-wrap items-center gap-2 mb-2">
+                  {categoryKeys.map((ck) => (
+                    <span
+                      key={ck}
+                      className="text-xs px-2 py-1 bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 rounded-full"
+                    >
+                      {CATEGORY_MAP[ck]?.name || ck}
                     </span>
-                  )}
+                  ))}
+                  <span
+                    className={`text-xs px-2 py-1 rounded-full ${
+                      draft.difficulty === "easy"
+                        ? "bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400"
+                        : draft.difficulty === "medium"
+                        ? "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-400"
+                        : "bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400"
+                    }`}
+                  >
+                    {draft.difficulty}
+                  </span>
+                  <span className="text-xs px-2 py-1 bg-slate-200 dark:bg-slate-600 text-slate-600 dark:text-slate-300 rounded-full">
+                    {draft.type === "mcq"
+                      ? "Multiple Choice"
+                      : draft.type === "multi"
+                      ? "Multiple Select"
+                      : "True/False"}
+                  </span>
                 </div>
-              ))}
+                <p className="text-slate-900 dark:text-slate-100 font-medium">
+                  {draft.prompt}
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                {draft.choices.map((choice, idx) => (
+                  <div
+                    key={choice.id}
+                    className={`flex items-center gap-3 p-3 rounded-lg ${
+                      choice.correct
+                        ? "bg-green-100 dark:bg-green-900/30 border border-green-200 dark:border-green-800"
+                        : "bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600"
+                    }`}
+                  >
+                    <span className="w-6 h-6 bg-slate-200 dark:bg-slate-600 text-slate-600 dark:text-slate-300 rounded-full flex items-center justify-center text-xs font-bold">
+                      {String.fromCharCode(65 + idx)}
+                    </span>
+                    <span className="flex-1 text-sm text-slate-900 dark:text-slate-100">
+                      {choice.text}
+                    </span>
+                    {choice.correct && (
+                      <span className="text-green-600 dark:text-green-400 text-xs font-medium">
+                        ✓ Correct
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Explanation */}
+          <div>
+            <h4 className="font-medium text-slate-700 dark:text-slate-300 mb-3">
+              Explanation{" "}
+              <span className="text-slate-500 text-sm font-normal">
+                (Optional)
+              </span>
+            </h4>
+            <textarea
+              value={draft.explanation}
+              onChange={(e) => update({ explanation: e.target.value })}
+              placeholder="Explain why this is the correct answer to help learners understand..."
+              rows={4}
+              className="w-full rounded-xl px-4 py-3 text-sm text-slate-900 dark:text-slate-100 placeholder-slate-500 dark:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-500 bg-slate-50 dark:bg-slate-700 focus:bg-white dark:focus:bg-slate-600 transition-all duration-200 resize-none"
+            />
+            <p className="text-xs text-slate-500 mt-2">
+              Help learners understand why the answer is correct
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const SaveStep = ({ draft }: { draft: QuizQuestionDraft }) => {
+  const categoryKeys: BestPracticeCategoryKey[] =
+    Array.isArray(draft.categories) && draft.categories.length > 0
+      ? draft.categories
+      : [draft.category];
+  return (
+    <div className="space-y-6">
+      <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-lg shadow-slate-200/50 dark:shadow-slate-900/50">
+        <div className="text-center space-y-4">
+          <div className="w-16 h-16 bg-orange-100 dark:bg-orange-900/30 rounded-full flex items-center justify-center mx-auto">
+            <span className="text-2xl text-orange-600 dark:text-orange-400">
+              ✓
+            </span>
+          </div>
+          <div>
+            <h3 className="text-xl font-semibold text-slate-800 dark:text-slate-200 mb-2">
+              Ready to Update
+            </h3>
+            <p className="text-slate-600 dark:text-slate-400">
+              Your quiz question changes are ready! Click "Update Question" to
+              save the changes for{" "}
+              {categoryKeys.length === 1
+                ? CATEGORY_MAP[categoryKeys[0]]?.name + " category"
+                : `${categoryKeys.length} categories`}
+              .
+            </p>
+          </div>
+
+          <div className="bg-slate-50 dark:bg-slate-700 rounded-xl p-4 text-left space-y-2">
+            <div className="flex justify-between text-sm items-start">
+              <span className="text-slate-600 dark:text-slate-400">
+                Categories:
+              </span>
+              <span className="font-medium text-slate-900 dark:text-slate-100 text-right">
+                {categoryKeys.map((ck) => CATEGORY_MAP[ck]?.name).join(", ")}
+              </span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-slate-600 dark:text-slate-400">Type:</span>
+              <span className="font-medium text-slate-900 dark:text-slate-100">
+                {draft.type === "mcq"
+                  ? "Multiple Choice"
+                  : draft.type === "multi"
+                  ? "Multiple Select"
+                  : "True/False"}
+              </span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-slate-600 dark:text-slate-400">
+                Difficulty:
+              </span>
+              <span className="font-medium text-slate-900 dark:text-slate-100 capitalize">
+                {draft.difficulty}
+              </span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-slate-600 dark:text-slate-400">
+                Choices:
+              </span>
+              <span className="font-medium text-slate-900 dark:text-slate-100">
+                {draft.choices.length} options
+              </span>
             </div>
           </div>
         </div>
-
-        {/* Explanation */}
-        <div>
-          <h4 className="font-medium text-slate-700 dark:text-slate-300 mb-3">
-            Explanation{" "}
-            <span className="text-slate-500 text-sm font-normal">
-              (Optional)
-            </span>
-          </h4>
-          <textarea
-            value={draft.explanation}
-            onChange={(e) => update({ explanation: e.target.value })}
-            placeholder="Explain why this is the correct answer to help learners understand..."
-            rows={4}
-            className="w-full rounded-xl px-4 py-3 text-sm text-slate-900 dark:text-slate-100 placeholder-slate-500 dark:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-500 bg-slate-50 dark:bg-slate-700 focus:bg-white dark:focus:bg-slate-600 transition-all duration-200 resize-none"
-          />
-          <p className="text-xs text-slate-500 mt-2">
-            Help learners understand why the answer is correct
-          </p>
-        </div>
       </div>
     </div>
-  </div>
-);
-
-const SaveStep = ({ draft }: { draft: QuizQuestionDraft }) => (
-  <div className="space-y-6">
-    <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-lg shadow-slate-200/50 dark:shadow-slate-900/50">
-      <div className="text-center space-y-4">
-        <div className="w-16 h-16 bg-orange-100 dark:bg-orange-900/30 rounded-full flex items-center justify-center mx-auto">
-          <span className="text-2xl text-orange-600 dark:text-orange-400">
-            ✓
-          </span>
-        </div>
-        <div>
-          <h3 className="text-xl font-semibold text-slate-800 dark:text-slate-200 mb-2">
-            Ready to Update
-          </h3>
-          <p className="text-slate-600 dark:text-slate-400">
-            Your quiz question changes are ready! Click "Update Question" to
-            save the changes to the {CATEGORY_MAP[draft.category]?.name}{" "}
-            category.
-          </p>
-        </div>
-
-        <div className="bg-slate-50 dark:bg-slate-700 rounded-xl p-4 text-left space-y-2">
-          <div className="flex justify-between text-sm">
-            <span className="text-slate-600 dark:text-slate-400">
-              Category:
-            </span>
-            <span className="font-medium text-slate-900 dark:text-slate-100">
-              {CATEGORY_MAP[draft.category]?.name}
-            </span>
-          </div>
-          <div className="flex justify-between text-sm">
-            <span className="text-slate-600 dark:text-slate-400">Type:</span>
-            <span className="font-medium text-slate-900 dark:text-slate-100">
-              {draft.type === "mcq"
-                ? "Multiple Choice"
-                : draft.type === "multi"
-                ? "Multiple Select"
-                : "True/False"}
-            </span>
-          </div>
-          <div className="flex justify-between text-sm">
-            <span className="text-slate-600 dark:text-slate-400">
-              Difficulty:
-            </span>
-            <span className="font-medium text-slate-900 dark:text-slate-100 capitalize">
-              {draft.difficulty}
-            </span>
-          </div>
-          <div className="flex justify-between text-sm">
-            <span className="text-slate-600 dark:text-slate-400">Choices:</span>
-            <span className="font-medium text-slate-900 dark:text-slate-100">
-              {draft.choices.length} options
-            </span>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-);
+  );
+};

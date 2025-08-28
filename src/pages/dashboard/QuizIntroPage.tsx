@@ -117,7 +117,7 @@ export function QuizIntroPage() {
                   </div>
                   <div className="flex justify-between">
                     <span className="text-slate-600">Time</span>
-                    <span className="font-semibold">5-8 min</span>
+                    <span className="font-semibold">10 mins</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-slate-600">Passing</span>

@@ -138,7 +138,7 @@ export function QuizNavPage() {
     isError: quizListError,
     refetch: refetchQuizList,
   } = useListQuizzesQuery(
-    tagId ? { tag_id: tagId, limit: 1, active: true } : undefined,
+    tagId ? { any_tag_id: tagId, limit: 1, active: true } : undefined,
     { skip: !tagId }
   );
   const quizId = quizzesData?.items?.[0]?.id;

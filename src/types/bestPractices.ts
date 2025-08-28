@@ -56,6 +56,8 @@ export interface QuizChoice {
 export interface QuizQuestionDraft {
   id: string;
   category: BestPracticeCategoryKey;
+  // Optional array of additional selected categories (UI only, not persisted directly)
+  categories?: BestPracticeCategoryKey[];
   prompt: string;
   type: QuizQuestionType;
   choices: QuizChoice[];

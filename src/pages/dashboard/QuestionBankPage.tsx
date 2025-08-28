@@ -15,12 +15,13 @@ import type { QuizQuestionDraft } from "@/types/bestPractices";
 import type { BestPracticeCategoryKey } from "@/types/bestPractices";
 import {
   useListQuizzesQuery,
-  useListQuizQuestionsQuery,
+  useListQuestionsByTagQuery,
   useCreateQuizQuestionMutation,
   useUpdateQuizQuestionMutation,
   useDeleteQuizQuestionMutation,
   useCreateQuizMutation,
   useGetQuizTagStatsQuery,
+  useUpdateQuizMutation,
 } from "@/store/api/quizApi";
 import { toast } from "sonner";
 import { QuestionWizard } from "@/components/bestPractices/QuestionWizard";
@@ -85,6 +86,8 @@ export function QuestionBankPage() {
   const { categoryKey } = useParams();
   const navigate = useNavigate();
   const category = BEST_PRACTICE_CATEGORIES.find((c) => c.key === categoryKey);
+  // RTK Query hooks (declare before any conditional returns)
+  const [updateQuiz] = useUpdateQuizMutation();
   const [questions] = useState<QuizQuestionDraft[]>([]); // deprecated local storage
   const [editing, setEditing] = useState<QuizQuestionDraft | null>(null);
   const [openWizard, setOpenWizard] = useState(false);
@@ -154,7 +157,7 @@ export function QuestionBankPage() {
   } = useListQuizzesQuery(
     {
       active: true,
-      tag_id: resolvedTagId,
+      any_tag_id: resolvedTagId,
       limit: 1,
     },
     { skip: !resolvedTagId }
@@ -162,13 +165,14 @@ export function QuestionBankPage() {
   const quizId = quizzesData?.items?.[0]?.id;
   const effectiveQuizId = quizId || forcedQuizId || 0;
   const offset = (currentPage - 1) * pageSize;
+  // Aggregate view: use tag aggregate endpoint so legacy multiple quizzes all show
   const {
     data: backendQuestions,
     isError: listError,
     isFetching,
-  } = useListQuizQuestionsQuery(
+  } = useListQuestionsByTagQuery(
     {
-      quizId: effectiveQuizId,
+      any_tag_id: resolvedTagId,
       limit: pageSize,
       offset,
       search: debouncedSearch || undefined,
@@ -176,10 +180,10 @@ export function QuestionBankPage() {
         difficultyFilter.length > 0 ? difficultyFilter.join(",") : undefined,
       type: typeFilter.length > 0 ? typeFilter.join(",") : undefined,
     },
-    { skip: !effectiveQuizId }
+    { skip: !resolvedTagId }
   );
   const totalBackend = backendQuestions?.pageInfo.total || 0;
-  const usingBackend = !!effectiveQuizId && !!backendQuestions;
+  const usingBackend = !!backendQuestions; // aggregate endpoint drives display even before quiz creation
 
   // Wait for quizId; no local data fallback now
 
@@ -283,6 +287,52 @@ export function QuestionBankPage() {
       toast.error("Quiz not found for this category");
       return;
     }
+    // Align with BestPracticesPage: ensure quiz tags reflect selected categories (multi-category)
+    try {
+      const categoryKeys =
+        draft.categories && draft.categories.length > 0
+          ? draft.categories
+          : [draft.category];
+      const tagNameMapLocal: Record<string, string> = {
+        feeding_nutrition: "Feeding & Nutrition",
+        disease_control: "Disease Control",
+        growth_weight: "Growth & Weight Mgmt",
+        environment_management: "Environment Mgmt",
+        breeding_insemination: "Breeding & Insemination",
+        farrowing_management: "Farrowing Mgmt",
+        record_management: "Record & Farm Mgmt",
+        marketing_finance: "Marketing & Finance",
+      };
+      const existingQuiz = quizzesData?.items?.[0];
+      const existingTagIds = new Set<number>(
+        [
+          ...(existingQuiz?.tags?.map((t) => t.id) || []),
+          existingQuiz?.best_practice_tag_id,
+        ].filter(Boolean) as number[]
+      );
+      const resolvedTagIds: number[] = [];
+      const tagStatsRows = tagStats?.tags || [];
+      for (const key of categoryKeys) {
+        const name = tagNameMapLocal[key];
+        const tagId = tagStatsRows.find((t) => t.tag_name === name)?.tag_id;
+        if (tagId) resolvedTagIds.push(tagId);
+      }
+      const uniqueIncoming = Array.from(new Set(resolvedTagIds));
+      const tagsChanged =
+        uniqueIncoming.length > 0 &&
+        (uniqueIncoming.length !== existingTagIds.size ||
+          uniqueIncoming.some((id) => !existingTagIds.has(id)));
+      if (tagsChanged) {
+        await updateQuiz({
+          id: effectiveQuizId,
+          tag_ids: uniqueIncoming,
+          primary_tag_id: uniqueIncoming[0],
+        }).unwrap();
+      }
+    } catch (e) {
+      // Non-fatal; proceed to question creation
+      console.warn("[QuestionBankPage] quiz tag sync failed", e);
+    }
     const opts = draft.choices.map((c, i) => ({
       text: c.text,
       is_correct: c.correct,
@@ -362,7 +412,8 @@ export function QuestionBankPage() {
                         description: `Auto-created quiz for ${category.name} question bank`,
                         passing_score: 70,
                         duration: 15,
-                        best_practice_tag_id: resolvedTagId,
+                        tag_ids: [resolvedTagId],
+                        primary_tag_id: resolvedTagId,
                         is_active: true,
                       }).unwrap();
                       const newId = (res as { quiz?: { id?: number } })?.quiz
@@ -697,7 +748,8 @@ export function QuestionBankPage() {
                             description: `Auto-created quiz for ${category.name} question bank`,
                             passing_score: 70,
                             duration: 15,
-                            best_practice_tag_id: resolvedTagId,
+                            tag_ids: [resolvedTagId],
+                            primary_tag_id: resolvedTagId,
                             is_active: true,
                           }).unwrap();
                           const newId = (res as { quiz?: { id?: number } })

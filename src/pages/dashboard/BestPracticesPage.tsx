@@ -3,6 +3,12 @@ import { CategoryGrid } from "@/components/bestPractices/CategoryGrid";
 import { ContentWizard } from "@/components/bestPractices/ContentWizard";
 import { QuestionWizard } from "@/components/bestPractices/QuestionWizard";
 import { useGetBestPracticeCategoriesQuery } from "@/store/api/bestPracticesApi";
+import {
+  useGetQuizTagStatsQuery,
+  useCreateQuizMutation,
+  useCreateQuizQuestionMutation,
+} from "@/store/api/quizApi";
+import { toast } from "sonner";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { usePermissions } from "@/hooks/usePermissions";
 
@@ -30,7 +36,89 @@ export function BestPracticesPage() {
     // After create mutation we might refetch categories automatically via tag invalidation
   };
   // Quiz creation pending category route integration
-  const handleSaveQuestion = () => {};
+  // Multi-category quiz/question creation logic
+  const { data: quizTagStats } = useGetQuizTagStatsQuery();
+  const [createQuiz] = useCreateQuizMutation();
+  const [createQuestion] = useCreateQuizQuestionMutation();
+  // Map category key -> expected tag name used by backend
+  const tagNameMap: Record<string, string> = {
+    feeding_nutrition: "Feeding & Nutrition",
+    disease_control: "Disease Control",
+    growth_weight: "Growth & Weight Mgmt",
+    environment_management: "Environment Mgmt",
+    breeding_insemination: "Breeding & Insemination",
+    farrowing_management: "Farrowing Mgmt",
+    record_management: "Record & Farm Mgmt",
+    marketing_finance: "Marketing & Finance",
+  };
+  const handleSaveQuestion = async (draft: QuizQuestionDraft) => {
+    try {
+      const cats =
+        draft.categories && draft.categories.length > 0
+          ? draft.categories
+          : [draft.category];
+      const uniqueCats = Array.from(new Set(cats));
+      if (uniqueCats.length === 0) {
+        toast.error("No categories selected");
+        return;
+      }
+      const tagRows = quizTagStats?.tags || [];
+      const options = draft.choices.map((c, i) => ({
+        text: c.text,
+        is_correct: c.correct,
+        order_index: i,
+      }));
+      // Resolve all tag ids for a single multi-category quiz
+      const resolvedTagIds: number[] = [];
+      for (const cat of uniqueCats) {
+        const name = tagNameMap[cat];
+        const tagId = tagRows.find((t) => t.tag_name === name)?.tag_id;
+        if (tagId) {
+          resolvedTagIds.push(tagId);
+        } else {
+          console.warn(`Skipping category ${cat} - tag not resolved`);
+        }
+      }
+      if (resolvedTagIds.length === 0) {
+        toast.error("Could not resolve any category tags");
+        return;
+      }
+      const primaryTagId = resolvedTagIds[0];
+      const primaryName = tagNameMap[uniqueCats[0]];
+      // Create one quiz tied to all selected categories
+      const quizRes = await createQuiz({
+        title:
+          `${primaryName} Quiz` +
+          (resolvedTagIds.length > 1 ? " (+multi)" : ""),
+        description:
+          resolvedTagIds.length > 1
+            ? `Auto-generated multi-category quiz for ${uniqueCats.length} categories`
+            : `Auto-generated quiz for ${primaryName}`,
+        passing_score: 70,
+        duration: 10,
+        tag_ids: resolvedTagIds,
+        primary_tag_id: primaryTagId,
+        is_active: true,
+      }).unwrap();
+      const quizId = quizRes.quiz.id;
+      await createQuestion({
+        quizId,
+        text: draft.prompt,
+        explanation: draft.explanation,
+        options,
+      }).unwrap();
+      toast.success(
+        resolvedTagIds.length > 1
+          ? `Question created in multi-category quiz (${uniqueCats.length} categories)`
+          : "Question created"
+      );
+      setOpenQuestionWizard(false);
+    } catch (e) {
+      // Errors surfaced by mutation toasts; fallback message
+      console.error("[BestPractices:handleSaveQuestion]", e);
+      toast.error("Failed to save question");
+    }
+  };
   // category selection now triggers navigation
 
   // Placeholder: existing contents state remains for wizard preview only (will be replaced by API after create)
