@@ -1,4 +1,5 @@
 import { baseApi } from "./baseApi";
+import type { MyStats } from "./scoreApi";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/error";
 
@@ -123,6 +124,12 @@ export const bestPracticesApi = baseApi.injectEndpoints({
       {
         practice: BestPracticeDetail;
         navigation: { prevId: number | null; nextId: number | null };
+        scoring?: {
+          awarded_first_read: boolean;
+          points_delta: number;
+          user_points: number | null;
+          user_level: number | null;
+        } | null;
       },
       { id: number | string; ctx?: DetailContextFilters } | (number | string)
     >({
@@ -136,6 +143,34 @@ export const bestPracticesApi = baseApi.injectEndpoints({
       providesTags: (_res, _err, arg) => {
         const id = typeof arg === "object" ? arg.id : arg;
         return [{ type: "BestPractice", id }];
+      },
+      async onQueryStarted(arg, { queryFulfilled, dispatch }) {
+        try {
+          const { data } = await queryFulfilled;
+          if (data?.scoring?.awarded_first_read && data.scoring.points_delta) {
+            // Update daily stats cache for instant flash (reuse scoreApi pattern)
+            try {
+              const { scoreApi } = await import("./scoreApi");
+              dispatch(
+                scoreApi.util.updateQueryData(
+                  "getMyStats",
+                  { period: "daily" },
+                  (draft: (MyStats & { __pointsFlashDelta?: number }) | undefined) => {
+                    if (!draft) return;
+                    draft.points += data.scoring!.points_delta;
+                    draft.__pointsFlashDelta =
+                      (draft.__pointsFlashDelta || 0) +
+                      data.scoring!.points_delta;
+                  }
+                )
+              );
+            } catch {
+              /* ignore */
+            }
+          }
+        } catch {
+          /* ignore */
+        }
       },
     }),
     createBestPractice: builder.mutation<

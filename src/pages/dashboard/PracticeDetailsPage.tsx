@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import type { BestPracticeContentDraft } from "@/types/bestPractices";
 import { PracticeDetails } from "@/components/bestPractices/PracticeDetails";
@@ -7,6 +7,9 @@ import {
   type DetailContextFilters,
 } from "@/store/api/bestPracticesApi";
 import { useSelector } from "react-redux";
+import { useWebSocket } from "@/hooks/useWebSocket";
+import { processScoreEvents } from "@/store/utils/scoreEventsClient";
+import { useAppDispatch } from "@/store/hooks";
 import type { RootState } from "@/store";
 
 // Adapt server response practice -> local draft shape
@@ -112,6 +115,8 @@ export function PracticeDetailsPage() {
   const [practice, setPractice] = useState<BestPracticeContentDraft | null>(
     optimistic || null
   );
+  const dispatch = useAppDispatch();
+  const authUserId = useSelector((s: RootState) => s.auth.user?.id);
 
   const numericId = practiceId ? Number(practiceId) : undefined;
 
@@ -201,6 +206,30 @@ export function PracticeDetailsPage() {
     }
   }, [data]);
 
+  // Subscribe to score events to catch BEST_PRACTICE_FIRST_READ awarded elsewhere (another tab/device)
+  useWebSocket(
+    {
+      onScoreEvents: ({ events }) => {
+        if (!events?.length) return;
+        const bpEvents = events.filter(
+          (e) => e.type === "BEST_PRACTICE_FIRST_READ"
+        );
+        if (bpEvents.length) {
+          // @ts-expect-error ScoreEventWs shape matches expected input
+          processScoreEvents(bpEvents, {
+            dispatch,
+            currentUserId: authUserId,
+            applyDaily: true,
+          });
+          // WebSocket events update the score but don't trigger flash
+          // We rely only on API response for flash to prevent duplicates
+          // This keeps other tabs/devices in sync without double-flashing
+        }
+      },
+    },
+    { autoConnect: true }
+  );
+
   // Navigation from API navigation object
   // Combine clientNav with server nav (client takes precedence if exists)
   const nav = data?.navigation;
@@ -228,36 +257,113 @@ export function PracticeDetailsPage() {
         "Failed to load practice"
       : null;
 
+  // Centralized navigation logic for both back button and close button
+  const handleBackNavigation = useCallback(() => {
+    const originCategory = location.state?.originCategory;
+    if (originCategory) {
+      navigate(`/dashboard/best-practices/category/${originCategory}`);
+      return;
+    }
+    if (derivedCtx?.category) {
+      navigate(`/dashboard/best-practices/category/${derivedCtx.category}`);
+      return;
+    }
+    if (practice?.categories?.length) {
+      // Prefer whichever category matches derivedCtx or fallback to first
+      const match =
+        derivedCtx?.category &&
+        (practice.categories as string[]).includes(derivedCtx.category)
+          ? derivedCtx.category
+          : practice.categories[0];
+      if (match) {
+        navigate(`/dashboard/best-practices/category/${match}`);
+        return;
+      }
+    }
+    navigate("/dashboard/best-practices");
+  }, [
+    location.state?.originCategory,
+    derivedCtx?.category,
+    practice?.categories,
+    navigate,
+  ]);
+
+  // Points flash (first read award) - Only show for truly first reads
+  const [flashDelta, setFlashDelta] = useState<number | null>(null);
+  const [hasShownFlashForCurrentPractice, setHasShownFlashForCurrentPractice] =
+    useState<boolean>(false);
+
+  // Reset flash state when practice changes
+  useEffect(() => {
+    setFlashDelta(null);
+    setHasShownFlashForCurrentPractice(false);
+  }, [practiceId]);
+
+  // Centralized flash trigger function - only trigger if not already shown for this practice
+  const triggerFlash = useCallback(
+    (delta: number) => {
+      if (hasShownFlashForCurrentPractice || flashDelta) {
+        return;
+      }
+
+      setHasShownFlashForCurrentPractice(true);
+      setFlashDelta(delta);
+      setTimeout(() => {
+        setFlashDelta(null);
+      }, 2000);
+    },
+    [hasShownFlashForCurrentPractice, flashDelta]
+  );
+
+  // API-based flash trigger - ONLY for first reads
+  useEffect(() => {
+    console.log("[PracticeDetailsPage] Flash check:", {
+      awarded_first_read: data?.scoring?.awarded_first_read,
+      points_delta: data?.scoring?.points_delta,
+      hasShownFlash: hasShownFlashForCurrentPractice,
+      practiceId,
+    });
+
+    // Only flash if this is truly a first read award (backend confirms it)
+    if (
+      data?.scoring?.awarded_first_read === true &&
+      data?.scoring?.points_delta
+    ) {
+      console.log("[PracticeDetailsPage] Triggering flash for first read");
+      triggerFlash(data.scoring.points_delta);
+    }
+  }, [
+    data?.scoring?.awarded_first_read,
+    data?.scoring?.points_delta,
+    triggerFlash,
+    hasShownFlashForCurrentPractice,
+    practiceId,
+  ]);
+
   return (
     <div className="min-h-screen">
       <div className="max-w-6xl mx-auto px-4 md:px-8 py-6 md:py-10">
+        {flashDelta && (
+          <div
+            key={`flash-${Date.now()}`} // Force new animation on each flash
+            className="fixed top-4 right-4 z-50 select-none animate-[fadeSlideIn_2s_ease-out] pointer-events-none"
+            style={{
+              animationFillMode: "forwards",
+              animationIterationCount: "1", // Ensure animation only runs once
+            }}
+          >
+            <div className="px-4 py-2.5 rounded-full bg-emerald-600 text-white text-sm font-semibold shadow-xl ring-2 ring-emerald-400/40 flex items-center gap-2.5">
+              <div className="flex items-center justify-center w-4 h-4">
+                <span className="inline-block w-2 h-2 rounded-full bg-white animate-ping" />
+              </div>
+              <span>
+                +{flashDelta} point{flashDelta === 1 ? "" : "s"}
+              </span>
+            </div>
+          </div>
+        )}
         <button
-          onClick={() => {
-            const originCategory = location.state?.originCategory;
-            if (originCategory) {
-              navigate(`/dashboard/best-practices/category/${originCategory}`);
-              return;
-            }
-            if (derivedCtx?.category) {
-              navigate(
-                `/dashboard/best-practices/category/${derivedCtx.category}`
-              );
-              return;
-            }
-            if (practice?.categories?.length) {
-              // Prefer whichever category matches derivedCtx or fallback to first
-              const match =
-                derivedCtx?.category &&
-                (practice.categories as string[]).includes(derivedCtx.category)
-                  ? derivedCtx.category
-                  : practice.categories[0];
-              if (match) {
-                navigate(`/dashboard/best-practices/category/${match}`);
-                return;
-              }
-            }
-            navigate("/dashboard/best-practices");
-          }}
+          onClick={handleBackNavigation}
           className="inline-flex items-center gap-2 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 mb-6 group hover:cursor-pointer"
         >
           <svg
@@ -322,15 +428,7 @@ export function PracticeDetailsPage() {
             hasNext={hasNext}
             onPrev={goPrev}
             onNext={goNext}
-            onClose={() => {
-              if (practice.categories?.[0]) {
-                navigate(
-                  `/dashboard/best-practices/category/${practice.categories[0]}`
-                );
-              } else {
-                navigate("/dashboard/best-practices");
-              }
-            }}
+            onClose={handleBackNavigation}
           />
         )}
       </div>
