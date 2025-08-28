@@ -21,6 +21,7 @@ import { QuizNavPage } from "@/pages/dashboard/QuizNavPage";
 import { QuestionBankPage } from "@/pages/dashboard/QuestionBankPage";
 import { QuizIntroPage } from "@/pages/dashboard/QuizIntroPage";
 import { LiveQuizPage } from "@/pages/dashboard/LiveQuizPage";
+import { QuizAttemptReviewPage } from "@/pages/dashboard/QuizAttemptReviewPage";
 import { DashboardLayout, ProtectedRoute } from "@/components/layout";
 
 function App() {
@@ -126,6 +127,16 @@ function App() {
             <ProtectedRoute>
               <DashboardLayout>
                 <LiveQuizPage />
+              </DashboardLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/dashboard/best-practices/category/:categoryKey/quiz/review/:quizId/:attemptId"
+          element={
+            <ProtectedRoute>
+              <DashboardLayout>
+                <QuizAttemptReviewPage />
               </DashboardLayout>
             </ProtectedRoute>
           }

@@ -1155,7 +1155,7 @@ export function LiveQuizPage() {
             </div>
 
             {/* Actions */}
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <div className="flex flex-col sm:flex-row flex-wrap gap-4 justify-center">
               <button
                 onClick={() =>
                   navigate(
@@ -1166,6 +1166,18 @@ export function LiveQuizPage() {
               >
                 Back to Quiz Center
               </button>
+              {quizId && attemptId && submitResult && (
+                <button
+                  onClick={() =>
+                    navigate(
+                      `/dashboard/best-practices/category/${category.key}/quiz/review/${quizId}/${attemptId}`
+                    )
+                  }
+                  className="px-8 py-3 bg-white border border-slate-200 text-slate-700 rounded-2xl font-semibold hover:bg-slate-50 transition-all duration-300 hover:cursor-pointer"
+                >
+                  View Details
+                </button>
+              )}
               <button
                 onClick={() => window.location.reload()}
                 className="px-8 py-3 bg-white border border-slate-200 text-slate-700 rounded-2xl font-semibold hover:bg-slate-50 transition-all duration-300 hover:cursor-pointer"

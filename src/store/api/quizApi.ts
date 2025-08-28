@@ -104,6 +104,24 @@ export interface AttemptBreakdownEntry {
   selected_option_ids: number[];
   correct_option_ids: number[];
   correct: boolean;
+  partial?: boolean;
+}
+// Review endpoint adds options per question (including correctness)
+export interface AttemptReviewBreakdownEntry extends AttemptBreakdownEntry {
+  options: { id: number; text: string; is_correct: boolean }[];
+}
+export interface AttemptReviewResponse {
+  attempt: {
+    id: number;
+    quiz_id: number;
+    submitted_at: string;
+    score_percent: number;
+    score_raw: number;
+    total_questions: number;
+    passed: boolean;
+    status: string;
+  };
+  breakdown: AttemptReviewBreakdownEntry[];
 }
 export interface AttemptDetailResponse {
   attempt: AttemptDetail;
@@ -290,6 +308,13 @@ export const quizApi = baseApi.injectEndpoints({
       query: ({ id }) => `/quizzes/${id}/stats`,
       providesTags: (_r, _e, a) => [{ type: "Quiz", id: a.id }],
     }),
+    getAttemptReview: builder.query<
+      AttemptReviewResponse,
+      { quizId: number | string; attemptId: number | string }
+    >({
+      query: ({ quizId, attemptId }) =>
+        `/quizzes/${quizId}/attempts/${attemptId}/review`,
+    }),
     getQuizTagStats: builder.query<QuizTagStatsResponse, void>({
       query: () => "/quizzes/stats",
       providesTags: () => [{ type: "Quiz", id: "TAG_STATS" }],
@@ -469,6 +494,7 @@ export const {
   useGetAttemptQuery,
   useGetQuizStatsQuery,
   useGetQuizTagStatsQuery,
+  useGetAttemptReviewQuery,
   useListQuizQuestionsQuery,
   useCreateQuizQuestionMutation,
   useUpdateQuizQuestionMutation,
