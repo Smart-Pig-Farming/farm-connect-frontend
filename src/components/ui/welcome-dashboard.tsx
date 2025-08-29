@@ -336,7 +336,7 @@ export function WelcomeDashboard({
               return (
                 <div
                   key={index}
-                  className={`${activity.cardBg} ${activity.border} rounded-2xl p-6 shadow-sm hover:shadow-lg transition-all duration-300 group relative overflow-hidden focus-within:ring-2 focus-within:ring-orange-500 cursor-pointer`}
+                  className={`${activity.cardBg} ${activity.border} rounded-2xl p-6 shadow-sm hover:shadow-lg transition-all duration-300 group relative overflow-hidden focus-within:ring-2 focus-within:ring-orange-500 cursor-pointer hover:cursor-pointer`}
                   role="button"
                   tabIndex={0}
                   onClick={(e) => {
@@ -378,7 +378,7 @@ export function WelcomeDashboard({
                     </div>
                     <button
                       onClick={activity.onClick}
-                      className="w-full bg-orange-600 hover:bg-orange-700 text-white font-medium py-2.5 px-4 rounded-lg transition-colors duration-150 flex items-center justify-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-orange-600"
+                      className="w-full bg-orange-600 hover:bg-orange-700 text-white font-medium py-2.5 px-4 rounded-lg transition-colors duration-150 flex items-center justify-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-orange-600 cursor-pointer"
                     >
                       {activity.buttonAction}
                       <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
@@ -471,7 +471,7 @@ export function WelcomeDashboard({
 
             <button
               onClick={handleNavigateToDiscussions}
-              className="inline-flex items-center gap-3 bg-orange-600 text-white font-semibold py-4 px-8 rounded-2xl hover:bg-orange-700 transition-all duration-200 group shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-orange-600"
+              className="inline-flex items-center gap-3 bg-orange-600 text-white font-semibold py-4 px-8 rounded-2xl hover:bg-orange-700 transition-all duration-200 group shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-orange-600 cursor-pointer"
             >
               <Zap className="w-5 h-5" />
               Get Started Now

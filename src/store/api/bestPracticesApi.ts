@@ -18,6 +18,8 @@ export interface BestPracticeListItem {
   benefits_count?: number;
 }
 export interface BestPracticeDetail extends BestPracticeListItem {
+  // read_before: backend-provided pre-state (only on detail)
+  read_before?: boolean;
   description: string;
   steps_json?: unknown[]; // server returns steps_json (alias steps)
   benefits_json?: string[];

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useEffect, useMemo, useCallback, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import type { BestPracticeContentDraft } from "@/types/bestPractices";
 import { PracticeDetails } from "@/components/bestPractices/PracticeDetails";
@@ -291,77 +291,51 @@ export function PracticeDetailsPage() {
     navigate,
   ]);
 
-  // Points flash (first read award) - Only show for truly first reads
-  const [flashDelta, setFlashDelta] = useState<number | null>(null);
-  const [hasShownFlashForCurrentPractice, setHasShownFlashForCurrentPractice] =
-    useState<boolean>(false);
+  // Removed flash +1 feature on read.
+  // First-read points flash (animated +X bubble top-right)
+  const [pointsFlash, setPointsFlash] = useState<number | null>(null);
+  const [hasShownFlash, setHasShownFlash] = useState(false);
 
-  // Reset flash state when practice changes
+  // Reset flash state when navigating to a different practice id
   useEffect(() => {
-    setFlashDelta(null);
-    setHasShownFlashForCurrentPractice(false);
+    setPointsFlash(null);
+    setHasShownFlash(false);
   }, [practiceId]);
 
-  // Centralized flash trigger function - only trigger if not already shown for this practice
-  const triggerFlash = useCallback(
-    (delta: number) => {
-      if (hasShownFlashForCurrentPractice || flashDelta) {
-        return;
-      }
-
-      setHasShownFlashForCurrentPractice(true);
-      setFlashDelta(delta);
-      setTimeout(() => {
-        setFlashDelta(null);
-      }, 2000);
-    },
-    [hasShownFlashForCurrentPractice, flashDelta]
-  );
-
-  // API-based flash trigger - ONLY for first reads
+  // Trigger flash exactly once per practice load if backend awarded first read points
   useEffect(() => {
-    console.log("[PracticeDetailsPage] Flash check:", {
-      awarded_first_read: data?.scoring?.awarded_first_read,
-      points_delta: data?.scoring?.points_delta,
-      hasShownFlash: hasShownFlashForCurrentPractice,
-      practiceId,
-    });
-
-    // Only flash if this is truly a first read award (backend confirms it)
-    if (
-      data?.scoring?.awarded_first_read === true &&
-      data?.scoring?.points_delta
-    ) {
-      console.log("[PracticeDetailsPage] Triggering flash for first read");
-      triggerFlash(data.scoring.points_delta);
+    const awarded = data?.scoring?.awarded_first_read === true;
+    const delta = data?.scoring?.points_delta ?? 0;
+    if (!hasShownFlash && awarded && delta > 0) {
+      setHasShownFlash(true);
+      setPointsFlash(delta);
+      const t = setTimeout(() => setPointsFlash(null), 2000);
+      return () => clearTimeout(t);
     }
-  }, [
-    data?.scoring?.awarded_first_read,
-    data?.scoring?.points_delta,
-    triggerFlash,
-    hasShownFlashForCurrentPractice,
-    practiceId,
-  ]);
+  }, [data?.scoring?.awarded_first_read, data?.scoring?.points_delta, hasShownFlash]);
 
   return (
     <div className="min-h-screen">
       <div className="max-w-6xl mx-auto px-4 md:px-8 py-6 md:py-10">
-        {flashDelta && (
+        {pointsFlash !== null && (
           <div
-            key={`flash-${Date.now()}`} // Force new animation on each flash
             className="fixed top-4 right-4 z-50 select-none animate-[fadeSlideIn_2s_ease-out] pointer-events-none"
-            style={{
-              animationFillMode: "forwards",
-              animationIterationCount: "1", // Ensure animation only runs once
-            }}
+            style={{ animationFillMode: "forwards", animationIterationCount: 1 }}
           >
-            <div className="px-4 py-2.5 rounded-full bg-emerald-600 text-white text-sm font-semibold shadow-xl ring-2 ring-emerald-400/40 flex items-center gap-2.5">
-              <div className="flex items-center justify-center w-4 h-4">
-                <span className="inline-block w-2 h-2 rounded-full bg-white animate-ping" />
-              </div>
-              <span>
-                +{flashDelta} point{flashDelta === 1 ? "" : "s"}
-              </span>
+            <div className="px-4 py-2.5 rounded-full bg-emerald-600 text-white text-sm font-semibold shadow-xl ring-1 ring-emerald-400/60 flex items-center gap-1">
+              <span className="text-base leading-none">+{pointsFlash}</span>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={2}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="w-4 h-4"
+              >
+                <path d="M12 17.27 18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
+              </svg>
             </div>
           </div>
         )}

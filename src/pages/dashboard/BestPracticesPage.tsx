@@ -11,6 +11,18 @@ import {
 import { toast } from "sonner";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { usePermissions } from "@/hooks/usePermissions";
+import type { QuizQuestionDraft } from "@/types/bestPractices";
+
+// Fallback local type (in case build cannot resolve path during incremental build)
+// This will be structurally compatible with the real QuizQuestionDraft for the fields we use.
+type _QuizQuestionDraftFallback = {
+  category: string;
+  categories?: string[];
+  choices: { text: string; correct: boolean }[];
+  prompt: string;
+  explanation?: string;
+};
+type QuizQuestionDraftLike = QuizQuestionDraft | _QuizQuestionDraftFallback;
 
 // Live practice counts will come from backend categories endpoint
 
@@ -51,18 +63,19 @@ export function BestPracticesPage() {
     record_management: "Record & Farm Mgmt",
     marketing_finance: "Marketing & Finance",
   };
-  const handleSaveQuestion = async (draft: QuizQuestionDraft) => {
+  const handleSaveQuestion = async (draft: QuizQuestionDraftLike) => {
     try {
-      const cats =
+  const cats: string[] =
         draft.categories && draft.categories.length > 0
           ? draft.categories
           : [draft.category];
-      const uniqueCats = Array.from(new Set(cats));
+      const uniqueCats: string[] = Array.from(new Set<string>(cats));
       if (uniqueCats.length === 0) {
         toast.error("No categories selected");
         return;
       }
-      const tagRows = quizTagStats?.tags || [];
+      const tagRows: Array<{ tag_id: number; tag_name: string }> =
+        quizTagStats?.tags || [];
       const options = draft.choices.map((c, i) => ({
         text: c.text,
         is_correct: c.correct,
@@ -71,7 +84,7 @@ export function BestPracticesPage() {
       // Resolve all tag ids for a single multi-category quiz
       const resolvedTagIds: number[] = [];
       for (const cat of uniqueCats) {
-        const name = tagNameMap[cat];
+        const name = tagNameMap[cat as keyof typeof tagNameMap];
         const tagId = tagRows.find((t) => t.tag_name === name)?.tag_id;
         if (tagId) {
           resolvedTagIds.push(tagId);
@@ -84,7 +97,7 @@ export function BestPracticesPage() {
         return;
       }
       const primaryTagId = resolvedTagIds[0];
-      const primaryName = tagNameMap[uniqueCats[0]];
+  const primaryName = tagNameMap[uniqueCats[0] as keyof typeof tagNameMap];
       // Create one quiz tied to all selected categories
       const quizRes = await createQuiz({
         title:
