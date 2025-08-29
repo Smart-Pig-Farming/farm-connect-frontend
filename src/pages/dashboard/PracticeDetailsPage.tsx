@@ -312,7 +312,11 @@ export function PracticeDetailsPage() {
       const t = setTimeout(() => setPointsFlash(null), 2000);
       return () => clearTimeout(t);
     }
-  }, [data?.scoring?.awarded_first_read, data?.scoring?.points_delta, hasShownFlash]);
+  }, [
+    data?.scoring?.awarded_first_read,
+    data?.scoring?.points_delta,
+    hasShownFlash,
+  ]);
 
   return (
     <div className="min-h-screen">
@@ -320,7 +324,10 @@ export function PracticeDetailsPage() {
         {pointsFlash !== null && (
           <div
             className="fixed top-4 right-4 z-50 select-none animate-[fadeSlideIn_2s_ease-out] pointer-events-none"
-            style={{ animationFillMode: "forwards", animationIterationCount: 1 }}
+            style={{
+              animationFillMode: "forwards",
+              animationIterationCount: 1,
+            }}
           >
             <div className="px-4 py-2.5 rounded-full bg-emerald-600 text-white text-sm font-semibold shadow-xl ring-1 ring-emerald-400/60 flex items-center gap-1">
               <span className="text-base leading-none">+{pointsFlash}</span>

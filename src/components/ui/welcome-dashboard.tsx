@@ -18,28 +18,312 @@ interface WelcomeDashboardProps {
   userName?: string;
 }
 
+// --- Metrics Panel Subcomponent -------------------------------------------------
+interface MetricsPanelProps {
+  totalPoints: number;
+  levelLabel: string;
+  currentStreak: number;
+  bestStreak: number;
+}
+
+const streakMilestones = [7, 30, 90, 180, 365];
+
+function nextStreakMilestone(current: number) {
+  for (const m of streakMilestones) if (current < m) return m;
+  return null;
+}
+
+const bonusFor = (streak: number) => {
+  if (streak === 7) return 5;
+  if (streak === 30) return 10;
+  if (streak === 90) return 15;
+  if (streak === 180) return 20;
+  if (streak === 365) return 25;
+  return 0;
+};
+
+const streakIcon = (s: number) =>
+  s === 0
+    ? "⭕"
+    : s < 7
+    ? "🔥"
+    : s < 30
+    ? "💥"
+    : s < 90
+    ? "⚡"
+    : s < 180
+    ? "🌟"
+    : "🏆";
+
+const MetricsPanel = ({
+  totalPoints,
+  levelLabel,
+  currentStreak,
+  bestStreak,
+}: MetricsPanelProps) => {
+  const next = nextStreakMilestone(currentStreak);
+  const daysToGo = next ? next - currentStreak : 0;
+  const bonus = next ? bonusFor(next) : 0;
+
+  return (
+    <div className="bg-white border-t-4 border-b-4 border-orange-500 py-6 sm:py-12">
+      <div className="max-w-6xl mx-auto px-3 sm:px-6">
+        {/* Bold Header Section */}
+        <div className="text-center mb-8 sm:mb-12">
+          <h2 className="text-2xl sm:text-3xl md:text-4xl font-black text-gray-900 mb-2 sm:mb-3 tracking-tight px-2">
+            Your Progress Dashboard
+          </h2>
+          <p className="text-base sm:text-lg text-gray-700 font-medium max-w-2xl mx-auto px-2">
+            Every interaction builds your farming expertise and unlocks new
+            opportunities
+          </p>
+        </div>
+
+        {/* Enhanced Main Metrics Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-8 mb-8 sm:mb-12">
+          {/* Points & Level Section - Enhanced */}
+          <div className="text-center group">
+            <div className="bg-gradient-to-br from-orange-50 to-amber-50 rounded-2xl p-8 border-2 border-orange-100 hover:border-orange-300 transition-all duration-300 hover:shadow-lg">
+              <div className="space-y-6">
+                <div>
+                  <div className="text-5xl md:text-6xl font-black text-orange-600 tabular-nums mb-2 group-hover:scale-105 transition-transform duration-300">
+                    {totalPoints.toLocaleString()}
+                  </div>
+                  <div className="text-orange-800 text-base font-bold uppercase tracking-wider">
+                    Total Points
+                  </div>
+                </div>
+                <div className="h-1 bg-gradient-to-r from-orange-300 to-amber-300 w-20 mx-auto rounded-full"></div>
+                <div>
+                  <div className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">
+                    {levelLabel}
+                  </div>
+                  <div className="text-gray-700 text-base font-semibold uppercase tracking-wider">
+                    Current Level
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Streak Section - Enhanced */}
+          <div className="text-center group">
+            <div className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-2xl p-8 border-2 border-amber-100 hover:border-amber-300 transition-all duration-300 hover:shadow-lg">
+              <div className="space-y-6">
+                <div className="inline-flex items-center justify-center w-24 h-24 bg-gradient-to-br from-orange-200 to-amber-200 rounded-3xl shadow-lg group-hover:scale-105 transition-transform duration-300">
+                  <div className="text-center">
+                    <div className="text-3xl mb-1">
+                      {streakIcon(currentStreak)}
+                    </div>
+                    <div className="text-2xl font-black text-gray-800 tabular-nums">
+                      {currentStreak}
+                    </div>
+                  </div>
+                </div>
+                <div>
+                  <div className="text-gray-900 font-bold text-xl mb-2">
+                    Daily Streak
+                  </div>
+                  <div className="text-gray-700 text-base font-medium">
+                    {currentStreak === 0
+                      ? "🚀 Start your journey today!"
+                      : currentStreak === 1
+                      ? "💪 One day strong!"
+                      : `🔥 ${currentStreak} days of excellence!`}
+                  </div>
+                </div>
+                {bestStreak > currentStreak && (
+                  <div className="inline-flex items-center gap-2 bg-gradient-to-r from-purple-500 to-violet-500 text-white px-4 py-2 rounded-full text-sm font-bold shadow-lg">
+                    <span>👑</span>
+                    <span>Personal Best: {bestStreak} days</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Next Milestone Section - Enhanced */}
+          <div className="text-center group">
+            <div className="bg-gradient-to-br from-emerald-50 to-green-50 rounded-2xl p-8 border-2 border-emerald-100 hover:border-emerald-300 transition-all duration-300 hover:shadow-lg">
+              <div className="space-y-6">
+                <div className="inline-flex items-center justify-center w-24 h-24 bg-gradient-to-br from-emerald-200 to-green-200 rounded-3xl shadow-lg group-hover:scale-105 transition-transform duration-300">
+                  <div className="text-4xl text-emerald-600">🎯</div>
+                </div>
+                <div>
+                  <div className="text-gray-900 font-bold text-xl mb-2">
+                    Next Goal
+                  </div>
+                  {next ? (
+                    <div className="space-y-2">
+                      <div className="text-gray-800 font-bold text-lg">
+                        {daysToGo} day{daysToGo === 1 ? "" : "s"} to {next}{" "}
+                        milestone
+                      </div>
+                      <div className="inline-flex items-center gap-2 bg-gradient-to-r from-emerald-500 to-green-500 text-white px-4 py-2 rounded-full text-sm font-bold shadow-lg">
+                        <span>🎁</span>
+                        <span>+{bonus} bonus points waiting!</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <div className="text-gray-800 font-bold text-lg">
+                        🎉 Maximum reached!
+                      </div>
+                      <div className="text-emerald-600 font-medium">
+                        You're a farming legend!
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Enhanced Milestone Progress */}
+        <div className="bg-gradient-to-r from-gray-50 to-slate-50 rounded-3xl p-8 border-2 border-gray-100 shadow-lg">
+          <div className="text-center mb-8">
+            <h3 className="text-2xl md:text-3xl font-black text-gray-900 mb-3 tracking-tight">
+              🏆 Streak Milestones Journey
+            </h3>
+            <p className="text-base text-gray-700 font-medium max-w-xl mx-auto">
+              Your path to farming mastery - each milestone unlocks bigger
+              rewards
+            </p>
+          </div>
+
+          <div className="max-w-4xl mx-auto">
+            {/* Progress Line */}
+            <div className="relative mb-8">
+              <div className="absolute top-6 left-0 w-full h-1 bg-gray-200 rounded-full"></div>
+              <div
+                className="absolute top-6 left-0 h-1 bg-gradient-to-r from-orange-500 to-amber-500 rounded-full transition-all duration-1000"
+                style={{
+                  width: `${Math.min((currentStreak / 365) * 100, 100)}%`,
+                }}
+              ></div>
+
+              <div className="relative flex justify-between">
+                {[7, 30, 90, 180, 365].map((milestone, i) => {
+                  const isCompleted = currentStreak >= milestone;
+                  const isCurrent = next === milestone;
+                  const milestoneColors = [
+                    {
+                      bg: "from-orange-500 to-red-500",
+                      text: "text-orange-600",
+                      ring: "ring-orange-200",
+                    },
+                    {
+                      bg: "from-red-500 to-pink-500",
+                      text: "text-red-600",
+                      ring: "ring-red-200",
+                    },
+                    {
+                      bg: "from-blue-500 to-indigo-500",
+                      text: "text-blue-600",
+                      ring: "ring-blue-200",
+                    },
+                    {
+                      bg: "from-purple-500 to-violet-500",
+                      text: "text-purple-600",
+                      ring: "ring-purple-200",
+                    },
+                    {
+                      bg: "from-yellow-500 to-amber-500",
+                      text: "text-yellow-600",
+                      ring: "ring-yellow-200",
+                    },
+                  ];
+
+                  const bonusPoints = bonusFor(milestone);
+
+                  return (
+                    <div key={milestone} className="flex flex-col items-center">
+                      <div
+                        className={`w-12 h-12 rounded-full flex items-center justify-center transition-all duration-500 ${
+                          isCompleted
+                            ? `bg-gradient-to-br ${milestoneColors[i].bg} text-white shadow-lg scale-110`
+                            : isCurrent
+                            ? `bg-white border-4 border-orange-400 ${milestoneColors[i].text} shadow-lg scale-110 animate-pulse ring-4 ${milestoneColors[i].ring}`
+                            : "bg-gray-200 text-gray-500"
+                        }`}
+                      >
+                        <span className="text-sm font-bold">
+                          {isCompleted
+                            ? "✓"
+                            : milestone <= 30
+                            ? "🔥"
+                            : milestone <= 90
+                            ? "⚡"
+                            : milestone <= 180
+                            ? "🌟"
+                            : "🏆"}
+                        </span>
+                      </div>
+                      <div
+                        className={`text-sm font-bold mt-3 ${
+                          isCompleted
+                            ? milestoneColors[i].text
+                            : isCurrent
+                            ? milestoneColors[i].text
+                            : "text-gray-500"
+                        }`}
+                      >
+                        {milestone} days
+                      </div>
+                      <div
+                        className={`text-xs font-medium mt-1 ${
+                          isCompleted
+                            ? "text-green-600"
+                            : isCurrent
+                            ? "text-orange-600"
+                            : "text-gray-400"
+                        }`}
+                      >
+                        +{bonusPoints} pts
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Motivational Message */}
+            <div className="text-center">
+              <p className="text-lg font-semibold text-gray-800">
+                {currentStreak === 0
+                  ? "🌱 Your farming journey starts with a single day!"
+                  : next
+                  ? `💪 Only ${daysToGo} more day${
+                      daysToGo === 1 ? "" : "s"
+                    } to your next milestone!`
+                  : "🎉 You've conquered all milestones - you're a true farming champion!"}
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export function WelcomeDashboard({
   userName = "Farmer",
 }: WelcomeDashboardProps) {
   const { data: myScore } = useGetMyScoreQuery();
-  const user = useAppSelector((state) => state.auth.user);
+  const user = useAppSelector((s) => s.auth.user);
   const navigate = useNavigate();
-
   const currentStreak = myScore?.streak?.current || 0;
   const bestStreak = myScore?.streak?.best || 0;
   const totalPoints = myScore?.totalPoints || 0;
   const levelLabel = myScore?.levelLabel || "Newcomer";
 
-  // Navigation handlers
   const handleNavigateToDiscussions = () => navigate("/dashboard/discussions");
   const handleNavigateToBestPractices = () =>
     navigate("/dashboard/best-practices");
   const handleNavigateToQuiz = () =>
     navigate("/dashboard/best-practices?mode=quiz");
 
-  // Point earning activities - simplified and action-focused
-  // Restored orange as primary brand color. Keep explicit Tailwind classes (no template interpolation) for JIT safety.
-  // Each card keeps a subtle distinct accent while CTAs + key highlights use orange.
   const pointActivities = [
     {
       action: "Start a Discussion",
@@ -129,218 +413,59 @@ export function WelcomeDashboard({
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-amber-50/40">
-      <div className="max-w-6xl mx-auto space-y-12 p-6">
-        {/* Hero Section - Modern & Clean */}
+      <div className="max-w-6xl mx-auto space-y-8 sm:space-y-12 p-3 sm:p-6">
+        {/* Hero */}
         <div className="relative">
-          <div className="bg-gradient-to-r from-orange-600 via-orange-600 to-amber-500 rounded-3xl p-8 md:p-12 text-white relative overflow-hidden shadow-2xl">
-            {/* Subtle background pattern */}
+          <div className="bg-gradient-to-r from-orange-600 via-orange-600 to-amber-500 rounded-2xl sm:rounded-3xl p-4 sm:p-8 md:p-12 text-white relative overflow-hidden shadow-2xl">
             <div className="absolute inset-0 opacity-10">
               <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent" />
             </div>
-
-            <div className="relative z-10 text-center space-y-8">
-              <div className="space-y-4">
-                <div className="inline-flex items-center justify-center w-20 h-20 bg-white/15 backdrop-blur-sm rounded-2xl">
-                  <PiggyBank className="w-10 h-10 text-white" />
+            <div className="relative z-10 text-center space-y-4 sm:space-y-8">
+              <div className="space-y-3 sm:space-y-4">
+                <div className="inline-flex items-center justify-center w-16 h-16 sm:w-20 sm:h-20 bg-white/15 backdrop-blur-sm rounded-xl sm:rounded-2xl">
+                  <PiggyBank className="w-8 h-8 sm:w-10 sm:h-10 text-white" />
                 </div>
-
-                <div className="space-y-3">
-                  <h1 className="text-4xl md:text-5xl font-bold tracking-tight">
+                <div className="space-y-2 sm:space-y-3">
+                  <h1 className="text-2xl sm:text-4xl md:text-5xl font-bold tracking-tight px-2">
                     Welcome back, {user?.firstname || userName}!
                   </h1>
-                  <p className="text-xl md:text-2xl text-orange-100 font-light max-w-2xl mx-auto">
+                  <p className="text-base sm:text-xl md:text-2xl text-orange-100 font-light max-w-2xl mx-auto px-2">
                     Your precision pig farming journey continues here
                   </p>
-                </div>
-              </div>
-
-              {/* COMPLETELY REDESIGNED - Clean Professional Stats Section */}
-              <div className="flex flex-col lg:flex-row items-center gap-8 bg-white/95 backdrop-blur-md rounded-3xl p-8 border border-white/80 shadow-2xl">
-                {/* Clean, High-Contrast Points & Level Display */}
-                <div className="flex items-center gap-8">
-                  <div className="text-center">
-                    <div className="text-3xl md:text-4xl font-bold text-gray-900">
-                      {totalPoints.toLocaleString()}
-                    </div>
-                    <div className="text-gray-600 text-sm font-semibold uppercase tracking-wide">
-                      Points
-                    </div>
-                  </div>
-                  <div className="w-px h-12 bg-gray-200" />
-                  <div className="text-center">
-                    <div className="text-2xl md:text-3xl font-bold text-gray-900">
-                      {levelLabel}
-                    </div>
-                    <div className="text-gray-600 text-sm font-semibold uppercase tracking-wide">
-                      Level
-                    </div>
-                  </div>
-                </div>
-
-                {/* REDESIGNED - Clean Modern Streak Visualization */}
-                <div className="flex-1 flex items-center justify-center">
-                  <div className="relative group">
-                    {/* Subtle Glow Ring - Clean and Professional */}
-                    <div className="absolute inset-0 w-36 h-36 rounded-full bg-gradient-to-r from-orange-400/25 to-amber-400/25 blur-sm animate-pulse" />
-
-                    {/* Main Streak Container - Clean White Design */}
-                    <div className="relative w-32 h-32 bg-white border-4 border-orange-200 rounded-full shadow-xl flex flex-col items-center justify-center group-hover:scale-105 transition-all duration-300">
-                      {/* Clean Flame Icon */}
-                      <div className="relative mb-2">
-                        <div className="relative text-3xl">
-                          {currentStreak === 0
-                            ? "⭕"
-                            : currentStreak < 7
-                            ? "🔥"
-                            : currentStreak < 30
-                            ? "💥"
-                            : currentStreak < 90
-                            ? "⚡"
-                            : currentStreak < 180
-                            ? "🌟"
-                            : "🏆"}
-                        </div>
-                      </div>
-
-                      {/* Clean Streak Number and Text */}
-                      <div className="text-2xl font-black text-gray-800">
-                        {currentStreak}
-                      </div>
-                      <div className="text-[10px] font-bold uppercase tracking-widest text-gray-600">
-                        STREAK
-                      </div>
-                    </div>
-
-                    {/* Enhanced Progress Indicators with Color Coordination */}
-                    <div className="absolute inset-0 w-32 h-32">
-                      {[7, 30, 90, 180, 365].map((milestone, i) => {
-                        const angle = i * 60 - 90; // Spread around circle
-                        const isCompleted = currentStreak >= milestone;
-                        const isCurrent =
-                          currentStreak < milestone &&
-                          (i === 0 || currentStreak >= [0, 7, 30, 90, 180][i]);
-
-                        const milestoneColors = [
-                          "bg-orange-400 shadow-orange-400/50", // 7 days
-                          "bg-red-400 shadow-red-400/50", // 30 days
-                          "bg-blue-400 shadow-blue-400/50", // 90 days
-                          "bg-purple-400 shadow-purple-400/50", // 180 days
-                          "bg-yellow-400 shadow-yellow-400/50", // 365 days
-                        ];
-
-                        return (
-                          <div
-                            key={milestone}
-                            className="absolute"
-                            style={{
-                              top: "50%",
-                              left: "50%",
-                              transform: `translate(-50%, -50%) rotate(${angle}deg) translateY(-54px)`,
-                            }}
-                          >
-                            <div
-                              className={`w-3 h-3 rounded-full transition-all duration-500 ${
-                                isCompleted
-                                  ? `${milestoneColors[i]} scale-110`
-                                  : isCurrent
-                                  ? `${milestoneColors[i]} animate-pulse`
-                                  : "bg-slate-600/30"
-                              }`}
-                            />
-                          </div>
-                        );
-                      })}
-                    </div>
-
-                    {/* Best Streak Crown with Enhanced Styling */}
-                    {bestStreak > currentStreak && (
-                      <div className="absolute -top-3 -right-3 bg-gradient-to-r from-violet-500 to-purple-600 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg border-2 border-white/20 backdrop-blur-sm">
-                        👑 {bestStreak}
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Clean Next Milestone Display */}
-                <div className="text-center lg:text-left">
-                  <div className="text-sm text-gray-600 mb-3 flex items-center gap-2 justify-center lg:justify-start">
-                    <div className="w-2 h-2 rounded-full animate-pulse bg-orange-400" />
-                    Next Milestone
-                  </div>
-                  <div className="bg-gray-50 rounded-xl px-4 py-3 border border-gray-200">
-                    <div className="flex items-center gap-3">
-                      <div className="text-2xl">
-                        {currentStreak < 7
-                          ? "🎯"
-                          : currentStreak < 30
-                          ? "🚀"
-                          : currentStreak < 90
-                          ? "💎"
-                          : currentStreak < 180
-                          ? "⭐"
-                          : "🏅"}
-                      </div>
-                      <div>
-                        <div className="text-sm font-bold text-gray-800">
-                          {currentStreak < 7
-                            ? `${7 - currentStreak} days to go`
-                            : currentStreak < 30
-                            ? `${30 - currentStreak} days to go`
-                            : currentStreak < 90
-                            ? `${90 - currentStreak} days to go`
-                            : currentStreak < 180
-                            ? `${180 - currentStreak} days to go`
-                            : currentStreak < 365
-                            ? `${365 - currentStreak} days to go`
-                            : "Max reached! 🎉"}
-                        </div>
-                        <div className="text-xs text-gray-600">
-                          +
-                          {currentStreak < 7
-                            ? "5"
-                            : currentStreak < 30
-                            ? "10"
-                            : currentStreak < 90
-                            ? "15"
-                            : currentStreak < 180
-                            ? "20"
-                            : currentStreak < 365
-                            ? "25"
-                            : "0"}{" "}
-                          bonus points
-                        </div>
-                      </div>
-                    </div>
-                  </div>
                 </div>
               </div>
             </div>
           </div>
         </div>
 
-        {/* How to Earn Points - Modern Grid */}
-        <div className="space-y-8">
-          <div className="text-center space-y-4">
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900">
+        <MetricsPanel
+          totalPoints={totalPoints}
+          levelLabel={levelLabel}
+          currentStreak={currentStreak}
+          bestStreak={bestStreak}
+        />
+
+        {/* Activities */}
+        <div className="space-y-6 sm:space-y-8">
+          <div className="text-center space-y-3 sm:space-y-4">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 px-2">
               How to Earn Points
             </h2>
-            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+            <p className="text-base sm:text-lg text-gray-600 max-w-2xl mx-auto px-2">
               Engage with the community and expand your knowledge to climb the
               leaderboard
             </p>
           </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {pointActivities.map((activity, index) => {
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
+            {pointActivities.map((activity, i) => {
               const Icon = activity.icon;
               return (
                 <div
-                  key={index}
-                  className={`${activity.cardBg} ${activity.border} rounded-2xl p-6 shadow-sm hover:shadow-lg transition-all duration-300 group relative overflow-hidden focus-within:ring-2 focus-within:ring-orange-500 cursor-pointer hover:cursor-pointer`}
+                  key={i}
+                  className={`${activity.cardBg} ${activity.border} rounded-xl sm:rounded-2xl p-4 sm:p-6 shadow-sm hover:shadow-lg transition-all duration-300 group relative overflow-hidden focus-within:ring-2 focus-within:ring-orange-500 cursor-pointer`}
                   role="button"
                   tabIndex={0}
                   onClick={(e) => {
-                    // Avoid double trigger if inner action button clicked
                     if ((e.target as HTMLElement).closest("button")) return;
                     activity.onClick();
                   }}
@@ -351,24 +476,23 @@ export function WelcomeDashboard({
                     }
                   }}
                 >
-                  {/* Decorative corner */}
-                  <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-bl from-orange-100/40 to-transparent rounded-bl-3xl opacity-70 pointer-events-none" />
-                  <div className="relative space-y-4">
+                  <div className="absolute top-0 right-0 w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-bl from-orange-100/40 to-transparent rounded-bl-2xl sm:rounded-bl-3xl opacity-70 pointer-events-none" />
+                  <div className="relative space-y-3 sm:space-y-4">
                     <div className="flex items-start justify-between">
                       <div
-                        className={`p-3 rounded-xl ${activity.iconWrapper} ring-1 ring-black/5`}
+                        className={`p-2 sm:p-3 rounded-lg sm:rounded-xl ${activity.iconWrapper} ring-1 ring-black/5`}
                       >
-                        <Icon className="w-6 h-6" />
+                        <Icon className="w-5 h-5 sm:w-6 sm:h-6" />
                       </div>
                       <span
-                        className={`${activity.pointsPill} px-3 py-1 rounded-full text-sm font-semibold tracking-tight`}
+                        className={`${activity.pointsPill} px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-semibold tracking-tight`}
                       >
                         {activity.points}
                       </span>
                     </div>
-                    <div className="space-y-2">
+                    <div className="space-y-1 sm:space-y-2">
                       <h3
-                        className={`text-lg font-semibold ${activity.heading}`}
+                        className={`text-base sm:text-lg font-semibold ${activity.heading}`}
                       >
                         {activity.action}
                       </h3>
@@ -378,7 +502,7 @@ export function WelcomeDashboard({
                     </div>
                     <button
                       onClick={activity.onClick}
-                      className="w-full bg-orange-600 hover:bg-orange-700 text-white font-medium py-2.5 px-4 rounded-lg transition-colors duration-150 flex items-center justify-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-orange-600 cursor-pointer"
+                      className="w-full bg-orange-600 hover:bg-orange-700 hover:cursor-pointer text-white font-medium py-2 sm:py-2.5 px-3 sm:px-4 rounded-lg transition-colors duration-150 flex items-center justify-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-orange-600 text-sm sm:text-base"
                     >
                       {activity.buttonAction}
                       <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
@@ -390,92 +514,91 @@ export function WelcomeDashboard({
           </div>
         </div>
 
-        {/* Scoring System Reference */}
-        <div className="bg-gradient-to-r from-orange-50 to-amber-50 rounded-3xl p-8 md:p-12 text-gray-900 border border-orange-100">
-          <div className="text-center space-y-6">
-            <div className="space-y-3">
-              <div className="inline-flex items-center justify-center w-16 h-16 bg-orange-100/70 backdrop-blur-sm rounded-2xl ring-1 ring-orange-200">
-                <Award className="w-8 h-8 text-orange-600" />
+        {/* Scoring System */}
+        <div className="bg-gradient-to-r from-orange-50 to-amber-50 rounded-2xl sm:rounded-3xl p-4 sm:p-8 md:p-12 text-gray-900 border border-orange-100">
+          <div className="text-center space-y-4 sm:space-y-6">
+            <div className="space-y-2 sm:space-y-3">
+              <div className="inline-flex items-center justify-center w-12 h-12 sm:w-16 sm:h-16 bg-orange-100/70 backdrop-blur-sm rounded-xl sm:rounded-2xl ring-1 ring-orange-200">
+                <Award className="w-6 h-6 sm:w-8 sm:h-8 text-orange-600" />
               </div>
-              <h2 className="text-3xl md:text-4xl font-bold">
+              <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold px-2">
                 Level Up Your Farming Game
               </h2>
-              <p className="text-lg md:text-xl text-gray-600 max-w-2xl mx-auto">
+              <p className="text-base sm:text-lg md:text-xl text-gray-600 max-w-2xl mx-auto px-2">
                 Every interaction builds your expertise and unlocks new features
               </p>
             </div>
-
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-6 max-w-5xl mx-auto">
-              {/* Level 1: Newcomer (0-20 pts) */}
-              <div className="text-center space-y-1 p-4 rounded-xl bg-white/60 border border-orange-100 shadow-sm">
-                <div className="text-[11px] font-semibold tracking-wide text-orange-500">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-6 max-w-5xl mx-auto">
+              <div className="text-center space-y-1 p-3 sm:p-4 rounded-lg sm:rounded-xl bg-white/60 border border-orange-100 shadow-sm">
+                <div className="text-[10px] sm:text-[11px] font-semibold tracking-wide text-orange-500">
                   LEVEL 1
                 </div>
-                <div className="text-lg font-bold text-orange-700">
+                <div className="text-base sm:text-lg font-bold text-orange-700">
                   Newcomer
                 </div>
-                <div className="text-sm font-medium text-gray-600">
+                <div className="text-xs sm:text-sm font-medium text-gray-600">
                   0-20 pts
                 </div>
               </div>
-              {/* Level 2: Amateur (21-149 pts) */}
-              <div className="text-center space-y-1 p-4 rounded-xl bg-white/60 border border-amber-100 shadow-sm">
-                <div className="text-[11px] font-semibold tracking-wide text-amber-500">
+              <div className="text-center space-y-1 p-3 sm:p-4 rounded-lg sm:rounded-xl bg-white/60 border border-amber-100 shadow-sm">
+                <div className="text-[10px] sm:text-[11px] font-semibold tracking-wide text-amber-500">
                   LEVEL 2
                 </div>
-                <div className="text-lg font-bold text-amber-700">Amateur</div>
-                <div className="text-sm font-medium text-gray-600">
+                <div className="text-base sm:text-lg font-bold text-amber-700">
+                  Amateur
+                </div>
+                <div className="text-xs sm:text-sm font-medium text-gray-600">
                   21-149 pts
                 </div>
               </div>
-              {/* Level 3: Contributor (150-299 pts) */}
-              <div className="text-center space-y-1 p-4 rounded-xl bg-white/60 border border-rose-100 shadow-sm">
-                <div className="text-[11px] font-semibold tracking-wide text-rose-500">
+              <div className="text-center space-y-1 p-3 sm:p-4 rounded-lg sm:rounded-xl bg-white/60 border border-rose-100 shadow-sm">
+                <div className="text-[10px] sm:text-[11px] font-semibold tracking-wide text-rose-500">
                   LEVEL 3
                 </div>
-                <div className="text-lg font-bold text-rose-700">
+                <div className="text-base sm:text-lg font-bold text-rose-700">
                   Contributor
                 </div>
-                <div className="text-sm font-medium text-gray-600">
+                <div className="text-xs sm:text-sm font-medium text-gray-600">
                   150-299 pts
                 </div>
               </div>
-              {/* Level 4: Knight (300-599 pts) */}
-              <div className="text-center space-y-1 p-4 rounded-xl bg-white/60 border border-yellow-100 shadow-sm">
-                <div className="text-[11px] font-semibold tracking-wide text-yellow-500">
+              <div className="text-center space-y-1 p-3 sm:p-4 rounded-lg sm:rounded-xl bg-white/60 border border-yellow-100 shadow-sm">
+                <div className="text-[10px] sm:text-[11px] font-semibold tracking-wide text-yellow-500">
                   LEVEL 4
                 </div>
-                <div className="text-lg font-bold text-yellow-700">Knight</div>
-                <div className="text-sm font-medium text-gray-600">
+                <div className="text-base sm:text-lg font-bold text-yellow-700">
+                  Knight
+                </div>
+                <div className="text-xs sm:text-sm font-medium text-gray-600">
                   300-599 pts
                 </div>
               </div>
-              {/* Level 5: Expert (600+ pts) — Gateway to endgame */}
-              <div className="text-center space-y-1 p-4 rounded-xl bg-white/60 border border-orange-200 shadow-sm relative">
-                <div className="text-[11px] font-semibold tracking-wide text-orange-600">
+              <div className="text-center space-y-1 p-3 sm:p-4 rounded-lg sm:rounded-xl bg-white/60 border border-orange-200 shadow-sm relative">
+                <div className="text-[10px] sm:text-[11px] font-semibold tracking-wide text-orange-600">
                   LEVEL 5
                 </div>
-                <div className="text-lg font-bold text-orange-700">Expert</div>
-                <div className="text-sm font-medium text-gray-600">
+                <div className="text-base sm:text-lg font-bold text-orange-700">
+                  Expert
+                </div>
+                <div className="text-xs sm:text-sm font-medium text-gray-600">
                   600+ pts
                 </div>
-                <div className="text-[10px] font-medium text-orange-500 mt-1">
+                <div className="text-[9px] sm:text-[10px] font-medium text-orange-500 mt-1">
                   Gateway to endgame
                 </div>
               </div>
             </div>
-            <p className="text-xs text-gray-500 max-w-2xl mx-auto mt-4">
+            <p className="text-xs text-gray-500 max-w-2xl mx-auto mt-3 sm:mt-4 px-2">
               After Expert, Prestige tiers (Bronze / Silver / Gold) unlock via
               higher total points and Moderator Approved posts.
             </p>
-
             <button
               onClick={handleNavigateToDiscussions}
-              className="inline-flex items-center gap-3 bg-orange-600 text-white font-semibold py-4 px-8 rounded-2xl hover:bg-orange-700 transition-all duration-200 group shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-orange-600 cursor-pointer"
+              className="inline-flex items-center gap-2 sm:gap-3 bg-orange-600 text-white font-semibold py-3 sm:py-4 px-6 sm:px-8 rounded-xl sm:rounded-2xl hover:bg-orange-700 hover:cursor-pointer transition-all duration-200 group shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-orange-600 text-sm sm:text-base"
             >
-              <Zap className="w-5 h-5" />
+              <Zap className="w-4 h-4 sm:w-5 sm:h-5" />
               Get Started Now
-              <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+              <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 group-hover:translate-x-1 transition-transform" />
             </button>
           </div>
         </div>
