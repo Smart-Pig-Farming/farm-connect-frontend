@@ -65,7 +65,7 @@ export function BestPracticesPage() {
   };
   const handleSaveQuestion = async (draft: QuizQuestionDraftLike) => {
     try {
-  const cats: string[] =
+      const cats: string[] =
         draft.categories && draft.categories.length > 0
           ? draft.categories
           : [draft.category];
@@ -97,7 +97,7 @@ export function BestPracticesPage() {
         return;
       }
       const primaryTagId = resolvedTagIds[0];
-  const primaryName = tagNameMap[uniqueCats[0] as keyof typeof tagNameMap];
+      const primaryName = tagNameMap[uniqueCats[0] as keyof typeof tagNameMap];
       // Create one quiz tied to all selected categories
       const quizRes = await createQuiz({
         title:

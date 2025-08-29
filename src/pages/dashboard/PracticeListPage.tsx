@@ -8,8 +8,12 @@ import type {
   BestPracticeContentDraft,
   BestPracticeCategoryKey,
 } from "@/types/bestPractices";
-import { useListBestPracticesQuery } from "@/store/api/bestPracticesApi";
+import {
+  useListBestPracticesQuery,
+  useDeleteBestPracticeMutation,
+} from "@/store/api/bestPracticesApi";
 import { BookOpen } from "lucide-react";
+import { toast } from "sonner";
 
 // Map API list item shape to draft shape used by existing components
 interface ApiListItemShape {
@@ -62,6 +66,7 @@ export function PracticeListPage() {
   const modeParam = searchParams.get("mode");
   const [cursor, setCursor] = useState<string>("");
   const [items, setItems] = useState<BestPracticeContentDraft[]>([]);
+  const [deletePractice] = useDeleteBestPracticeMutation();
 
   const category: BestPracticeCategory | undefined =
     BEST_PRACTICE_CATEGORIES.find((c) => c.key === categoryKey);
@@ -147,9 +152,21 @@ export function PracticeListPage() {
     setShowEditModal(true);
   };
 
-  const handleDelete = (content: BestPracticeContentDraft) => {
-    // TODO: call delete mutation then remove
-    setItems((prev) => prev.filter((c) => c.id !== content.id));
+  const handleDelete = async (content: BestPracticeContentDraft) => {
+    // Optimistic removal
+    const prevItems = items;
+    setItems((cur) => cur.filter((c) => c.id !== content.id));
+    const numericId = Number(content.id);
+    try {
+      await deletePractice(isNaN(numericId) ? content.id : numericId).unwrap();
+      toast.success(`Deleted: ${content.title}`);
+    } catch (e) {
+      // Rollback on failure
+      setItems(prevItems);
+      // @ts-expect-error runtime shape
+      const msg = e?.data?.error || "Failed to delete practice";
+      toast.error(msg);
+    }
   };
 
   // Handle edit save
