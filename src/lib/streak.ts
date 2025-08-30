@@ -22,9 +22,10 @@ export function streakProgress(current: number) {
   const rewardTable: Record<number, number> = {
     7: 5,
     30: 10,
-    90: 15,
-    180: 20,
-    365: 25,
+    // Refined progression (cumulative: 5,15,40,90,190)
+    90: 25,
+    180: 50,
+    365: 100,
   };
   const reward = rewardTable[target] ?? 0;
   return { target, percent, reward };

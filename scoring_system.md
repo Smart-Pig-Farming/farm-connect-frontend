@@ -56,13 +56,13 @@ Rewards consistent daily logins with modest bonuses. Implementation highlights:
 - Idempotency is enforced with a unique `(user_id, event_type, ref_id)` partial index so a milestone bonus can't be double-applied under race conditions.
 - Timezone currently defaults to UTC; future work: store user timezone & evaluate day boundaries in that zone.
 
-| **Streak Length (Exact)** | **Bonus Points** | **Notes**              |
-| ------------------------- | ---------------- | ---------------------- |
-| 7                         | +5               | First week consistency |
-| 30                        | +10              | One month              |
-| 90                        | +15              | Quarter year           |
-| 180                       | +20              | Half year              |
-| 365                       | +25              | Full year              |
+| **Streak Length (Exact)** | **Bonus Points** | **Cumulative Bonus** | **Notes**              |
+| ------------------------- | ---------------- | -------------------- | ---------------------- |
+| 7                         | +5               | 5                    | First week consistency |
+| 30                        | +10              | 15                   | One month              |
+| 90                        | +25              | 40                   | Quarter year           |
+| 180                       | +50              | 90                   | Half year              |
+| 365                       | +100             | 190                  | Full year              |
 
 Future extensions under consideration: grace tokens (freeze), repeating annual bonuses, timezone personalization.
 
