@@ -661,9 +661,16 @@ export function WelcomeDashboard({
                         <Icon className="w-5 h-5 sm:w-6 sm:h-6" />
                       </div>
                       <span
-                        className={`${activity.pointsPill} px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-semibold tracking-tight`}
+                        className={`${activity.pointsPill} px-2 sm:px-3 py-1 rounded-full text-[10px] sm:text-xs font-semibold tracking-tight whitespace-nowrap`}
                       >
-                        {activity.points}
+                        {(() => {
+                          const raw = activity.points; // e.g. "+2", "+1 each", "+5"
+                          const each = /each/i.test(raw);
+                          const match = raw.match(/\d+/);
+                          const num = match ? parseInt(match[0], 10) : 0;
+                          const label = `Earn ${num} point${num === 1 ? "" : "s"}${each ? " each" : ""}`;
+                          return label;
+                        })()}
                       </span>
                     </div>
                     <div className="space-y-1 sm:space-y-2">
