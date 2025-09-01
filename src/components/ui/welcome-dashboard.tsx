@@ -668,7 +668,9 @@ export function WelcomeDashboard({
                           const each = /each/i.test(raw);
                           const match = raw.match(/\d+/);
                           const num = match ? parseInt(match[0], 10) : 0;
-                          const label = `Earn ${num} point${num === 1 ? "" : "s"}${each ? " each" : ""}`;
+                          const label = `Earn ${num} point${
+                            num === 1 ? "" : "s"
+                          }${each ? " each" : ""}`;
                           return label;
                         })()}
                       </span>

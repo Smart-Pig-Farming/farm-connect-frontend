@@ -2,6 +2,8 @@ import { useEffect, useState, useMemo } from "react";
 import { CategoryGrid } from "@/components/bestPractices/CategoryGrid";
 import { ContentWizard } from "@/components/bestPractices/ContentWizard";
 import { QuestionWizard } from "@/components/bestPractices/QuestionWizard";
+import { FloatingChatButton } from "@/components/ui/FloatingChatButton";
+import { ChatModal } from "@/components/ui/ChatModal";
 import { useGetBestPracticeCategoriesQuery } from "@/store/api/bestPracticesApi";
 import {
   useGetQuizTagStatsQuery,
@@ -35,6 +37,7 @@ export function BestPracticesPage() {
   const navigate = useNavigate();
   const [openContentWizard, setOpenContentWizard] = useState(false);
   const [openQuestionWizard, setOpenQuestionWizard] = useState(false);
+  const [isChatOpen, setIsChatOpen] = useState(false);
   const { hasPermission } = usePermissions();
 
   const { data: catData } = useGetBestPracticeCategoriesQuery();
@@ -303,6 +306,12 @@ export function BestPracticesPage() {
         onClose={() => setOpenQuestionWizard(false)}
         onSave={handleSaveQuestion}
       />
+
+      {/* Floating Chat Button */}
+      <FloatingChatButton onClick={() => setIsChatOpen(true)} />
+
+      {/* Chat Modal */}
+      <ChatModal isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />
     </div>
   );
 }
