@@ -24,8 +24,8 @@ interface DropdownMenuItemProps {
 const DropdownMenuContext = React.createContext<{
   isOpen: boolean;
   setIsOpen: (open: boolean) => void;
-  triggerRef: React.RefObject<HTMLDivElement>;
-  contentRef: React.RefObject<HTMLDivElement>;
+  triggerRef: React.RefObject<HTMLDivElement | null>;
+  contentRef: React.RefObject<HTMLDivElement | null>;
 }>({
   isOpen: false,
   setIsOpen: () => {},
@@ -35,9 +35,9 @@ const DropdownMenuContext = React.createContext<{
 
 export function DropdownMenu({ children }: DropdownMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null); // wrapper for trigger
+  const dropdownRef = useRef<HTMLDivElement | null>(null); // wrapper for trigger
   const triggerRef = dropdownRef;
-  const contentRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -98,7 +98,7 @@ export function DropdownMenuContent({
       left: rect.left + window.scrollX,
       triggerWidth: rect.width,
     });
-  }, [isOpen]);
+  }, [isOpen, triggerRef]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -118,7 +118,7 @@ export function DropdownMenuContent({
       window.removeEventListener("scroll", handle, true);
       window.removeEventListener("resize", handle);
     };
-  }, [isOpen]);
+  }, [isOpen, triggerRef]);
 
   if (!isOpen) return null;
 
