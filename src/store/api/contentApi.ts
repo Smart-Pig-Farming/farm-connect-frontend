@@ -16,7 +16,7 @@ export interface Post {
     firstName: string;
     lastName: string;
     farmName?: string;
-    level: "Amateur" | "Knight" | "Expert";
+    level: "Newcomer" | "Amateur" | "Contributor" | "Knight" | "Expert";
     profilePicture?: string;
   };
   upvotes: number;
@@ -38,7 +38,7 @@ export interface Reply {
     firstName: string;
     lastName: string;
     farmName?: string;
-    level: "Amateur" | "Knight" | "Expert";
+    level: "Newcomer" | "Amateur" | "Contributor" | "Knight" | "Expert";
     profilePicture?: string;
   };
   upvotes: number;

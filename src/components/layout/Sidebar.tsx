@@ -6,8 +6,6 @@ import {
   BookOpen,
   Users,
   User,
-  ChevronLeft,
-  ChevronRight,
   LogOut,
   type LucideIcon,
 } from "lucide-react";
@@ -37,16 +35,11 @@ const baseNavigation: NavigationItem[] = [
 ];
 
 interface SidebarProps {
-  collapsed: boolean;
-  onToggle: (collapsed: boolean) => void;
+  collapsed: boolean; // retained for width styling
   isMobile?: boolean;
 }
 
-export function Sidebar({
-  collapsed,
-  onToggle,
-  isMobile = false,
-}: SidebarProps) {
+export function Sidebar({ collapsed, isMobile = false }: SidebarProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const dispatch = useAppDispatch();
@@ -114,67 +107,20 @@ export function Sidebar({
       className={`
         hidden lg:flex lg:flex-col lg:fixed lg:inset-y-0 
         bg-white/95 backdrop-blur-xl border-r border-white/20 shadow-xl 
-        transition-all duration-300 ease-in-out z-30
+        transition-all duration-300 ease-in-out z-40
+        pt-16
         ${collapsed ? "lg:w-16" : "lg:w-60"}
       `}
     >
-      {/* Header with Logo */}
-      <div className="flex items-center justify-between h-16 px-4 border-b border-gray-100/50">
-        <div className="flex items-center space-x-3 overflow-hidden">
-          {/* Logo Icon - Always visible */}
-          <div className="flex-shrink-0">
-            <div className="w-10 h-10 bg-gradient-to-br from-orange-400 via-orange-500 to-orange-600 rounded-xl flex items-center justify-center shadow-lg ring-2 ring-orange-200/50">
-              <div className="relative">
-                <svg
-                  className="w-6 h-6 text-white"
-                  fill="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path d="M12 2L13.09 6.26L18 5L16.74 9.74L22 8.64L19.66 12L22 15.36L16.74 14.26L18 19L13.09 17.74L12 22L10.91 17.74L6 19L7.26 14.26L2 15.36L4.34 12L2 8.64L7.26 9.74L6 5L10.91 6.26L12 2Z" />
-                </svg>
-                <svg
-                  className="w-3 h-3 text-white/90 absolute -bottom-1 -right-1"
-                  fill="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z" />
-                </svg>
-              </div>
-            </div>
-          </div>
-
-          {/* Brand Text - Hidden when collapsed */}
-          {!collapsed && (
-            <div className="min-w-0 flex-1">
-              <h1 className="text-lg font-bold tracking-tight truncate leading-tight">
-                <span className="text-gray-900">Farm</span>
-                <span className="text-orange-500">Connect</span>
-              </h1>
-              <p className="text-xs text-gray-500 truncate leading-tight">
-                Dashboard Portal
-              </p>
-            </div>
-          )}
-        </div>
-
-        {/* Collapse Toggle */}
-        <button
-          onClick={() => onToggle(!collapsed)}
-          className="p-2 rounded-xl text-gray-400 hover:text-orange-600 hover:bg-orange-50/80 transition-all duration-200 hover:scale-110 backdrop-blur-sm"
-          title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-        >
-          {collapsed ? (
-            <ChevronRight className="h-4 w-4" />
-          ) : (
-            <ChevronLeft className="h-4 w-4" />
-          )}
-        </button>
-      </div>
+      {/* (Branding removed; header provides logo) */}
 
       {/* Navigation */}
       <nav className="flex-1 px-3 py-6 space-y-1 overflow-y-auto">
         {navigation.map((item) => {
-          const isActive = location.pathname === item.href;
+          const isActive =
+            item.href === "/dashboard/best-practices"
+              ? location.pathname.startsWith("/dashboard/best-practices")
+              : location.pathname === item.href;
           const Icon = item.icon;
 
           return (

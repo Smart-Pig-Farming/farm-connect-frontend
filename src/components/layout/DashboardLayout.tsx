@@ -116,7 +116,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-orange-50/20 to-gray-100 antialiased">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-orange-50/20 to-gray-100 antialiased overflow-x-hidden">
       {/* Enhanced Background Pattern */}
       <div className="fixed inset-0 opacity-[0.02] pointer-events-none">
         <div
@@ -141,11 +141,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       <Header sidebarCollapsed={sidebarCollapsed} isMobile={isMobile} />
 
       <div className="flex relative">
-        <Sidebar
-          collapsed={sidebarCollapsed}
-          onToggle={setSidebarCollapsed}
-          isMobile={isMobile}
-        />
+        <Sidebar collapsed={sidebarCollapsed} isMobile={isMobile} />
 
         <main
           id="main-content"
@@ -153,9 +149,9 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           aria-label="Dashboard content"
           className={`
             flex-1 relative transition-all duration-300 ease-in-out
-            px-4 py-6 pb-24
-            sm:px-6 sm:py-8 sm:pb-24
-            lg:px-8 lg:py-8 lg:pb-8
+      px-4 pt-20 pb-24
+      sm:px-6 sm:pt-24 sm:pb-24
+      lg:px-8 lg:pt-24 lg:pb-8
             ${sidebarCollapsed ? "lg:ml-16" : "lg:ml-60"}
             ${isMobile ? "ml-0" : ""}
             min-h-[calc(100vh-4rem)]

@@ -51,7 +51,7 @@ export interface MockPost {
 export const mockPosts: Record<string, MockPost> = {
   "post-1": {
     title: "Best Pig Feed Suppliers in Kigali - Looking for Quality Feed",
-    author: { name: "John Farmer", location: "Kigali, Rwanda" },
+    author: { name: "John Farmer", location: "Gasabo, Remera" },
     content:
       "I'm looking for reliable feed suppliers who can deliver quality feed for 50+ pigs. Budget is around 500,000 RWF per month. Anyone have recommendations?",
     images: ["/images/post_image.jpg"],
@@ -60,7 +60,7 @@ export const mockPosts: Record<string, MockPost> = {
   },
   "post-2": {
     title: "🔥 AMAZING PIG FEED DEALS!!! CHEAP PRICES!!!",
-    author: { name: "Spammer Joe", location: "Unknown" },
+    author: { name: "Spammer Joe", location: "Unknown, Unknown" },
     content:
       "BEST DEALS ON PIG FEED!!! CALL NOW 078XXXXXXX!!! LIMITED TIME OFFER!!! DISCOUNT DISCOUNT DISCOUNT!!!",
     images: [
@@ -73,7 +73,7 @@ export const mockPosts: Record<string, MockPost> = {
   },
   "post-3": {
     title: "Sustainable Pig Farming Techniques Demo",
-    author: { name: "Expert Farmer", location: "Musanze, Rwanda" },
+    author: { name: "Expert Farmer", location: "Musanze, Cyuve" },
     content:
       "Sharing my experience with sustainable farming techniques that have increased productivity while reducing environmental impact. Watch this demonstration video.",
     images: [], // No images when there's a video
@@ -82,7 +82,7 @@ export const mockPosts: Record<string, MockPost> = {
   },
   "post-4": {
     title: "Best Pig Feed Suppliers in Kigali - Quality Feed Recommendations",
-    author: { name: "John Farmer", location: "Kigali, Rwanda" },
+    author: { name: "John Farmer", location: "Gasabo, Remera" },
     content:
       "Comprehensive guide on maintaining pig health through proper vaccination schedules and preventive care measures.",
     images: [],
@@ -91,7 +91,7 @@ export const mockPosts: Record<string, MockPost> = {
   },
   "post-5": {
     title: "🔥 AMAZING PIG FEED DEALS!!! CHEAP PRICES!!!",
-    author: { name: "Spam User", location: "Unknown" },
+    author: { name: "Spam User", location: "Unknown, Unknown" },
     content:
       "Current market trends showing price fluctuations and demand patterns for pig products across different regions.",
     images: ["/images/hero.png"],
@@ -100,7 +100,7 @@ export const mockPosts: Record<string, MockPost> = {
   },
   "post-6": {
     title: "Modern Pig Housing Construction Video Guide",
-    author: { name: "Construction Pro", location: "Huye, Rwanda" },
+    author: { name: "Construction Pro", location: "Huye, Ngoma" },
     content:
       "Step-by-step video guide on building modern, efficient pig housing that improves animal welfare and productivity.",
     images: [],
@@ -109,7 +109,7 @@ export const mockPosts: Record<string, MockPost> = {
   },
   "post-7": {
     title: "Organic Pig Feed Production Methods",
-    author: { name: "Organic Farmer Grace", location: "Nyanza, Rwanda" },
+    author: { name: "Organic Farmer Grace", location: "Nyanza, Busasamana" },
     content:
       "Learn how to produce organic pig feed using local ingredients. This sustainable approach reduces costs while maintaining nutritional quality.",
     images: ["/images/post_image.jpg", "/images/post_image2.jpg"],
@@ -118,7 +118,7 @@ export const mockPosts: Record<string, MockPost> = {
   },
   "post-8": {
     title: "💸💸💸 INSTANT MONEY FROM PIGS!!! GET RICH QUICK!!!",
-    author: { name: "Get Rich Quick", location: "Unknown" },
+    author: { name: "Get Rich Quick", location: "Unknown, Unknown" },
     content:
       "MAKE MILLIONS FROM PIG FARMING!!! NO EXPERIENCE NEEDED!!! GUARANTEED PROFITS!!! CALL NOW FOR SECRET METHOD!!!",
     images: ["/images/hero.png"],
@@ -126,17 +126,17 @@ export const mockPosts: Record<string, MockPost> = {
     timestamp: new Date(Date.now() - 9 * 60 * 60 * 1000), // 9 hours ago
   },
   "post-9": {
-    title: "Disease Prevention in Pig Farming",
-    author: { name: "Dr. Veterinarian Mary", location: "Kigali, Rwanda" },
+    title: "Disease Prevention Tips for Young Pigs",
+    author: { name: "Sarah Rodriguez", location: "Huye, Tumba" },
     content:
-      "Comprehensive guide on preventing common diseases in pigs through proper hygiene, vaccination schedules, and early detection techniques.",
+      "Comprehensive guide on preventing common diseases in young pigs through proper hygiene, vaccination schedules, and early detection techniques.",
     images: ["/images/post_image3.jpg"],
     video: null,
     timestamp: new Date(Date.now() - 10 * 60 * 60 * 1000), // 10 hours ago
   },
   "post-10": {
     title: "Pig Breeding Techniques Training Video",
-    author: { name: "Expert Breeder James", location: "Ruhango, Rwanda" },
+    author: { name: "Expert Breeder James", location: "Ruhango, Ruhango" },
     content:
       "Professional training video covering selective breeding, genetic improvement, and reproductive management for optimal pig production.",
     images: [],
@@ -145,7 +145,7 @@ export const mockPosts: Record<string, MockPost> = {
   },
   "post-11": {
     title: "Market Analysis: Pig Prices Q4 2024",
-    author: { name: "Market Analyst Peter", location: "Musanze, Rwanda" },
+    author: { name: "Market Analyst Peter", location: "Musanze, Gacaca" },
     content:
       "Detailed analysis of pig market trends, price fluctuations, and demand patterns across different regions in Rwanda for Q4 2024.",
     images: ["/images/post_image4.jpg", "/images/thumbnail.png"],
@@ -154,7 +154,7 @@ export const mockPosts: Record<string, MockPost> = {
   },
   "post-12": {
     title: "🚨🚨 FAKE VACCINES ALERT!!! DANGEROUS SCAM!!!",
-    author: { name: "Scammer Alert", location: "Unknown" },
+    author: { name: "Scammer Alert", location: "Unknown, Unknown" },
     content:
       "WARNING!!! PEOPLE ARE SELLING FAKE PIG VACCINES!!! VERY DANGEROUS!!! CHECK YOUR SUPPLIERS!!! SHARE THIS MESSAGE!!!",
     images: ["/images/post_image2.jpg", "/images/post_image3.jpg"],
@@ -168,7 +168,7 @@ export function getPostData(postId: string): MockPost {
   return (
     mockPosts[postId] || {
       title: "Sample Post Title",
-      author: { name: "Anonymous User", location: "Rwanda" },
+      author: { name: "Anonymous User", location: "Gasabo, Kinyinya" },
       content: "Sample post content for moderation review.",
       images: [],
       video: null,

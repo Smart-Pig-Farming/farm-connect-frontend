@@ -1,4 +1,7 @@
 import { baseApi } from "./baseApi";
+import { scoreApi } from "./scoreApi";
+import type { MyStats } from "./scoreApi";
+import type { ReportResponse } from "../../types/moderation";
 
 // Types for the discussions API
 export interface Post {
@@ -22,6 +25,9 @@ export interface Post {
   upvotes: number;
   downvotes: number;
   userVote: "up" | "down" | "upvote" | "downvote" | null; // Accept both variants from API
+  // Explicit voter id lists (optional; when present can replace session/local storage for highlighting)
+  upvoterIds?: number[]; // user ids who upvoted
+  downvoterIds?: number[]; // user ids who downvoted
   replies: number;
   shares: number; // Added to match API spec
   isMarketPost: boolean;
@@ -39,6 +45,48 @@ export interface Post {
   images: Array<MediaItem>;
   video: MediaItem | null;
   isModeratorApproved: boolean;
+  // Internal transient field for UI flash of author points delta after a vote
+  __lastAuthorPointsDelta?: number;
+}
+
+// Moderation types
+export type ModerationDecision = "retained" | "deleted" | "warned";
+
+export interface ModerationReportItem {
+  id: string;
+  reason: string;
+  details?: string;
+  reporterId?: string | number;
+  reporterName?: string;
+  createdAt: string;
+}
+
+export interface ModerationPendingItem {
+  postId: string;
+  reportCount: number;
+  mostCommonReason: string;
+  post: Partial<Post>;
+  reports: ModerationReportItem[];
+}
+
+export interface ModerationHistoryItem {
+  postId: string;
+  decision: ModerationDecision | string;
+  moderator: { id: string | number; name?: string };
+  decidedAt: string;
+  count: number;
+  justification?: string;
+  post?: Partial<Post>;
+}
+
+// Metrics support removed
+
+export interface PaginationMeta {
+  page?: number;
+  limit?: number;
+  total?: number;
+  totalPages?: number;
+  hasNextPage?: boolean;
 }
 
 export interface MediaItem {
@@ -140,7 +188,25 @@ export interface VoteResponse {
     upvotes: number;
     downvotes: number;
     userVote: "upvote" | "downvote" | null;
+    authorPoints?: number; // newly returned total author points after vote
+    authorLevel?: number; // optional updated level after vote
+    authorPointsDelta?: number; // net change applied to author points
   };
+}
+
+// Voters list response
+export interface VoterItem {
+  userId: number;
+  voteType: "upvote" | "downvote";
+  votedAt: string;
+  username?: string;
+  firstname?: string;
+  lastname?: string;
+}
+export interface VotersResponse {
+  success: boolean;
+  data: VoterItem[];
+  meta: { hasMore: boolean; nextCursor: string | null };
 }
 
 // Replies types
@@ -329,20 +395,36 @@ export const discussionsApi = baseApi.injectEndpoints({
           tags?: string[];
           is_market_post?: boolean;
           is_available?: boolean;
-          // Optional media deletion by URL (frontend uses URLs as identifiers)
+          // Accept either snake_case or camelCase from callers
           remove_images?: string[];
           remove_video?: boolean;
+          removedImages?: string[];
+          removedVideo?: boolean;
         };
       }
     >({
-      query: ({ id, data }) => ({
-        url: `/discussions/posts/${id}`,
-        method: "PATCH",
-        body: data,
-      }),
+      query: ({ id, data }) => {
+        // Normalize to backend expected keys: removedImages, removedVideo
+        const normalized = {
+          title: data.title,
+          content: data.content,
+          tags: data.tags,
+          is_market_post: data.is_market_post,
+          is_available: data.is_available,
+          removedImages: data.removedImages ?? data.remove_images,
+          removedVideo: data.removedVideo ?? data.remove_video,
+        };
+        return {
+          url: `/discussions/posts/${id}`,
+          method: "PATCH",
+          body: normalized,
+        };
+      },
       async onQueryStarted({ id, data }, { dispatch, queryFulfilled }) {
         // Optimistically update caches for both community and my posts lists
         const patches: Array<{ undo: () => void }> = [];
+        const removeImages = (data.removedImages ?? data.remove_images) || [];
+        const removeVideo = data.removedVideo ?? data.remove_video;
 
         const patchCommunity = dispatch(
           discussionsApi.util.updateQueryData(
@@ -367,12 +449,12 @@ export const discussionsApi = baseApi.injectEndpoints({
                 if (data.is_available !== undefined)
                   target.isAvailable = data.is_available;
                 // Optimistically remove media by URL if requested
-                if (Array.isArray(data.remove_images) && target.images) {
+                if (Array.isArray(removeImages) && target.images) {
                   target.images = target.images.filter(
-                    (img) => !data.remove_images!.includes(img.url)
+                    (img) => !removeImages.includes(img.url)
                   );
                 }
-                if (data.remove_video && target.video) {
+                if (removeVideo && target.video) {
                   target.video = null;
                 }
               }
@@ -402,12 +484,12 @@ export const discussionsApi = baseApi.injectEndpoints({
                 if (data.is_available !== undefined)
                   target.isAvailable = data.is_available;
                 // Optimistically remove media by URL if requested
-                if (Array.isArray(data.remove_images) && target.images) {
+                if (Array.isArray(removeImages) && target.images) {
                   target.images = target.images.filter(
-                    (img) => !data.remove_images!.includes(img.url)
+                    (img) => !removeImages.includes(img.url)
                   );
                 }
-                if (data.remove_video && target.video) {
+                if (removeVideo && target.video) {
                   target.video = null;
                 }
               }
@@ -442,6 +524,110 @@ export const discussionsApi = baseApi.injectEndpoints({
         method: "POST",
         body,
       }),
+      async onQueryStarted(_arg, { queryFulfilled, dispatch }) {
+        try {
+          const { data } = await queryFulfilled;
+          const createdId = data?.data?.id;
+          const authorId: number | undefined = (
+            data as CreatePostResponse & { data: { authorId?: number } }
+          )?.data?.authorId;
+          const pts: number | undefined = (
+            data as CreatePostResponse & {
+              data: { authorPoints?: number };
+            }
+          )?.data?.authorPoints;
+          const lvl: number | undefined = (
+            data as CreatePostResponse & {
+              data: { authorLevel?: number };
+            }
+          )?.data?.authorLevel;
+          const delta: number | undefined = (
+            data as CreatePostResponse & {
+              data: { authorPointsDelta?: number };
+            }
+          )?.data?.authorPointsDelta;
+          if (createdId && pts !== undefined) {
+            const patchFn = (draft: PostsResponse) => {
+              const post = draft?.data?.posts?.find((p) => p.id === createdId);
+              if (post) {
+                post.author.points = pts;
+                if (typeof lvl === "number") post.author.level_id = lvl;
+                (
+                  post as unknown as { __lastAuthorPointsDelta?: number }
+                ).__lastAuthorPointsDelta = delta ?? 0;
+              }
+              // Also, if backend supplied new total points & we know authorId, apply delta to other posts by same author for visual consistency
+              if (authorId && typeof delta === "number") {
+                draft?.data?.posts?.forEach((p) => {
+                  if (p.author.id === authorId && p.id !== createdId) {
+                    p.author.points += delta; // optimistic increment
+                    (
+                      p as unknown as { __lastAuthorPointsDelta?: number }
+                    ).__lastAuthorPointsDelta = delta;
+                  }
+                });
+              }
+            };
+            dispatch(
+              discussionsApi.util.updateQueryData(
+                "getPosts",
+                {} as PostsQueryParams,
+                patchFn
+              )
+            );
+            dispatch(
+              discussionsApi.util.updateQueryData(
+                "getMyPosts",
+                {} as MyPostsQueryParams,
+                patchFn
+              )
+            );
+            // Optimistically update my posts stats (increment total + today + pending/regular classification)
+            if (authorId) {
+              dispatch(
+                discussionsApi.util.updateQueryData(
+                  "getMyPostsStats",
+                  undefined,
+                  (draft: MyPostsStatsResponse) => {
+                    if (draft?.data) {
+                      draft.data.totalMyPosts += 1;
+                      draft.data.myPostsToday += 1;
+                      if (_arg.is_market_post) {
+                        draft.data.marketPosts += 1;
+                      } else {
+                        draft.data.regularPosts += 1;
+                      }
+                      // New post starts pending (not approved yet)
+                      draft.data.pendingPosts += 1;
+                    }
+                  }
+                )
+              );
+              // Also optimistically update daily points stats (scoreApi getMyStats daily) so sidebar 'Points Today' flashes +delta
+              if (typeof delta === "number") {
+                try {
+                  dispatch(
+                    scoreApi.util.updateQueryData(
+                      "getMyStats",
+                      { period: "daily" },
+                      (draft: MyStats & { __pointsFlashDelta?: number }) => {
+                        if (draft) {
+                          draft.__pointsFlashDelta = delta;
+                          draft.points += delta;
+                        }
+                      }
+                    )
+                  );
+                } catch {
+                  /* ignore */
+                }
+              }
+            }
+          }
+        } catch {
+          /* ignore */
+        }
+      },
       invalidatesTags: [{ type: "Post", id: "LIST" }],
     }),
 
@@ -560,7 +746,51 @@ export const discussionsApi = baseApi.injectEndpoints({
         );
 
         try {
-          await queryFulfilled;
+          const { data } = await queryFulfilled;
+          // If backend returned authorPoints, update that in cached posts
+          if (data?.data?.authorPoints !== undefined) {
+            const newAuthorPoints = data.data.authorPoints;
+            const newAuthorLevel = data.data.authorLevel;
+            const authorPointsDelta = data.data.authorPointsDelta;
+            // Update getPosts
+            dispatch(
+              discussionsApi.util.updateQueryData("getPosts", {}, (draft) => {
+                const post = draft.data?.posts.find(
+                  (p: Post) => p.id === postId
+                );
+                if (post) {
+                  post.author.points = newAuthorPoints;
+                  if (typeof newAuthorLevel === "number") {
+                    post.author.level_id = newAuthorLevel;
+                  }
+                  if (typeof authorPointsDelta === "number") {
+                    post.__lastAuthorPointsDelta = authorPointsDelta;
+                  }
+                }
+              })
+            );
+            // Update getMyPosts
+            dispatch(
+              discussionsApi.util.updateQueryData(
+                "getMyPosts",
+                {},
+                (draft: PostsResponse) => {
+                  const post = draft.data?.posts.find(
+                    (p: Post) => p.id === postId
+                  );
+                  if (post) {
+                    post.author.points = newAuthorPoints;
+                    if (typeof newAuthorLevel === "number") {
+                      post.author.level_id = newAuthorLevel;
+                    }
+                    if (typeof authorPointsDelta === "number") {
+                      post.__lastAuthorPointsDelta = authorPointsDelta;
+                    }
+                  }
+                }
+              )
+            );
+          }
         } catch {
           // Revert optimistic updates on error
           patchResults.forEach((patchResult) => patchResult.undo());
@@ -568,6 +798,45 @@ export const discussionsApi = baseApi.injectEndpoints({
       },
       invalidatesTags: (_result, _error, { postId }) => [
         { type: "Post", id: postId },
+      ],
+    }),
+
+    // Get voters for a post (up or down)
+    getPostVoters: builder.query<
+      VotersResponse,
+      {
+        postId: string;
+        type: "upvote" | "downvote";
+        limit?: number;
+        cursor?: string;
+      }
+    >({
+      query: ({ postId, type, limit = 50, cursor }) => ({
+        url: `/discussions/posts/${postId}/voters`,
+        params: { type, limit, cursor },
+      }),
+      // Tag by post to refetch when votes change
+      providesTags: (_res, _err, arg) => [
+        { type: "Post" as const, id: arg.postId },
+      ],
+    }),
+
+    // Get voters for a reply
+    getReplyVoters: builder.query<
+      VotersResponse,
+      {
+        replyId: string;
+        type: "upvote" | "downvote";
+        limit?: number;
+        cursor?: string;
+      }
+    >({
+      query: ({ replyId, type, limit = 50, cursor }) => ({
+        url: `/discussions/replies/${replyId}/voters`,
+        params: { type, limit, cursor },
+      }),
+      providesTags: (_res, _err, arg) => [
+        { type: "Reply" as const, id: arg.replyId },
       ],
     }),
 
@@ -686,20 +955,132 @@ export const discussionsApi = baseApi.injectEndpoints({
     }),
 
     // Admin moderation
-    approvePost: builder.mutation<ApproveRejectResponse, { id: string }>({
+    approvePost: builder.mutation<
+      ApproveRejectResponse,
+      { id: string; authorId: number }
+    >({
       query: ({ id }) => ({
         url: `/admin/discussions/posts/${id}/approve`,
         method: "PATCH",
       }),
-      invalidatesTags: ["Post"],
+      invalidatesTags: (_r, _e, arg) => [
+        { type: "Post" as const, id: arg.id },
+        { type: "User" as const, id: arg.authorId },
+        { type: "User" as const, id: "LEADERBOARD" },
+        { type: "User" as const, id: "ME_SCORE" }, // safe broad invalidation to refresh own score if needed
+      ],
     }),
-    rejectPost: builder.mutation<ApproveRejectResponse, { id: string }>({
+    rejectPost: builder.mutation<
+      ApproveRejectResponse,
+      { id: string; authorId: number }
+    >({
       query: ({ id }) => ({
         url: `/admin/discussions/posts/${id}/reject`,
         method: "PATCH",
       }),
-      invalidatesTags: ["Post"],
+      invalidatesTags: (_r, _e, arg) => [
+        { type: "Post" as const, id: arg.id },
+        { type: "User" as const, id: arg.authorId },
+        { type: "User" as const, id: "LEADERBOARD" },
+        { type: "User" as const, id: "ME_SCORE" },
+      ],
     }),
+
+    // Moderation: report a post
+    reportPostModeration: builder.mutation<
+      ReportResponse,
+      { id: string; reason: string; details?: string }
+    >({
+      query: ({ id, reason, details }) => ({
+        url: `/moderation/posts/${id}/report`,
+        method: "POST",
+        body: { reason, details },
+      }),
+      invalidatesTags: [{ type: "Report", id: "PENDING" }],
+    }),
+
+    // Moderation: report a reply
+    reportReplyModeration: builder.mutation<
+      ReportResponse,
+      { id: string; reason: string; details?: string }
+    >({
+      query: ({ id, reason, details }) => ({
+        url: `/moderation/replies/${id}/report`,
+        method: "POST",
+        body: { reason, details },
+      }),
+      invalidatesTags: [{ type: "Report", id: "PENDING" }],
+    }),
+
+    // Moderation: fetch pending queue (pagination supported)
+    getPendingModeration: builder.query<
+      {
+        success: boolean;
+        data: ModerationPendingItem[];
+        pagination?: PaginationMeta;
+      },
+      { search?: string; page?: number; limit?: number }
+    >({
+      query: ({ search, page, limit } = {}) => ({
+        url: `/moderation/pending`,
+        params: {
+          ...(search ? { search } : {}),
+          ...(page ? { page } : {}),
+          ...(limit ? { limit } : {}),
+        },
+      }),
+      providesTags: [{ type: "Report", id: "PENDING" }],
+    }),
+
+    // Moderation: take a decision on a post
+    decideModeration: builder.mutation<
+      {
+        success: boolean;
+        data: {
+          postId: string;
+          decision: "retained" | "deleted" | "warned";
+          reportCount: number;
+        };
+      },
+      {
+        postId: string;
+        decision: "retained" | "deleted" | "warned";
+        justification?: string;
+      }
+    >({
+      query: ({ postId, decision, justification }) => ({
+        url: `/moderation/posts/${postId}/decision`,
+        method: "POST",
+        body: { decision, justification },
+      }),
+      invalidatesTags: [
+        { type: "Report", id: "PENDING" },
+        { type: "Post", id: "LIST" },
+        { type: "Post", id: "MY_POSTS" },
+      ],
+    }),
+
+    // Moderation: history (pagination supported)
+    getModerationHistory: builder.query<
+      {
+        success: boolean;
+        data: ModerationHistoryItem[];
+        pagination?: PaginationMeta;
+      },
+      {
+        from?: string;
+        to?: string;
+        decision?: ModerationDecision;
+        page?: number;
+        limit?: number;
+        search?: string;
+      }
+    >({
+      query: (params = {}) => ({ url: `/moderation/history`, params }),
+      providesTags: [{ type: "Report", id: "HISTORY" }],
+    }),
+
+    // Metrics endpoint was removed
 
     // Delete a post (soft delete on server)
     deletePost: builder.mutation<{ success: boolean }, { id: string }>({
@@ -759,6 +1140,38 @@ export const discussionsApi = baseApi.injectEndpoints({
         { type: "Reply", id: `LIST_${postId}` },
       ],
     }),
+
+    // Update a reply
+    updateReply: builder.mutation<
+      {
+        success: boolean;
+        data: { id: string; content: string; updated_at: string };
+      },
+      { id: string; content: string; postId: string }
+    >({
+      query: ({ id, content }) => ({
+        url: `/discussions/replies/${id}`,
+        method: "PATCH",
+        body: { content },
+      }),
+      invalidatesTags: (_res, _err, { postId }) => [
+        { type: "Reply", id: `LIST_${postId}` },
+      ],
+    }),
+
+    // Delete a reply
+    deleteReply: builder.mutation<
+      { success: boolean; data: { message: string } },
+      { id: string; postId: string }
+    >({
+      query: ({ id }) => ({
+        url: `/discussions/replies/${id}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: (_res, _err, { postId }) => [
+        { type: "Reply", id: `LIST_${postId}` },
+      ],
+    }),
   }),
 });
 
@@ -778,5 +1191,14 @@ export const {
   useGetRepliesQuery,
   useAddReplyMutation,
   useVoteReplyMutation,
+  useUpdateReplyMutation,
+  useDeleteReplyMutation,
   useUpdatePostMutation,
+  useReportPostModerationMutation,
+  useReportReplyModerationMutation,
+  useGetPendingModerationQuery,
+  useDecideModerationMutation,
+  useGetModerationHistoryQuery,
+  useGetPostVotersQuery,
+  useGetReplyVotersQuery,
 } = discussionsApi;

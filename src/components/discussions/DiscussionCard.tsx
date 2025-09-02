@@ -6,9 +6,6 @@ import {
   AlertTriangle,
   MapPin,
   Clock,
-  Star,
-  Shield,
-  Crown,
   Award,
   ShoppingBag,
   MoreVertical,
@@ -17,6 +14,7 @@ import {
   X,
   Edit,
 } from "lucide-react";
+import { getLevelBadgeStyle, getLevelIcon, getLevelName } from "@/lib/levels";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -26,13 +24,45 @@ import { ContactModal } from "@/components/discussions/ContactModal";
 import { RepliesSection } from "@/components/discussions/RepliesSection";
 import { SocialVideoPlayer } from "@/components/ui/social-video-player";
 import { ImageGrid } from "@/components/ui/image-grid";
-import type { Post } from "../../data/posts";
+// Use API Post type instead of legacy mock Post
+import type { DiscussionPostUI } from "@/types/discussionPostUI";
+import { useDerivedUserVote } from "@/hooks/useDerivedUserVote";
 import { usePermissions } from "@/hooks/usePermissions";
 import {
   useApprovePostMutation,
   useRejectPostMutation,
+  useReportPostModerationMutation,
 } from "@/store/api/discussionsApi";
 import { toast } from "sonner";
+import {
+  formatModerationError,
+  formatReportSuccess,
+} from "@/utils/moderationErrors";
+import { useVoterCheck, useVoterTooltip } from "@/hooks/useVoterCheck";
+
+// UI Post variant: flatten media and keep numeric author id.
+// Use shared UI type
+type Post = DiscussionPostUI;
+
+// Minimal Reply shape expected by RepliesSection mapping layer
+interface BasicReply {
+  id: string;
+  content: string;
+  author: {
+    id: string;
+    firstname: string;
+    lastname: string;
+    avatar: string | null;
+    level_id: number;
+    points: number;
+    location: string;
+  };
+  createdAt: string;
+  upvotes: number;
+  downvotes: number;
+  userVote?: "up" | "down" | null;
+  replies?: BasicReply[];
+}
 
 interface DiscussionCardProps {
   post: Post;
@@ -55,8 +85,19 @@ export function DiscussionCard({
   onDeletePost,
   currentUserId,
 }: DiscussionCardProps) {
-  const isUpSelected = post.userVote === "up";
-  const isDownSelected = post.userVote === "down";
+  // Local optimistic vote override (applied instantly on click)
+  const [localOverride, setLocalOverride] = useState<"up" | "down" | null>(
+    null
+  );
+  useEffect(() => {
+    // Reset override if server state changes (e.g., after refetch) and matches override
+    setLocalOverride(null);
+  }, [post.userVote, post.upvotes, post.downvotes]);
+  const { currentVote, isUpSelected, isDownSelected } = useDerivedUserVote(
+    post,
+    currentUserId,
+    localOverride
+  );
   const { hasPermission } = usePermissions();
   const canModerate = hasPermission("MODERATE:POSTS");
   const [showReportModal, setShowReportModal] = useState(false);
@@ -72,6 +113,58 @@ export function DiscussionCard({
   const [flashDown, setFlashDown] = useState(false);
   const [upDelta, setUpDelta] = useState<number | null>(null);
   const [downDelta, setDownDelta] = useState<number | null>(null);
+  // Optimistic author points when moderator approval adds +15
+  const [displayPoints, setDisplayPoints] = useState(post.author.points);
+  const [approvalFlash, setApprovalFlash] = useState<null | "+15" | "-15">(
+    null
+  );
+  // Flash for vote-based author point changes (e.g., +1, -1, +2, -2)
+  const [votePointFlash, setVotePointFlash] = useState<string | null>(null);
+
+  // Voter tooltips on hover
+  const [showUpvotersTooltip, setShowUpvotersTooltip] = useState(false);
+  const [showDownvotersTooltip, setShowDownvotersTooltip] = useState(false);
+
+  // Fetch voter lists when hovering over vote buttons
+  const upvotersQuery = useVoterCheck({
+    postId: post.id,
+    voteType: "upvote",
+    enabled: showUpvotersTooltip,
+  });
+
+  const downvotersQuery = useVoterCheck({
+    postId: post.id,
+    voteType: "downvote",
+    enabled: showDownvotersTooltip,
+  });
+
+  const upvotersTooltip = useVoterTooltip(
+    post.upvotes,
+    upvotersQuery.isCurrentUserVoter,
+    upvotersQuery.votersList
+  );
+
+  const downvotersTooltip = useVoterTooltip(
+    post.downvotes,
+    downvotersQuery.isCurrentUserVoter,
+    downvotersQuery.votersList
+  );
+
+  useEffect(() => {
+    const backendPoints = post.author.points;
+    const flashing = votePointFlash !== null;
+    // If we're not flashing, or our local value drifted from backend by more than the last optimistic change, resync.
+    if (!flashing && displayPoints !== backendPoints) {
+      setDisplayPoints(backendPoints);
+    }
+    if (typeof post.__lastAuthorPointsDelta === "number") {
+      const d = post.__lastAuthorPointsDelta;
+      setVotePointFlash((d > 0 ? "+" : "") + d.toString());
+      setTimeout(() => setVotePointFlash(null), 1200);
+      // Mutate transient prop to prevent re-flash (safe local mutation since it's cache object reference)
+      delete post.__lastAuthorPointsDelta;
+    }
+  }, [post, displayPoints, votePointFlash]);
 
   const [approvePost, { isLoading: isApproving }] = useApprovePostMutation();
   const [rejectPost, { isLoading: isRejecting }] = useRejectPostMutation();
@@ -107,6 +200,29 @@ export function DiscussionCard({
   }, [showDropdown]);
 
   const handleVote = (voteType: "up" | "down") => {
+    // Compute author point net effect BEFORE mutating local vote state.
+    // Rules mirror backend scoring:
+    // none->up: +1, none->down: -1, up->none: -1, down->none: +1, up->down: -2, down->up: +2
+    // Compute optimistic delta for author points (does not include engagement bonuses which don't affect author)
+    const prevVote = currentVote; // state before this click
+    let optimisticDelta = 0;
+    if (prevVote === null) {
+      optimisticDelta = voteType === "up" ? 1 : -1; // new vote
+    } else if (prevVote === "up" && voteType === "up") {
+      optimisticDelta = -1; // removing upvote
+    } else if (prevVote === "down" && voteType === "down") {
+      optimisticDelta = 1; // removing downvote
+    } else if (prevVote === "up" && voteType === "down") {
+      optimisticDelta = -2; // switch up->down
+    } else if (prevVote === "down" && voteType === "up") {
+      optimisticDelta = 2; // switch down->up
+    }
+    if (optimisticDelta !== 0) {
+      // Optimistically reflect points so user sees immediate feedback
+      setDisplayPoints((p) => p + optimisticDelta);
+      setVotePointFlash((optimisticDelta > 0 ? "+" : "") + optimisticDelta);
+      setTimeout(() => setVotePointFlash(null), 1100);
+    }
     // Determine if this action adds or removes a vote based on current state
     if (voteType === "up") {
       const delta = post.userVote === "up" ? -1 : 1;
@@ -116,6 +232,8 @@ export function DiscussionCard({
         setFlashUp(false);
         setUpDelta(null);
       }, 500);
+      // Immediate local highlight toggle
+      setLocalOverride(isUpSelected ? null : "up");
     } else {
       const delta = post.userVote === "down" ? -1 : 1;
       setDownDelta(delta);
@@ -124,20 +242,47 @@ export function DiscussionCard({
         setFlashDown(false);
         setDownDelta(null);
       }, 500);
+      // Immediate local highlight toggle
+      setLocalOverride(isDownSelected ? null : "down");
     }
     onVote?.(post.id, voteType);
+
+    // Local persistence removed: rely on backend userVote & batch my-votes endpoint.
   };
 
-  const handleReport = (reason: string, details?: string) => {
-    console.log(
-      "Reporting post:",
-      post.id,
-      "Reason:",
-      reason,
-      "Details:",
-      details
-    );
+  const [reportPostModeration] = useReportPostModerationMutation();
+
+  const handleReport = async (reason: string, details?: string) => {
     setShowReportModal(false);
+
+    // Show loading toast
+    const loadingToast = toast.loading("Submitting report…");
+
+    try {
+      const response = await reportPostModeration({
+        id: post.id,
+        reason,
+        details,
+      }).unwrap();
+      toast.dismiss(loadingToast);
+
+      // Use enhanced success formatting
+      const successInfo = formatReportSuccess(response.data || {});
+      toast.success(successInfo.title, {
+        description: successInfo.description,
+        duration: successInfo.duration,
+      });
+    } catch (error: unknown) {
+      toast.dismiss(loadingToast);
+      console.error("Report submission error:", error);
+
+      // Use enhanced error formatting
+      const errorInfo = formatModerationError(error);
+      toast.error(errorInfo.title, {
+        description: errorInfo.description,
+        duration: errorInfo.duration,
+      });
+    }
   };
 
   const handleContactSeller = (e: React.MouseEvent) => {
@@ -150,7 +295,11 @@ export function DiscussionCard({
     setShowDropdown(false);
 
     // Check if this is user's own post and callback is available
-    if (currentUserId && post.author.id === currentUserId && onDeletePost) {
+    if (
+      currentUserId &&
+      post.author.id === Number(currentUserId) &&
+      onDeletePost
+    ) {
       onDeletePost(post.id);
     } else {
       // Moderators can also delete
@@ -177,11 +326,21 @@ export function DiscussionCard({
     if (isApproving) return;
     const prev = localApproved;
     setLocalApproved(true);
+    const prevPoints = displayPoints;
+    // Optimistic +15 (MOD_APPROVED_BONUS)
+    setDisplayPoints(prevPoints + 15);
+    setApprovalFlash("+15");
+    setTimeout(() => setApprovalFlash(null), 1200);
     try {
-      await approvePost({ id: post.id }).unwrap();
+      await approvePost({
+        id: post.id,
+        authorId: Number(post.author.id),
+      }).unwrap();
       toast.success("Post approved");
     } catch {
       setLocalApproved((prev ?? post.isModeratorApproved ?? false) as boolean);
+      // Revert optimistic points
+      setDisplayPoints(prevPoints);
       toast.error("Failed to approve post");
     }
   };
@@ -192,11 +351,19 @@ export function DiscussionCard({
     if (isRejecting) return;
     const prev = localApproved;
     setLocalApproved(false);
+    const prevPoints = displayPoints;
+    setDisplayPoints(Math.max(0, prevPoints - 15));
+    setApprovalFlash("-15");
+    setTimeout(() => setApprovalFlash(null), 1200);
     try {
-      await rejectPost({ id: post.id }).unwrap();
+      await rejectPost({
+        id: post.id,
+        authorId: Number(post.author.id),
+      }).unwrap();
       toast.success("Approval removed");
     } catch {
       setLocalApproved((prev ?? post.isModeratorApproved ?? false) as boolean);
+      setDisplayPoints(prevPoints);
       toast.error("Failed to remove approval");
     }
   };
@@ -206,52 +373,7 @@ export function DiscussionCard({
     setShowDropdown(!showDropdown);
   };
 
-  const getLevelIcon = (levelId: number) => {
-    switch (levelId) {
-      case 1:
-        return (
-          <Star className="h-3.5 w-3.5 text-amber-500" fill="currentColor" />
-        );
-      case 2:
-        return (
-          <Shield className="h-3.5 w-3.5 text-blue-500" fill="currentColor" />
-        );
-      case 3:
-        return (
-          <Crown className="h-3.5 w-3.5 text-yellow-500" fill="currentColor" />
-        );
-      default:
-        return (
-          <Star className="h-3.5 w-3.5 text-amber-500" fill="currentColor" />
-        );
-    }
-  };
-
-  const getLevelName = (levelId: number) => {
-    switch (levelId) {
-      case 1:
-        return "Amateur";
-      case 2:
-        return "Knight";
-      case 3:
-        return "Expert";
-      default:
-        return "Amateur";
-    }
-  };
-
-  const getLevelBadgeStyle = (levelId: number) => {
-    switch (levelId) {
-      case 1:
-        return "bg-gradient-to-r from-amber-50 to-orange-50 border-amber-200 text-amber-700";
-      case 2:
-        return "bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200 text-blue-700";
-      case 3:
-        return "bg-gradient-to-r from-yellow-50 to-amber-50 border-yellow-200 text-yellow-700";
-      default:
-        return "bg-gradient-to-r from-amber-50 to-orange-50 border-amber-200 text-amber-700";
-    }
-  };
+  // Level helpers now centralized in lib/levels.ts
 
   const getTagColor = (tag: string) => {
     switch (tag.toLowerCase()) {
@@ -281,17 +403,22 @@ export function DiscussionCard({
         {/* Header with tags and actions */}
         <div className="flex items-center justify-between p-3 sm:p-4 border-b border-gray-100">
           <div className="flex items-center gap-2 flex-wrap">
-            {post.tags.map((tag) => (
-              <Badge
-                key={tag}
-                variant="outline"
-                className={`text-xs font-medium border ${getTagColor(
-                  tag
-                )} transition-colors duration-200`}
-              >
-                {tag}
-              </Badge>
-            ))}
+            {post.tags.map(
+              (t: string | { id: string; name: string; color: string }) => {
+                const name = typeof t === "string" ? t : t.name;
+                return (
+                  <Badge
+                    key={name}
+                    variant="outline"
+                    className={`text-xs font-medium border ${getTagColor(
+                      name
+                    )} transition-colors duration-200`}
+                  >
+                    {name}
+                  </Badge>
+                );
+              }
+            )}
           </div>
 
           <div className="flex items-center gap-2">
@@ -300,20 +427,30 @@ export function DiscussionCard({
               {post.createdAt}
             </span>
 
-            {/* Dropdown Menu (visible only to users with Moderate:Posts permission) */}
-            {canModerate && (
+            {/* Actions Menu: authors always see edit/delete; moderators see moderation + delete */}
+            {(currentUserId && post.author.id === Number(currentUserId)) ||
+            canModerate ? (
               <div className="relative" ref={dropdownRef}>
                 <button
                   onClick={toggleDropdown}
-                  className="p-1.5 hover:bg-gray-100 rounded-full transition-colors duration-200"
+                  className="p-1.5 hover:bg-gray-100 rounded-full transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400"
+                  aria-label="More options"
+                  title="More"
                 >
-                  <MoreVertical className="h-4 w-4 text-gray-500" />
+                  <div className="flex flex-col items-center leading-none hover:cursor-pointer">
+                    <MoreVertical className="h-4 w-4 text-gray-500" />
+                    <span className="mt-0.5 text-[10px] text-gray-400 hidden sm:block">
+                      More
+                    </span>
+                    <span className="sr-only">More options</span>
+                  </div>
                 </button>
 
                 {showDropdown && (
                   <div className="absolute right-0 top-full mt-1 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-10">
                     {/* Show different options based on whether it's user's own post */}
-                    {currentUserId && post.author.id === currentUserId ? (
+                    {currentUserId &&
+                    post.author.id === Number(currentUserId) ? (
                       // User's own post - show edit and delete options
                       <>
                         <button
@@ -363,7 +500,7 @@ export function DiscussionCard({
                   </div>
                 )}
               </div>
-            )}
+            ) : null}
           </div>
         </div>
 
@@ -387,12 +524,39 @@ export function DiscussionCard({
                       post.author.level_id
                     )}`}
                   >
-                    {getLevelIcon(post.author.level_id)}
+                    {(() => {
+                      const Icon = getLevelIcon(post.author.level_id);
+                      return <Icon className="h-3.5 w-3.5" />;
+                    })()}
                     <span className="text-xs font-semibold">
                       {getLevelName(post.author.level_id)}
                     </span>
-                    <span className="text-xs opacity-75 font-medium">
-                      {post.author.points}
+                    <span className="relative flex items-center text-xs opacity-75 font-medium">
+                      <span>{displayPoints}</span>
+                      {/* Moderator approval flash */}
+                      {approvalFlash && (
+                        <span
+                          className={`ml-1 font-extrabold text-[10px] sm:text-xs animate-pulse select-none ${
+                            approvalFlash === "+15"
+                              ? "text-emerald-600"
+                              : "text-red-600"
+                          }`}
+                        >
+                          {approvalFlash}
+                        </span>
+                      )}
+                      {/* Vote point flash */}
+                      {votePointFlash && (
+                        <span
+                          className={`ml-1 font-extrabold text-[10px] sm:text-xs animate-fade-slide select-none ${
+                            votePointFlash.startsWith("+")
+                              ? "text-green-600"
+                              : "text-red-600"
+                          }`}
+                        >
+                          {votePointFlash}
+                        </span>
+                      )}
                     </span>
                   </div>
                 </div>
@@ -574,7 +738,7 @@ export function DiscussionCard({
                 variant="ghost"
                 size="sm"
                 className={`relative flex items-center gap-1 px-2 sm:px-3 py-1.5 sm:py-2 cursor-pointer transition-all duration-300 ease-in-out hover:scale-[1.02] max-[475px]:px-1.5 max-[475px]:py-1 max-[475px]:text-xs ${
-                  post.userVote === "up"
+                  isUpSelected
                     ? "bg-green-50 text-green-600"
                     : "text-gray-600 hover:text-green-600"
                 } ${flashUp ? "ring-2 ring-green-300 ring-offset-1" : ""}`}
@@ -582,6 +746,15 @@ export function DiscussionCard({
                   e.stopPropagation();
                   handleVote("up");
                 }}
+                onMouseEnter={() => setShowUpvotersTooltip(true)}
+                onMouseLeave={() => setShowUpvotersTooltip(false)}
+                title={
+                  showUpvotersTooltip && upvotersTooltip
+                    ? upvotersTooltip
+                    : isUpSelected
+                    ? "You upvoted"
+                    : "Upvote"
+                }
               >
                 {typeof upDelta === "number" && (
                   <span
@@ -615,6 +788,11 @@ export function DiscussionCard({
                 >
                   {post.upvotes}
                 </span>
+                {isUpSelected && (
+                  <span className="hidden sm:inline text-[10px] font-semibold text-green-600 ml-1 px-1.5 py-0.5 bg-green-100 rounded-full">
+                    You
+                  </span>
+                )}
               </Button>
 
               {/* Downvote */}
@@ -622,7 +800,7 @@ export function DiscussionCard({
                 variant="ghost"
                 size="sm"
                 className={`relative flex items-center gap-1 px-2 sm:px-3 py-1.5 sm:py-2 cursor-pointer transition-all duration-300 ease-in-out hover:scale-[1.02] max-[475px]:px-1.5 max-[475px]:py-1 max-[475px]:text-xs ${
-                  post.userVote === "down"
+                  isDownSelected
                     ? "bg-red-50 text-red-600"
                     : "text-gray-600 hover:text-red-600"
                 } ${flashDown ? "ring-2 ring-red-300 ring-offset-1" : ""}`}
@@ -630,6 +808,15 @@ export function DiscussionCard({
                   e.stopPropagation();
                   handleVote("down");
                 }}
+                onMouseEnter={() => setShowDownvotersTooltip(true)}
+                onMouseLeave={() => setShowDownvotersTooltip(false)}
+                title={
+                  showDownvotersTooltip && downvotersTooltip
+                    ? downvotersTooltip
+                    : isDownSelected
+                    ? "You downvoted"
+                    : "Downvote"
+                }
               >
                 {typeof downDelta === "number" && (
                   <span
@@ -663,6 +850,11 @@ export function DiscussionCard({
                 >
                   {post.downvotes}
                 </span>
+                {isDownSelected && (
+                  <span className="hidden sm:inline text-[10px] font-semibold text-red-600 ml-1 px-1.5 py-0.5 bg-red-100 rounded-full">
+                    You
+                  </span>
+                )}
               </Button>
 
               {/* Replies */}
@@ -707,7 +899,7 @@ export function DiscussionCard({
           <div className="px-4 pb-4">
             <RepliesSection
               postId={post.id}
-              replies={post.repliesData || []}
+              replies={(post.repliesData as unknown as BasicReply[]) || []}
               totalReplies={post.replies}
               onVoteReply={onVoteReply}
               onLoadMore={() => onLoadMoreReplies?.(post.id)}
@@ -728,7 +920,10 @@ export function DiscussionCard({
       <ContactModal
         isOpen={showContactModal}
         onClose={() => setShowContactModal(false)}
-        author={post.author}
+        author={{
+          ...post.author,
+          id: String(post.author.id),
+        }}
         postTitle={post.title}
       />
     </>

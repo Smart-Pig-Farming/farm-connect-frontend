@@ -17,6 +17,9 @@ interface PostCreateData {
   downvotes: number;
   replies_count: number;
   created_at: string;
+  author_points?: number;
+  author_level?: number;
+  author_points_delta?: number;
 }
 
 interface PostVoteData {
@@ -25,6 +28,13 @@ interface PostVoteData {
   voteType: "upvote" | "downvote" | null;
   upvotes: number;
   downvotes: number;
+  previous_vote?: "upvote" | "downvote" | null;
+  is_switch?: boolean;
+  author_points?: number;
+  author_points_delta?: number;
+  author_level?: number;
+  actor_points?: number;
+  actor_points_delta?: number;
 }
 
 interface ReplyCreateData {
@@ -50,6 +60,25 @@ interface ReplyVoteData {
   voteType: "upvote" | "downvote" | null;
   upvotes: number;
   downvotes: number;
+  previous_vote?: "upvote" | "downvote" | null;
+  is_switch?: boolean;
+  reply_author_points?: number;
+  reply_author_points_delta?: number;
+  actor_points?: number;
+  actor_points_delta?: number;
+  trickle?: Array<{ userId: number; delta: number }>;
+  reply_classification?: "supportive" | "contradictory" | null;
+  trickle_roles?: {
+    parent?: { userId: number; delta: number };
+    grandparent?: { userId: number; delta: number };
+    root?: { userId: number; delta: number };
+  };
+  diff?: {
+    addedUp?: number[];
+    removedUp?: number[];
+    addedDown?: number[];
+    removedDown?: number[];
+  };
 }
 
 // Generic moderation event payloads
@@ -61,6 +90,13 @@ interface ModerationApprovalData {
   contentId: string;
 }
 
+interface ModerationDecisionData {
+  postId: string;
+  decision: "retained" | "deleted" | "warned";
+  moderatorId?: string | number;
+  justification?: string;
+}
+
 interface NotificationData {
   id: string;
   userId: number;
@@ -70,7 +106,9 @@ interface NotificationData {
     | "reply_vote"
     | "post_approved"
     | "mention"
-    | "post_reported";
+    | "post_reported"
+    | "moderation_decision_reporter"
+    | "moderation_decision_owner";
   title: string;
   message: string;
   data: Record<string, unknown>;
@@ -98,12 +136,30 @@ interface WebSocketEventHandlers {
   onReplyUpdate?: (data: unknown) => void;
   onReplyDelete?: (data: { replyId: string; postId: string }) => void;
   onReplyVote?: (data: ReplyVoteData) => void;
+  onScoreEvents?: (data: { events: ScoreEventWs[] }) => void;
   onUserOnline?: (data: UserActivity) => void;
   onUserOffline?: (data: UserActivity) => void;
   onUserTyping?: (data: TypingData) => void;
   onNotification?: (data: NotificationData) => void;
   onModerationReport?: (data: unknown) => void;
   onModerationApproval?: (data: unknown) => void;
+  onModerationDecision?: (data: ModerationDecisionData) => void;
+}
+
+// Unified scoring event shape (mirror backend broadcast)
+export interface ScoreEventWs {
+  id: string;
+  userId: number;
+  actorUserId?: number | null;
+  type: string;
+  refType?: string | null;
+  refId?: string | null;
+  delta: number;
+  totalPoints?: number;
+  // meta is arbitrary JSON (classification, role flags, etc.)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  meta?: any;
+  created_at: string;
 }
 
 interface UseWebSocketOptions {
@@ -138,11 +194,16 @@ export const useWebSocket = (
   handlers: WebSocketEventHandlers = {},
   options: UseWebSocketOptions = {}
 ): UseWebSocketReturn => {
-  const {
-    autoConnect = true,
-    authToken,
-    serverUrl = process.env.REACT_APP_API_URL || "http://localhost:5000",
-  } = options;
+  const { autoConnect = true, authToken, serverUrl: serverUrlOption } = options;
+
+  // Resolve server URL from options, Vite env, or sensible defaults (no process.env in browser)
+  const resolvedServerUrl: string =
+    serverUrlOption ||
+    import.meta.env.VITE_WS_URL ||
+    import.meta.env.VITE_API_URL ||
+    import.meta.env.VITE_BACKEND_URL ||
+    (typeof window !== "undefined" ? window.location.origin : undefined) ||
+    "http://localhost:5000";
 
   const [isConnected, setIsConnected] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<
@@ -169,11 +230,11 @@ export const useWebSocket = (
     setError(null);
 
     console.log("🔌 Connecting to WebSocket server...", {
-      serverUrl,
+      serverUrl: resolvedServerUrl,
       hasToken: !!authToken,
     });
 
-    socketRef.current = io(serverUrl, {
+    socketRef.current = io(resolvedServerUrl, {
       auth: {
         token: authToken,
       },
@@ -248,6 +309,14 @@ export const useWebSocket = (
       handlersRef.current.onReplyVote?.(data);
     });
 
+    // Unified score events batch
+    socket.on("score:events", (data: { events?: ScoreEventWs[] }) => {
+      if (data?.events?.length) {
+        console.log("📈 Score events batch received", data.events.length);
+        handlersRef.current.onScoreEvents?.({ events: data.events });
+      }
+    });
+
     // User activity events
     socket.on("user:online", (data: UserActivity) => {
       console.log("🟢 User online:", data.userId);
@@ -289,6 +358,15 @@ export const useWebSocket = (
     );
 
     socket.on(
+      "moderation:decision",
+      (data: ModerationDecisionData | { postId?: string }) => {
+        const d = data as ModerationDecisionData;
+        console.log("🛡️ Moderation decision:", d.postId, d.decision);
+        handlersRef.current.onModerationDecision?.(d);
+      }
+    );
+
+    socket.on(
       "moderation:content_approved",
       (data: ModerationApprovalData | { contentId?: string }) => {
         const d = data as { contentId?: string };
@@ -316,7 +394,7 @@ export const useWebSocket = (
     });
 
     socket.connect();
-  }, [serverUrl, authToken]);
+  }, [resolvedServerUrl, authToken]);
 
   const disconnect = useCallback(() => {
     if (socketRef.current) {

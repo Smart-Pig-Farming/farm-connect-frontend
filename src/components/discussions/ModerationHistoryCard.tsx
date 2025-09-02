@@ -11,15 +11,20 @@ import {
 
 interface ModerationHistoryCardProps {
   moderationStatus: PostModerationStatus & { action: ModerationAction };
+  postOverride?: {
+    title: string;
+    author: { name: string; location: string };
+  };
 }
 
 export function ModerationHistoryCard({
   moderationStatus,
+  postOverride,
 }: ModerationHistoryCardProps) {
   const { postId, action, reportCount } = moderationStatus;
 
   // Get post data from centralized mock data
-  const mockPost = getPostData(postId);
+  const mockPost = postOverride ?? getPostData(postId);
 
   const getDecisionColor = (decision: string) => {
     switch (decision) {
@@ -61,11 +66,11 @@ export function ModerationHistoryCard({
   };
 
   return (
-    <Card className="overflow-hidden transition-all duration-200 hover:shadow-lg border-0 bg-white/70 backdrop-blur-sm">
-      <div className="p-6">
+    <Card className="w-full max-w-full overflow-hidden transition-all duration-200 hover:shadow-lg border-0 bg-white/70 backdrop-blur-sm">
+      <div className="p-6 break-words">
         {/* Header with enhanced visual hierarchy */}
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-3">
+        <div className="flex items-center justify-between mb-6 flex-wrap gap-3 min-w-0">
+          <div className="flex items-center gap-3 min-w-0">
             <Badge
               className={cn(
                 "text-sm font-semibold px-3 py-1.5 rounded-full shadow-sm",
@@ -76,7 +81,7 @@ export function ModerationHistoryCard({
               <span className="ml-2">{getDecisionLabel(action.decision)}</span>
             </Badge>
           </div>
-          <div className="text-sm text-gray-500 bg-gray-50 px-3 py-1 rounded-full">
+          <div className="text-sm text-gray-500 bg-gray-50 px-3 py-1 rounded-full shrink-0">
             {formatTimeAgo(action.timestamp)}
           </div>
         </div>
@@ -84,17 +89,19 @@ export function ModerationHistoryCard({
         {/* Post Content with Modern Design */}
         <div className="bg-gradient-to-br from-gray-50 to-gray-100/50 rounded-xl p-5 border border-gray-200/30 mb-5">
           {/* Post Header */}
-          <div className="flex items-center gap-3 mb-4">
+          <div className="flex items-center gap-3 mb-4 min-w-0">
             <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center shadow-sm">
               <User className="h-5 w-5 text-white" />
             </div>
-            <div className="flex-1">
-              <p className="font-semibold text-gray-900">
+            <div className="flex-1 min-w-0">
+              <p className="font-semibold text-gray-900 break-words">
                 {mockPost.author.name}
               </p>
-              <div className="flex items-center gap-1 text-sm text-gray-500">
+              <div className="flex items-center gap-1 text-sm text-gray-500 min-w-0">
                 <MapPin className="h-3 w-3" />
-                <span>{mockPost.author.location}</span>
+                <span className="truncate" title={mockPost.author.location}>
+                  {mockPost.author.location}
+                </span>
               </div>
             </div>
             {reportCount > 0 && (
@@ -105,7 +112,7 @@ export function ModerationHistoryCard({
           </div>
 
           {/* Post Title */}
-          <h4 className="font-semibold text-gray-900 mb-3 leading-tight">
+          <h4 className="font-semibold text-gray-900 mb-3 leading-tight break-words">
             {mockPost.title}
           </h4>
         </div>
@@ -131,7 +138,7 @@ export function ModerationHistoryCard({
               <span className="text-xs font-semibold text-gray-600 uppercase tracking-wide block mb-2">
                 Justification
               </span>
-              <p className="text-sm text-gray-700 leading-relaxed">
+              <p className="text-sm text-gray-700 leading-relaxed break-words whitespace-pre-wrap">
                 {action.justification}
               </p>
             </div>
