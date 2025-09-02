@@ -1140,6 +1140,38 @@ export const discussionsApi = baseApi.injectEndpoints({
         { type: "Reply", id: `LIST_${postId}` },
       ],
     }),
+
+    // Update a reply
+    updateReply: builder.mutation<
+      {
+        success: boolean;
+        data: { id: string; content: string; updated_at: string };
+      },
+      { id: string; content: string; postId: string }
+    >({
+      query: ({ id, content }) => ({
+        url: `/discussions/replies/${id}`,
+        method: "PATCH",
+        body: { content },
+      }),
+      invalidatesTags: (_res, _err, { postId }) => [
+        { type: "Reply", id: `LIST_${postId}` },
+      ],
+    }),
+
+    // Delete a reply
+    deleteReply: builder.mutation<
+      { success: boolean; data: { message: string } },
+      { id: string; postId: string }
+    >({
+      query: ({ id }) => ({
+        url: `/discussions/replies/${id}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: (_res, _err, { postId }) => [
+        { type: "Reply", id: `LIST_${postId}` },
+      ],
+    }),
   }),
 });
 
@@ -1159,6 +1191,8 @@ export const {
   useGetRepliesQuery,
   useAddReplyMutation,
   useVoteReplyMutation,
+  useUpdateReplyMutation,
+  useDeleteReplyMutation,
   useUpdatePostMutation,
   useReportPostModerationMutation,
   useReportReplyModerationMutation,

@@ -1,22 +1,25 @@
 // Example usage of ChatModal in a Best Practice page
 
-import React, { useState } from 'react';
-import { ChatModal } from '../components/ui/ChatModal';
-import { MessageCircle } from 'lucide-react';
+import React, { useState } from "react";
+import { ChatModal } from "../components/ui/ChatModal";
+import { MessageCircle } from "lucide-react";
 
 interface BestPracticePageProps {
   category?: string;
   categories?: string[];
 }
 
-export function BestPracticePage({ category, categories }: BestPracticePageProps) {
+export function BestPracticePage({
+  category,
+  categories,
+}: BestPracticePageProps) {
   const [isChatOpen, setIsChatOpen] = useState(false);
 
   return (
     <div className="container mx-auto px-4 py-8">
       {/* Your best practice content here */}
       <h1 className="text-3xl font-bold mb-6">Best Practices</h1>
-      
+
       {/* Best practices content */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
         {/* Practice cards go here */}
@@ -36,7 +39,7 @@ export function BestPracticePage({ category, categories }: BestPracticePageProps
       <ChatModal
         isOpen={isChatOpen}
         onClose={() => setIsChatOpen(false)}
-        pageContext={category || 'best_practices'}
+        pageContext={category || "best_practices"}
         categories={categories}
       />
     </div>
@@ -49,14 +52,14 @@ export function BestPracticePage({ category, categories }: BestPracticePageProps
 // <BestPracticePage />
 
 // 2. Category-specific page
-// <BestPracticePage 
-//   category="feeding_nutrition" 
+// <BestPracticePage
+//   category="feeding_nutrition"
 //   categories={["feeding_nutrition"]}
 // />
 
 // 3. Multi-category page
-// <BestPracticePage 
-//   category="health_management" 
+// <BestPracticePage
+//   category="health_management"
 //   categories={["disease_control", "growth_weight"]}
 // />
 
@@ -68,7 +71,7 @@ export function ExistingPage() {
   return (
     <div>
       {/* Your existing page content */}
-      
+
       {/* Add chat functionality */}
       <button
         onClick={() => setIsChatOpen(true)}

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   X,
@@ -45,6 +45,7 @@ export function ChatModal({
   categories,
 }: ChatModalProps) {
   const navigate = useNavigate();
+  const messagesEndRef = useRef<HTMLDivElement>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputText, setInputText] = useState("");
   const [isTyping, setIsTyping] = useState(false);
@@ -112,6 +113,15 @@ export function ChatModal({
       loadWelcomeMessage();
     }
   }, [isOpen, messages.length, loadWelcomeMessage]);
+
+  // Scroll to bottom when messages change or typing state changes
+  const scrollToBottom = useCallback(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, []);
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages, isTyping, scrollToBottom]);
 
   // Helper function to toggle source expansion
   const toggleSourceExpansion = (messageId: string) => {
@@ -378,7 +388,9 @@ export function ChatModal({
                                 <button
                                   onClick={() => {
                                     // Navigate to best practice detail page
-                                    navigate(`/dashboard/best-practices/${source.id}`);
+                                    navigate(
+                                      `/dashboard/best-practices/${source.id}`
+                                    );
                                     onClose(); // Close the chat modal
                                   }}
                                   className="flex-shrink-0 p-1 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors rounded hover:cursor-pointer"
@@ -448,6 +460,9 @@ export function ChatModal({
               <p className="text-sm text-red-700 dark:text-red-400">{error}</p>
             </div>
           )}
+
+          {/* Scroll target */}
+          <div ref={messagesEndRef} />
         </div>
 
         {/* Input */}

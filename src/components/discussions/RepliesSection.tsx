@@ -5,6 +5,13 @@ import React, {
   useCallback,
   useMemo,
 } from "react";
+// Module-scope debug store for reply vote websocket payload dedupe
+interface __ReplyVoteDebugStore {
+  last: Map<string, { up: number; down: number; appliedAt: number }>;
+}
+const __replyVoteDebugStore: __ReplyVoteDebugStore = {
+  last: new Map(),
+};
 import {
   MessageSquare,
   ThumbsUp,
@@ -12,9 +19,17 @@ import {
   MoreHorizontal,
   ChevronDown,
   ChevronUp,
+  Edit,
+  Trash2,
 } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 // Local Reply shape (matches API mapping subset)
 export interface Reply {
   id: string;
@@ -39,6 +54,8 @@ import {
   useGetRepliesQuery,
   useAddReplyMutation,
   useVoteReplyMutation,
+  useUpdateReplyMutation,
+  useDeleteReplyMutation,
   type ReplyItem as ApiReply,
 } from "@/store/api/discussionsApi";
 import { useWebSocket } from "@/hooks/useWebSocket";
@@ -75,12 +92,17 @@ export function RepliesSection({
   const [loadedPages, setLoadedPages] = useState<Set<number>>(new Set());
   const [activeReplyId, setActiveReplyId] = useState<string | null>(null);
   const hasUserExpandedRef = useRef(false); // track if user explicitly expanded
+  // Edit/Delete states
+  const [editingReplyId, setEditingReplyId] = useState<string | null>(null);
+  const [editText, setEditText] = useState("");
   // Main (root-level) reply textarea
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   // Single (root-level) reply entry only – inline form removed to avoid focus issues
   const [draftText, setDraftText] = useState("");
   const [addReply] = useAddReplyMutation();
   const [voteReply] = useVoteReplyMutation();
+  const [updateReply] = useUpdateReplyMutation();
+  const [deleteReply] = useDeleteReplyMutation();
   const dispatch = useAppDispatch();
   const authUserId = useAppSelector((s) => s.auth.user?.id);
 
@@ -106,8 +128,11 @@ export function RepliesSection({
 
   const mapApiReply = useCallback((r: ApiReply): Reply => {
     const child = (r.childReplies || []).map(mapApiReply);
-    const userVote: "up" | "down" | null =
-      r.userVote === "up" ? "up" : r.userVote === "down" ? "down" : null;
+    // Normalize possible backend variants: "up" | "down" | "upvote" | "downvote" | null
+    let userVote: "up" | "down" | null = null;
+    if (r.userVote === "up" || r.userVote === "upvote") userVote = "up";
+    else if (r.userVote === "down" || r.userVote === "downvote")
+      userVote = "down";
     return {
       id: String(r.id),
       content: r.content,
@@ -321,7 +346,7 @@ export function RepliesSection({
       replyId: string;
       postId: string;
       userId: number;
-      voteType: "upvote" | "downvote" | null;
+      voteType: "upvote" | "downvote" | "up" | "down" | null;
       upvotes: number;
       downvotes: number;
       reply_classification?: "supportive" | "contradictory" | null;
@@ -336,6 +361,36 @@ export function RepliesSection({
       };
     }) => {
       if (!data || String(data.postId) !== String(postId)) return;
+
+      // Debug + duplicate guard: avoid re-applying identical count payloads consecutively
+      // (Helps diagnose user-reported double increments.)
+      interface ReplyVoteDebugStore {
+        last: Map<string, { up: number; down: number; appliedAt: number }>;
+      }
+      // Module-level singleton stash
+      // (stored on closure variable declared at file top via IIFE below)
+      const dbg: ReplyVoteDebugStore = { last: __replyVoteDebugStore.last };
+      const last = dbg.last.get(data.replyId);
+      if (last && last.up === data.upvotes && last.down === data.downvotes) {
+        console.debug(
+          "[ws][reply:vote] duplicate payload ignored",
+          data.replyId,
+          data.upvotes,
+          data.downvotes,
+          data.voteType
+        );
+        return; // prevent visual churn / accidental double perception
+      }
+      dbg.last.set(data.replyId, {
+        up: data.upvotes,
+        down: data.downvotes,
+        appliedAt: Date.now(),
+      });
+      console.debug("[ws][reply:vote] applying payload", data.replyId, {
+        up: data.upvotes,
+        down: data.downvotes,
+        voteType: data.voteType,
+      });
 
       // Daily points delta aggregation removed (handled by unified score:events)
 
@@ -368,9 +423,9 @@ export function RepliesSection({
           arr.map((r) => {
             if (r.id === data.replyId) {
               const userVote =
-                data.voteType === "upvote"
+                data.voteType === "upvote" || data.voteType === "up"
                   ? "up"
-                  : data.voteType === "downvote"
+                  : data.voteType === "downvote" || data.voteType === "down"
                   ? "down"
                   : null;
               const next: ReplyWithMeta = {
@@ -480,7 +535,7 @@ export function RepliesSection({
     replyId: string;
     postId: string;
     userId: number;
-    voteType: "upvote" | "downvote" | null;
+    voteType: "upvote" | "downvote" | "up" | "down" | null;
     upvotes: number;
     downvotes: number;
     reply_classification?: "supportive" | "contradictory" | null;
@@ -498,44 +553,6 @@ export function RepliesSection({
       removedDown?: number[];
     };
   }
-  const wsHandlers = useMemo(
-    () => ({
-      onReplyCreate: (data: unknown) => {
-        const payload = data as WsReplyPayload & { parentReplyId?: string };
-        applyWsReply(payload);
-      },
-      onReplyVote: (d: ReplyVoteWsPayload) => applyWsReplyVote(d),
-      onScoreEvents: ({ events }: { events: ScoreEventWs[] }) => {
-        processScoreEvents(events, {
-          dispatch,
-          currentUserId: authUserId,
-        });
-      },
-    }),
-    [applyWsReply, applyWsReplyVote, authUserId, dispatch]
-  );
-
-  const ws = useWebSocket(wsHandlers, { autoConnect: isExpanded, serverUrl });
-
-  // Join/leave discussion room based on expansion
-  const { isConnected, joinDiscussion, leaveDiscussion } = ws || {};
-  useEffect(() => {
-    if (!isExpanded || !isConnected) return;
-    joinDiscussion?.(postId);
-    return () => leaveDiscussion?.(postId);
-  }, [isExpanded, isConnected, joinDiscussion, leaveDiscussion, postId]);
-
-  // On reconnect, refetch replies to resync
-  const lastRefetchAt = useRef(0);
-  useEffect(() => {
-    if (isExpanded && ws.connectionStatus === "connected") {
-      const now = Date.now();
-      if (now - lastRefetchAt.current > 3000) {
-        refetch();
-        lastRefetchAt.current = now;
-      }
-    }
-  }, [ws.connectionStatus, isExpanded, refetch]);
 
   // Update local state when props change
   // Sync incoming props cautiously to avoid disruptive resets while user viewing expanded thread
@@ -662,30 +679,34 @@ export function RepliesSection({
   );
 
   const handleVoteReply = async (replyId: string, voteType: "up" | "down") => {
-    // Optimistic UI: mirror toggling logic locally
+    // Optimistic UI toggle logic (simple & symmetrical)
     setLocalReplies((prev) => {
       const update = (arr: Reply[]): Reply[] =>
         arr.map((r) => {
-          if (r.id === replyId) {
-            const current = r.userVote;
-            let up = r.upvotes;
-            let down = r.downvotes;
-            let next: "up" | "down" | null = voteType;
-            if (current === voteType) {
-              // toggle off
-              next = null;
-              if (voteType === "up") up = Math.max(0, up - 1);
-              else down = Math.max(0, down - 1);
-            } else {
-              if (current === "up") up = Math.max(0, up - 1);
-              if (current === "down") down = Math.max(0, down - 1);
-              if (voteType === "up") up += 1;
-              else down += 1;
-            }
-            return { ...r, upvotes: up, downvotes: down, userVote: next };
+          if (r.id !== replyId) {
+            if (r.replies?.length) return { ...r, replies: update(r.replies) };
+            return r;
           }
-          if (r.replies?.length) return { ...r, replies: update(r.replies) };
-          return r;
+          const current = r.userVote; // existing vote
+          // Clone counts
+          let up = r.upvotes;
+          let down = r.downvotes;
+          let next: "up" | "down" | null = voteType;
+
+          if (current === voteType) {
+            // User clicking the same vote removes it
+            next = null;
+            if (voteType === "up") up = Math.max(0, up - 1);
+            else down = Math.max(0, down - 1);
+          } else {
+            // Switching or adding new vote
+            if (current === "up") up = Math.max(0, up - 1);
+            if (current === "down") down = Math.max(0, down - 1);
+            if (voteType === "up") up += 1;
+            else down += 1;
+          }
+
+          return { ...r, upvotes: up, downvotes: down, userVote: next };
         });
       return update(prev);
     });
@@ -694,12 +715,192 @@ export function RepliesSection({
       const serverType = voteType === "up" ? "upvote" : "downvote";
       await voteReply({ replyId, vote_type: serverType, postId }).unwrap();
     } catch {
-      // If server rejects, refetch to reconcile
+      // Revert via refetch on failure
       refetch();
       toast.error("Failed to vote on reply");
     }
     onVoteReply?.(replyId, voteType);
   };
+
+  // Handle editing a reply
+  const handleEditReply = useCallback(
+    async (replyId: string, newContent: string) => {
+      try {
+        await updateReply({
+          id: replyId,
+          content: newContent,
+          postId,
+        }).unwrap();
+        setEditingReplyId(null);
+        setEditText("");
+        toast.success("Reply updated successfully");
+
+        // Update local state optimistically
+        setLocalReplies((prev) => {
+          const update = (arr: Reply[]): Reply[] =>
+            arr.map((r) => {
+              if (r.id === replyId) {
+                return { ...r, content: newContent };
+              }
+              if (r.replies?.length)
+                return { ...r, replies: update(r.replies) };
+              return r;
+            });
+          return update(prev);
+        });
+      } catch (error) {
+        toast.error("Failed to update reply");
+        console.error("Error updating reply:", error);
+      }
+    },
+    [updateReply, postId]
+  );
+
+  // Handle deleting a reply
+  const handleDeleteReply = useCallback(
+    async (replyId: string) => {
+      if (!confirm("Are you sure you want to delete this reply?")) return;
+
+      try {
+        await deleteReply({ id: replyId, postId }).unwrap();
+        toast.success("Reply deleted successfully");
+
+        // Remove from local state optimistically
+        setLocalReplies((prev) => {
+          const update = (arr: Reply[]): Reply[] =>
+            arr.filter((r) => {
+              if (r.id === replyId) return false;
+              if (r.replies?.length) {
+                r.replies = update(r.replies);
+              }
+              return true;
+            });
+          return update(prev);
+        });
+
+        // Decrease total count
+        setLocalTotalReplies((count) => Math.max(0, count - 1));
+      } catch (error) {
+        toast.error("Failed to delete reply");
+        console.error("Error deleting reply:", error);
+      }
+    },
+    [deleteReply, postId]
+  );
+
+  // Handle WebSocket reply update
+  const applyWsReplyUpdate = useCallback(
+    (data: {
+      id: string;
+      content: string;
+      postId: string;
+      updated_at: string;
+    }) => {
+      if (String(data.postId) !== String(postId)) return;
+
+      setLocalReplies((prev) => {
+        const update = (arr: Reply[]): Reply[] =>
+          arr.map((r) => {
+            if (r.id === data.id) {
+              return { ...r, content: data.content };
+            }
+            if (r.replies?.length) return { ...r, replies: update(r.replies) };
+            return r;
+          });
+        return update(prev);
+      });
+    },
+    [postId]
+  );
+
+  // Handle WebSocket reply delete
+  const applyWsReplyDelete = useCallback(
+    (data: { id: string; postId: string }) => {
+      if (String(data.postId) !== String(postId)) return;
+
+      setLocalReplies((prev) => {
+        const update = (arr: Reply[]): Reply[] =>
+          arr.filter((r) => {
+            if (r.id === data.id) return false;
+            if (r.replies?.length) {
+              r.replies = update(r.replies);
+            }
+            return true;
+          });
+        return update(prev);
+      });
+
+      // Decrease total count
+      setLocalTotalReplies((count) => Math.max(0, count - 1));
+    },
+    [postId]
+  );
+
+  const wsHandlers = useMemo(
+    () => ({
+      onReplyCreate: (data: unknown) => {
+        const payload = data as WsReplyPayload & { parentReplyId?: string };
+        applyWsReply(payload);
+      },
+      onReplyUpdate: (data: unknown) => {
+        const payload = data as {
+          id: string;
+          content: string;
+          postId: string;
+          updated_at: string;
+        };
+        applyWsReplyUpdate(payload);
+      },
+      onReplyDelete: (data: unknown) => {
+        const payload = data as { id: string; postId: string };
+        applyWsReplyDelete(payload);
+      },
+      onReplyVote: (d: ReplyVoteWsPayload) => applyWsReplyVote(d),
+      onScoreEvents: ({ events }: { events: ScoreEventWs[] }) => {
+        processScoreEvents(events, {
+          dispatch,
+          currentUserId: authUserId,
+        });
+      },
+    }),
+    [
+      applyWsReply,
+      applyWsReplyUpdate,
+      applyWsReplyDelete,
+      applyWsReplyVote,
+      authUserId,
+      dispatch,
+    ]
+  );
+
+  const ws = useWebSocket(wsHandlers, { autoConnect: isExpanded, serverUrl });
+
+  // Join/leave discussion room based on expansion
+  const { isConnected, joinDiscussion, leaveDiscussion } = ws || {};
+  useEffect(() => {
+    if (!isExpanded || !isConnected) return;
+    joinDiscussion?.(postId);
+    return () => leaveDiscussion?.(postId);
+  }, [
+    isExpanded,
+    isConnected,
+    joinDiscussion,
+    leaveDiscussion,
+    postId,
+    ws?.connectionStatus,
+  ]);
+
+  // On reconnect, refetch replies to resync
+  const lastRefetchAt = useRef(0);
+  useEffect(() => {
+    if (isExpanded && ws.connectionStatus === "connected") {
+      const now = Date.now();
+      if (now - lastRefetchAt.current > 3000) {
+        refetch();
+        lastRefetchAt.current = now;
+      }
+    }
+  }, [ws.connectionStatus, isExpanded, refetch]);
 
   // Helper function to find a reply by ID
   const findReplyById = useCallback(
@@ -775,7 +976,11 @@ export function RepliesSection({
     const pointsFlash = meta.__pointsFlash;
 
     return (
-      <div className="space-y-3" style={{ marginLeft: `${marginLeft}px` }}>
+      <div
+        className="space-y-3 relative"
+        data-reply-item
+        style={{ marginLeft: `${marginLeft}px` }}
+      >
         <div className="flex gap-3">
           <Avatar className="w-8 h-8 flex-shrink-0">
             {reply.author.avatar ? (
@@ -814,9 +1019,46 @@ export function RepliesSection({
                   </span>
                 )}
               </div>
-              <p className="text-gray-700 text-sm leading-relaxed">
-                {reply.content}
-              </p>
+
+              {/* Reply content - either display or edit mode */}
+              {editingReplyId === reply.id ? (
+                <div className="space-y-2">
+                  <textarea
+                    value={editText}
+                    onChange={(e) => setEditText(e.target.value)}
+                    className="w-full p-2 border border-gray-300 rounded-lg text-sm resize-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
+                    rows={3}
+                    maxLength={2000}
+                    placeholder="Edit your reply..."
+                  />
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      onClick={() => handleEditReply(reply.id, editText)}
+                      disabled={!editText.trim() || editText === reply.content}
+                      className="text-xs bg-blue-600 hover:bg-blue-700 text-white px-3 py-1"
+                    >
+                      Save
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => {
+                        setEditingReplyId(null);
+                        setEditText("");
+                      }}
+                      className="text-xs text-gray-600 hover:text-gray-800 px-3 py-1"
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-gray-700 text-sm leading-relaxed">
+                  {reply.content}
+                </p>
+              )}
+
               {classification && (
                 <div className="mt-2 flex justify-end">
                   <span
@@ -880,13 +1122,39 @@ export function RepliesSection({
                 </Button>
               )}
 
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-xs text-gray-500 hover:text-gray-700 p-0 h-auto"
-              >
-                <MoreHorizontal className="h-3 w-3" />
-              </Button>
+              {/* Edit/Delete dropdown for reply owner */}
+              {String(reply.author.id) === String(authUserId) && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-xs text-gray-500 hover:text-gray-700 p-0 h-auto"
+                    >
+                      <MoreHorizontal className="h-3 w-3" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start" className="w-32">
+                    <DropdownMenuItem
+                      onClick={() => {
+                        setEditingReplyId(reply.id);
+                        setEditText(reply.content);
+                      }}
+                      className="text-xs cursor-pointer"
+                    >
+                      <Edit className="h-3 w-3 mr-2" />
+                      Edit
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => handleDeleteReply(reply.id)}
+                      className="text-xs cursor-pointer text-red-600 hover:text-red-700"
+                    >
+                      <Trash2 className="h-3 w-3 mr-2" />
+                      Delete
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
             </div>
           </div>
         </div>
