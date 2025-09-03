@@ -5,13 +5,6 @@ import React, {
   useCallback,
   useMemo,
 } from "react";
-// Module-scope debug store for reply vote websocket payload dedupe
-interface __ReplyVoteDebugStore {
-  last: Map<string, { up: number; down: number; appliedAt: number }>;
-}
-const __replyVoteDebugStore: __ReplyVoteDebugStore = {
-  last: new Map(),
-};
 import {
   MessageSquare,
   ThumbsUp,
@@ -110,7 +103,6 @@ export function RepliesSection({
     data: fetched,
     error: fetchError,
     isFetching,
-    isUninitialized,
     refetch,
   } = useGetRepliesQuery({ postId, page, limit }, { skip: !isExpanded });
 
@@ -128,11 +120,8 @@ export function RepliesSection({
 
   const mapApiReply = useCallback((r: ApiReply): Reply => {
     const child = (r.childReplies || []).map(mapApiReply);
-    // Normalize possible backend variants: "up" | "down" | "upvote" | "downvote" | null
-    let userVote: "up" | "down" | null = null;
-    if (r.userVote === "up" || r.userVote === "upvote") userVote = "up";
-    else if (r.userVote === "down" || r.userVote === "downvote")
-      userVote = "down";
+    const userVote: "up" | "down" | null =
+      r.userVote === "up" ? "up" : r.userVote === "down" ? "down" : null;
     return {
       id: String(r.id),
       content: r.content,
@@ -248,6 +237,7 @@ export function RepliesSection({
         : null;
       const depth = Number(payload?.depth ?? 1);
       if (depth > 3) return;
+
       const insertChild = (
         arr: Reply[]
       ): { updated: boolean; next: Reply[] } => {
@@ -269,9 +259,13 @@ export function RepliesSection({
         });
         return { updated: didUpdate, next };
       };
+
       setLocalReplies((prev) => {
+        // Remove any temporary/optimistic replies first
+        const withoutTemp = prev.filter((r) => !r.id.startsWith("temp-"));
+
         if (parentId) {
-          const { updated, next } = insertChild(prev);
+          const { updated, next } = insertChild(withoutTemp);
           if (updated) return dedupeById(next);
           // Parent not yet loaded (pagination) – keep as temporary top-level with parent reference
           interface OrphanReply extends Reply {
@@ -281,13 +275,19 @@ export function RepliesSection({
             ...(wsReply as Reply),
             __parentReplyId: parentId,
           };
-          return dedupeById([orphan, ...prev]);
+          return dedupeById([orphan, ...withoutTemp]);
         }
-        return dedupeById([wsReply, ...prev]);
+        return dedupeById([wsReply, ...withoutTemp]);
       });
-      setLocalTotalReplies((n) => n + 1);
+
+      // Only increment if we didn't already have an optimistic count
+      setLocalTotalReplies((n) => {
+        const hadOptimistic =
+          n > localReplies.filter((r) => !r.id.startsWith("temp-")).length;
+        return hadOptimistic ? n : n + 1;
+      });
     },
-    [postId, mapWsReply, dedupeById]
+    [postId, mapWsReply, dedupeById, localReplies]
   );
 
   // Reconcile orphan replies (those with __parentReplyId) when their parent later appears
@@ -346,7 +346,7 @@ export function RepliesSection({
       replyId: string;
       postId: string;
       userId: number;
-      voteType: "upvote" | "downvote" | "up" | "down" | null;
+      voteType: "upvote" | "downvote" | null;
       upvotes: number;
       downvotes: number;
       reply_classification?: "supportive" | "contradictory" | null;
@@ -361,36 +361,6 @@ export function RepliesSection({
       };
     }) => {
       if (!data || String(data.postId) !== String(postId)) return;
-
-      // Debug + duplicate guard: avoid re-applying identical count payloads consecutively
-      // (Helps diagnose user-reported double increments.)
-      interface ReplyVoteDebugStore {
-        last: Map<string, { up: number; down: number; appliedAt: number }>;
-      }
-      // Module-level singleton stash
-      // (stored on closure variable declared at file top via IIFE below)
-      const dbg: ReplyVoteDebugStore = { last: __replyVoteDebugStore.last };
-      const last = dbg.last.get(data.replyId);
-      if (last && last.up === data.upvotes && last.down === data.downvotes) {
-        console.debug(
-          "[ws][reply:vote] duplicate payload ignored",
-          data.replyId,
-          data.upvotes,
-          data.downvotes,
-          data.voteType
-        );
-        return; // prevent visual churn / accidental double perception
-      }
-      dbg.last.set(data.replyId, {
-        up: data.upvotes,
-        down: data.downvotes,
-        appliedAt: Date.now(),
-      });
-      console.debug("[ws][reply:vote] applying payload", data.replyId, {
-        up: data.upvotes,
-        down: data.downvotes,
-        voteType: data.voteType,
-      });
 
       // Daily points delta aggregation removed (handled by unified score:events)
 
@@ -423,9 +393,9 @@ export function RepliesSection({
           arr.map((r) => {
             if (r.id === data.replyId) {
               const userVote =
-                data.voteType === "upvote" || data.voteType === "up"
+                data.voteType === "upvote"
                   ? "up"
-                  : data.voteType === "downvote" || data.voteType === "down"
+                  : data.voteType === "downvote"
                   ? "down"
                   : null;
               const next: ReplyWithMeta = {
@@ -535,7 +505,7 @@ export function RepliesSection({
     replyId: string;
     postId: string;
     userId: number;
-    voteType: "upvote" | "downvote" | "up" | "down" | null;
+    voteType: "upvote" | "downvote" | null;
     upvotes: number;
     downvotes: number;
     reply_classification?: "supportive" | "contradictory" | null;
@@ -632,11 +602,42 @@ export function RepliesSection({
 
       setIsSubmitting(true);
       try {
+        // Add optimistic reply immediately for smooth UX
+        const optimisticReply: Reply = {
+          id: `temp-${Date.now()}`,
+          content: commentText.trim(),
+          author: {
+            id: String(authUserId || 0),
+            firstname: "You",
+            lastname: "",
+            avatar: null,
+            level_id: 1,
+            points: 0,
+            location: "",
+          },
+          createdAt: new Date().toISOString(),
+          upvotes: 0,
+          downvotes: 0,
+          userVote: null,
+          replies: [],
+        };
+
+        // Apply optimistic update
+        setLocalReplies((prev) => [optimisticReply, ...prev]);
+        setLocalTotalReplies((n) => n + 1);
+
+        // Ensure expanded for first reply scenario
+        if (!isExpanded && localReplies.length === 0) {
+          setIsExpanded(true);
+          hasUserExpandedRef.current = true;
+        }
+
         const op = addReply({
           postId,
           content: commentText.trim(),
           parent_reply_id: activeReplyId ? String(activeReplyId) : undefined,
         }).unwrap();
+
         await toast.promise(op, {
           loading: "Posting reply...",
           success: "Reply posted",
@@ -645,22 +646,25 @@ export function RepliesSection({
               ? e.data.message
               : "Failed to post reply",
         });
+
+        // Clear form
         setDraftText("");
-        // keep inline form visible until socket insert appears, then collapse it shortly after
         const prevActive = activeReplyId;
-        if (!isExpanded) {
-          setIsExpanded(true);
-        }
-        // Defer clearing activeReplyId to avoid focus flicker
+
+        // Clear active reply after short delay
         setTimeout(() => {
-          // only clear if user hasn't started another reply
           if (activeReplyId === prevActive) setActiveReplyId(null);
         }, 250);
-        // Only refetch if the query has already been started
-        if (!isUninitialized) {
-          refetch();
-        }
+
+        // Remove optimistic reply - websocket will provide real one
+        setLocalReplies((prev) =>
+          prev.filter((r) => r.id !== optimisticReply.id)
+        );
+        setLocalTotalReplies((n) => Math.max(0, n - 1));
       } catch (error) {
+        // Revert optimistic update on error
+        setLocalReplies((prev) => prev.filter((r) => r.id.startsWith("temp-")));
+        setLocalTotalReplies((n) => Math.max(0, n - 1));
         console.error("Error submitting comment:", error);
       } finally {
         setIsSubmitting(false);
@@ -671,42 +675,38 @@ export function RepliesSection({
       addReply,
       postId,
       activeReplyId,
-      refetch,
       isExpanded,
-      isUninitialized,
       draftText,
+      authUserId,
+      localReplies.length,
     ]
   );
 
   const handleVoteReply = async (replyId: string, voteType: "up" | "down") => {
-    // Optimistic UI toggle logic (simple & symmetrical)
+    // Optimistic UI: mirror toggling logic locally
     setLocalReplies((prev) => {
       const update = (arr: Reply[]): Reply[] =>
         arr.map((r) => {
-          if (r.id !== replyId) {
-            if (r.replies?.length) return { ...r, replies: update(r.replies) };
-            return r;
+          if (r.id === replyId) {
+            const current = r.userVote;
+            let up = r.upvotes;
+            let down = r.downvotes;
+            let next: "up" | "down" | null = voteType;
+            if (current === voteType) {
+              // toggle off
+              next = null;
+              if (voteType === "up") up = Math.max(0, up - 1);
+              else down = Math.max(0, down - 1);
+            } else {
+              if (current === "up") up = Math.max(0, up - 1);
+              if (current === "down") down = Math.max(0, down - 1);
+              if (voteType === "up") up += 1;
+              else down += 1;
+            }
+            return { ...r, upvotes: up, downvotes: down, userVote: next };
           }
-          const current = r.userVote; // existing vote
-          // Clone counts
-          let up = r.upvotes;
-          let down = r.downvotes;
-          let next: "up" | "down" | null = voteType;
-
-          if (current === voteType) {
-            // User clicking the same vote removes it
-            next = null;
-            if (voteType === "up") up = Math.max(0, up - 1);
-            else down = Math.max(0, down - 1);
-          } else {
-            // Switching or adding new vote
-            if (current === "up") up = Math.max(0, up - 1);
-            if (current === "down") down = Math.max(0, down - 1);
-            if (voteType === "up") up += 1;
-            else down += 1;
-          }
-
-          return { ...r, upvotes: up, downvotes: down, userVote: next };
+          if (r.replies?.length) return { ...r, replies: update(r.replies) };
+          return r;
         });
       return update(prev);
     });
@@ -715,7 +715,7 @@ export function RepliesSection({
       const serverType = voteType === "up" ? "upvote" : "downvote";
       await voteReply({ replyId, vote_type: serverType, postId }).unwrap();
     } catch {
-      // Revert via refetch on failure
+      // If server rejects, refetch to reconcile
       refetch();
       toast.error("Failed to vote on reply");
     }
@@ -759,33 +759,77 @@ export function RepliesSection({
   // Handle deleting a reply
   const handleDeleteReply = useCallback(
     async (replyId: string) => {
-      if (!confirm("Are you sure you want to delete this reply?")) return;
+      // Show confirmation toast with action buttons (no loading state yet)
+      toast.custom(
+        (t) => (
+          <div className="bg-white border border-gray-200 rounded-lg shadow-lg p-4 max-w-sm">
+            <div className="flex items-start gap-3">
+              <div className="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center flex-shrink-0">
+                <Trash2 className="w-4 h-4 text-red-600" />
+              </div>
+              <div className="flex-1">
+                <h3 className="font-medium text-gray-900 text-sm">
+                  Delete Reply
+                </h3>
+                <p className="text-gray-600 text-xs mt-1">
+                  Are you sure you want to delete this reply? This action cannot
+                  be undone.
+                </p>
+                <div className="flex gap-2 mt-3">
+                  <button
+                    onClick={() => {
+                      toast.dismiss(t);
+                    }}
+                    className="px-3 py-1.5 text-xs font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => {
+                      toast.dismiss(t);
+                      // Now show the loading toast after confirmation
+                      toast.promise(
+                        deleteReply({ id: replyId, postId })
+                          .unwrap()
+                          .then(() => {
+                            // Remove from local state optimistically
+                            setLocalReplies((prev) => {
+                              const update = (arr: Reply[]): Reply[] =>
+                                arr.filter((r) => {
+                                  if (r.id === replyId) return false;
+                                  if (r.replies?.length) {
+                                    r.replies = update(r.replies);
+                                  }
+                                  return true;
+                                });
+                              return update(prev);
+                            });
 
-      try {
-        await deleteReply({ id: replyId, postId }).unwrap();
-        toast.success("Reply deleted successfully");
-
-        // Remove from local state optimistically
-        setLocalReplies((prev) => {
-          const update = (arr: Reply[]): Reply[] =>
-            arr.filter((r) => {
-              if (r.id === replyId) return false;
-              if (r.replies?.length) {
-                r.replies = update(r.replies);
-              }
-              return true;
-            });
-          return update(prev);
-        });
-
-        // Decrease total count
-        setLocalTotalReplies((count) => Math.max(0, count - 1));
-      } catch (error) {
-        toast.error("Failed to delete reply");
-        console.error("Error deleting reply:", error);
-      }
+                            // Decrease total count
+                            setLocalTotalReplies((count) =>
+                              Math.max(0, count - 1)
+                            );
+                          }),
+                        {
+                          loading: "Deleting reply...",
+                          success: "Reply deleted successfully",
+                          error: "Failed to delete reply",
+                        }
+                      );
+                    }}
+                    className="px-3 py-1.5 text-xs font-medium text-white bg-red-600 hover:bg-red-700 rounded-md transition-colors"
+                  >
+                    Delete
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        ),
+        { duration: Infinity } // Keep open until user acts
+      );
     },
-    [deleteReply, postId]
+    [deleteReply, postId, setLocalReplies, setLocalTotalReplies]
   );
 
   // Handle WebSocket reply update

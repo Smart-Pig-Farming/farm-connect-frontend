@@ -363,7 +363,7 @@ export function UsersTabContent() {
                 value={searchTerm}
                 onChange={(e) => handleSearchChange(e.target.value)}
                 className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 w-full text-sm"
-                style={{ outline: 'none' }}
+                style={{ outline: "none" }}
               />
             </div>
 
