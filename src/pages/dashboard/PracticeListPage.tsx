@@ -1,0 +1,233 @@
+import { useEffect, useState, useCallback } from "react";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { PracticeListView } from "@/components/bestPractices/PracticeListView";
+import { EditContentWizard } from "@/components/bestPractices/EditContentWizard";
+import { BEST_PRACTICE_CATEGORIES } from "@/components/bestPractices/constants";
+import type {
+  BestPracticeCategory,
+  BestPracticeContentDraft,
+  BestPracticeCategoryKey,
+} from "@/types/bestPractices";
+import {
+  useListBestPracticesQuery,
+  useDeleteBestPracticeMutation,
+} from "@/store/api/bestPracticesApi";
+import { BookOpen } from "lucide-react";
+import { toast } from "sonner";
+
+// Map API list item shape to draft shape used by existing components
+interface ApiListItemShape {
+  id: number | string;
+  title: string;
+  excerpt?: string;
+  description?: string;
+  categories?: string[];
+  media?: unknown;
+  created_at?: string;
+  steps_count?: number;
+  benefits_count?: number;
+}
+function mapApiToDraft(item: ApiListItemShape): BestPracticeContentDraft {
+  const allowed: Set<string> = new Set([
+    "feeding_nutrition",
+    "disease_control",
+    "growth_weight",
+    "environment_management",
+    "breeding_insemination",
+    "farrowing_management",
+    "record_management",
+    "marketing_finance",
+  ]);
+  const cats = (item.categories || []).filter(
+    (c): c is BestPracticeCategoryKey => allowed.has(c)
+  ) as BestPracticeCategoryKey[];
+  return {
+    id: String(item.id),
+    title: item.title,
+    description: item.excerpt || item.description || "",
+    steps: [],
+    benefits: [],
+    categories: cats,
+    media: null,
+    status: "saved",
+    createdAt: item.created_at ? Date.parse(item.created_at) : Date.now(),
+    updatedAt: item.created_at ? Date.parse(item.created_at) : Date.now(),
+    // counts available for UI components if they choose to show summary
+    stepsCount: item.steps_count ?? 0,
+    benefitsCount: item.benefits_count ?? 0,
+  };
+}
+
+// Dedicated practice list route page: /dashboard/best-practices/category/:categoryKey
+export function PracticeListPage() {
+  const { categoryKey } = useParams();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const modeParam = searchParams.get("mode");
+  const [cursor, setCursor] = useState<string>("");
+  const [items, setItems] = useState<BestPracticeContentDraft[]>([]);
+  const [deletePractice] = useDeleteBestPracticeMutation();
+
+  const category: BestPracticeCategory | undefined =
+    BEST_PRACTICE_CATEGORIES.find((c) => c.key === categoryKey);
+
+  const { data: listData, isFetching } = useListBestPracticesQuery(
+    category
+      ? { category: category.key, limit: 12, cursor }
+      : { limit: 12, cursor }
+  );
+
+  // Edit modal state
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingContent, setEditingContent] =
+    useState<BestPracticeContentDraft | null>(null);
+
+  // category already defined above
+
+  useEffect(() => {
+    if (!category) return;
+    // If user manually appends ?mode=quiz to the practice list route, redirect them to the quiz navigation page
+    if (modeParam === "quiz") {
+      navigate(`/dashboard/best-practices/category/${category.key}/quiz`, {
+        replace: true,
+      });
+      return;
+    }
+    // When category changes reset list
+    setItems([]);
+    setCursor("");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [categoryKey, modeParam]);
+
+  // Merge incoming page
+  useEffect(() => {
+    if (listData?.items) {
+      setItems((prev) =>
+        cursor
+          ? [...prev, ...listData.items.map(mapApiToDraft)]
+          : listData.items.map(mapApiToDraft)
+      );
+    }
+  }, [listData, cursor]);
+
+  const loadMore = useCallback(() => {
+    if (listData?.pageInfo?.hasNextPage && listData.pageInfo.nextCursor) {
+      setCursor(listData.pageInfo.nextCursor);
+    }
+  }, [listData]);
+
+  if (!category) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-orange-50/30 to-emerald-50/20 dark:from-slate-900 dark:via-slate-800 dark:to-emerald-900/10 flex items-center justify-center">
+        <div className="max-w-md mx-auto px-6 py-12 text-center">
+          <div className="w-20 h-20 mx-auto mb-6 bg-gradient-to-br from-orange-400 to-orange-600 rounded-full flex items-center justify-center">
+            <BookOpen className="w-10 h-10 text-white" />
+          </div>
+          <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-200 mb-4">
+            Category Not Found
+          </h2>
+          <p className="text-slate-600 dark:text-slate-400 mb-8">
+            The category you're looking for doesn't exist or may have been
+            moved.
+          </p>
+          <button
+            onClick={() => navigate("/dashboard/best-practices")}
+            className="group relative px-8 py-3 rounded-xl bg-gradient-to-r from-orange-500 to-orange-600 text-white font-semibold overflow-hidden transition-all duration-300 hover:from-orange-600 hover:to-orange-700 hover:shadow-lg hover:shadow-orange-500/25 hover:-translate-y-0.5"
+          >
+            <span className="relative z-10">Back to Best Practices</span>
+            <div className="absolute inset-0 bg-gradient-to-r from-orange-600 to-orange-700 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const filteredContents = items.filter((c) =>
+    c.categories.includes(category.key)
+  );
+
+  // Handler functions for edit and delete actions
+  const handleEdit = (content: BestPracticeContentDraft) => {
+    setEditingContent(content);
+    setShowEditModal(true);
+  };
+
+  const handleDelete = async (content: BestPracticeContentDraft) => {
+    // Optimistic removal
+    const prevItems = items;
+    setItems((cur) => cur.filter((c) => c.id !== content.id));
+    const numericId = Number(content.id);
+    try {
+      await deletePractice(isNaN(numericId) ? content.id : numericId).unwrap();
+      toast.success(`Deleted: ${content.title}`);
+    } catch (e) {
+      // Rollback on failure
+      setItems(prevItems);
+      // @ts-expect-error runtime shape
+      const msg = e?.data?.error || "Failed to delete practice";
+      toast.error(msg);
+    }
+  };
+
+  // Handle edit save
+  const handleEditSave = (updatedContent: BestPracticeContentDraft) => {
+    // Update the content in the list
+    setItems((prev) =>
+      prev.map((c) => (c.id === updatedContent.id ? updatedContent : c))
+    );
+    // Close the modal
+    setShowEditModal(false);
+    setEditingContent(null);
+    // TODO: Save to backend API
+    console.log("Updated practice:", updatedContent.title);
+  };
+
+  // Handle edit modal close
+  const handleEditClose = () => {
+    setShowEditModal(false);
+    setEditingContent(null);
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-orange-50/30 to-emerald-50/20 dark:from-slate-900 dark:via-slate-800 dark:to-emerald-900/10 relative overflow-hidden">
+      {/* Animated Background Elements */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-br from-orange-300/20 to-orange-500/20 rounded-full blur-3xl animate-pulse" />
+        <div
+          className="absolute -bottom-40 -left-40 w-80 h-80 bg-gradient-to-br from-emerald-300/20 to-emerald-500/20 rounded-full blur-3xl animate-pulse"
+          style={{ animationDelay: "2s" }}
+        />
+        <div
+          className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-gradient-to-br from-cyan-300/10 to-cyan-500/10 rounded-full blur-3xl animate-pulse"
+          style={{ animationDelay: "4s" }}
+        />
+      </div>
+
+      {/* Main Content */}
+      <div className="relative z-10 px-4 md:px-8 pb-12">
+        <div className="max-w-6xl mx-auto">
+          <PracticeListView
+            category={category}
+            contents={filteredContents}
+            onBack={() => navigate("/dashboard/best-practices")}
+            onEdit={handleEdit}
+            onDelete={handleDelete}
+            onLoadMore={loadMore}
+            loadingMore={isFetching}
+            hasMore={!!listData?.pageInfo?.hasNextPage}
+          />
+        </div>
+      </div>
+
+      {/* Edit Content Wizard */}
+      {editingContent && (
+        <EditContentWizard
+          open={showEditModal}
+          onClose={handleEditClose}
+          onSave={handleEditSave}
+          content={editingContent}
+        />
+      )}
+    </div>
+  );
+}

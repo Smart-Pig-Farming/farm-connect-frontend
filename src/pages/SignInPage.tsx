@@ -1,8 +1,13 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
+import { toast } from "sonner";
+import { Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { HeroBackground } from "@/components/ui/hero-background";
+import { useLoginMutation } from "@/store/api/authApi";
+import { setCredentials } from "@/store/slices/authSlice";
+import { useAppDispatch } from "@/store/hooks";
 
 interface SignInData {
   email: string;
@@ -11,13 +16,20 @@ interface SignInData {
 
 const SignInPage = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const dispatch = useAppDispatch();
+  const [login, { isLoading }] = useLoginMutation();
+
   const [formData, setFormData] = useState<SignInData>({
     email: "",
     password: "",
   });
 
   const [errors, setErrors] = useState<Partial<SignInData>>({});
-  const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+
+  // Get the redirect path if user was redirected from protected route
+  const from = location.state?.from?.pathname || "/dashboard";
 
   // Validation function
   const validateForm = () => {
@@ -34,11 +46,6 @@ const SignInPage = () => {
     }
 
     return formErrors;
-  };
-
-  const isFormValid = () => {
-    const formErrors = validateForm();
-    return Object.keys(formErrors).length === 0;
   };
 
   const handleInputChange = (field: keyof SignInData, value: string) => {
@@ -61,30 +68,132 @@ const SignInPage = () => {
 
     if (Object.keys(formErrors).length > 0) {
       setErrors(formErrors);
+
+      // Focus the first field with an error for better UX
+      const firstErrorField = Object.keys(formErrors)[0] as keyof SignInData;
+      const fieldElement = document.getElementById(firstErrorField);
+      if (fieldElement) {
+        fieldElement.focus();
+      }
+
+      // Show a general toast for immediate feedback
+      toast.error("Please fix the errors below to continue");
       return;
     }
 
-    setIsLoading(true);
+    let loadingToastId: string | number | undefined;
 
     try {
-      // Here you would typically submit the form data to your backend
-      console.log("Sign in attempt:", formData);
+      // Show loading toast
+      loadingToastId = toast.loading("Signing you in...", {
+        description: "Please wait while we verify your credentials.",
+      });
 
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      // Attempt login
+      const response = await login({
+        email: formData.email,
+        password: formData.password,
+      }).unwrap();
 
-      // For now, let's navigate to home
-      navigate("/");
+      // Dismiss loading toast
+      toast.dismiss(loadingToastId);
+
+      // Store user data in Redux (authentication is handled by HttpOnly cookies)
+      dispatch(
+        setCredentials({
+          user: response.data.user,
+        })
+      );
+
+      // Show success toast
+      toast.success("Welcome back!", {
+        description: `Hello ${response.data.user.firstname}! Redirecting to your dashboard...`,
+        duration: 3000,
+      });
+
+      // Determine redirect path based on user role
+      let redirectPath = from;
+      if (from === "/dashboard") {
+        // All users should land on the Overview page by default
+        redirectPath = "/dashboard/overview";
+      }
+
+      console.log("Navigating to:", redirectPath);
+
+      // Navigate to intended destination after a small delay to ensure Redux state is updated
+      setTimeout(() => {
+        navigate(redirectPath, { replace: true });
+      }, 100);
     } catch (error) {
-      console.error("Sign in error:", error);
-      setErrors({ email: "Invalid credentials. Please try again." });
-    } finally {
-      setIsLoading(false);
+      console.error("Login failed:", error);
+
+      // Dismiss loading toast if it was created
+      if (loadingToastId) {
+        toast.dismiss(loadingToastId);
+      }
+
+      // Extract error message and determine error type
+      let errorTitle = "Sign In Failed";
+      let errorMessage = "Something went wrong. Please try again.";
+
+      if (error && typeof error === "object" && "data" in error) {
+        const errorData = error as { data?: { error?: string; code?: string } };
+
+        if (errorData.data?.error) {
+          errorMessage = errorData.data.error;
+
+          // Handle specific error cases based on use case requirements
+          switch (errorData.data.code) {
+            case "INVALID_CREDENTIALS":
+              errorTitle = "Invalid Credentials";
+              errorMessage = "Invalid email or password.";
+              setErrors({ email: "Invalid email or password" });
+              break;
+
+            case "ACCOUNT_LOCKED":
+              errorTitle = "Account Locked";
+              errorMessage =
+                "Account is temporarily locked. Contact administrator.";
+              break;
+
+            case "ACCOUNT_NOT_VERIFIED":
+              errorTitle = "Account Not Verified";
+              errorMessage =
+                "Your account requires verification. Redirecting to verification...";
+              // Redirect to verification page with user's email
+              setTimeout(() => {
+                navigate("/verify", { state: { email: formData.email } });
+              }, 2000);
+              break;
+
+            case "TOO_MANY_ATTEMPTS":
+              errorTitle = "Too Many Login Attempts";
+              errorMessage =
+                "Too many failed login attempts. Please try again later.";
+              break;
+
+            case "SERVER_ERROR":
+              errorTitle = "Server Error";
+              errorMessage =
+                "Server is temporarily unavailable. Please try again later.";
+              break;
+
+            default:
+              break;
+          }
+        }
+      }
+
+      // Show error toast
+      toast.error(errorTitle, {
+        description: errorMessage,
+        duration: 5000,
+      });
     }
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && isFormValid()) {
+    if (e.key === "Enter") {
       handleSubmit();
     }
   };
@@ -110,6 +219,7 @@ const SignInPage = () => {
               </label>
               <input
                 type="email"
+                id="email"
                 value={formData.email}
                 onChange={(e) => handleInputChange("email", e.target.value)}
                 onKeyPress={handleKeyPress}
@@ -127,16 +237,32 @@ const SignInPage = () => {
               <label className="block text-sm font-medium text-white/90 mb-2">
                 Password
               </label>
-              <input
-                type="password"
-                value={formData.password}
-                onChange={(e) => handleInputChange("password", e.target.value)}
-                onKeyPress={handleKeyPress}
-                className={`w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent placeholder-white/60 text-white ${
-                  errors.password ? "border-red-400 bg-red-500/10" : ""
-                }`}
-                placeholder="Enter your password"
-              />
+              <div className="relative">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  id="password"
+                  value={formData.password}
+                  onChange={(e) =>
+                    handleInputChange("password", e.target.value)
+                  }
+                  onKeyPress={handleKeyPress}
+                  className={`w-full px-4 py-3 pr-12 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent placeholder-white/60 text-white ${
+                    errors.password ? "border-red-400 bg-red-500/10" : ""
+                  }`}
+                  placeholder="Enter your password"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-white/60 hover:text-white/80 transition-colors"
+                >
+                  {showPassword ? (
+                    <EyeOff className="w-5 h-5" />
+                  ) : (
+                    <Eye className="w-5 h-5" />
+                  )}
+                </button>
+              </div>
               {errors.password && (
                 <p className="mt-1 text-sm text-red-300">{errors.password}</p>
               )}
@@ -156,12 +282,12 @@ const SignInPage = () => {
             {/* Sign In Button */}
             <Button
               onClick={handleSubmit}
-              disabled={!isFormValid() || isLoading}
+              disabled={isLoading}
               className={`w-full py-3 font-semibold transition-all duration-300 ${
-                isFormValid() && !isLoading
-                  ? "bg-orange-500 hover:bg-orange-600 text-white cursor-pointer"
-                  : "bg-white/20 text-white/60 cursor-not-allowed"
-              }`}
+                isLoading
+                  ? "bg-orange-400 cursor-not-allowed"
+                  : "bg-orange-500 hover:bg-orange-600 cursor-pointer"
+              } text-white`}
             >
               {isLoading ? (
                 <div className="flex items-center justify-center">

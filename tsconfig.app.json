@@ -34,5 +34,9 @@
   },
   "include": [
     "src"
+  ],
+  "exclude": [
+    "src/components/**/*_backup*.tsx",
+    "src/components/discussions/*_backup.tsx"
   ]
 }

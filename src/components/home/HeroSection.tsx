@@ -14,6 +14,26 @@ export function HeroSection({ onScrollToSection }: HeroSectionProps) {
 
   return (
     <HeroBackground>
+      {/* Vertical "How It Works" Tab - Left Side - Only visible on lg+ screens (921px+) */}
+      <div className="hidden lg:block fixed left-0 top-1/2 transform -translate-y-1/2 z-20">
+        <button
+          onClick={() => onScrollToSection("how-it-works")}
+          className="group cursor-pointer transition-all duration-300 hover:scale-105"
+          aria-label="Learn how our platform works"
+        >
+          <div
+            className="bg-gradient-to-b from-orange-500 to-orange-600 rounded-r-lg shadow-lg group-hover:shadow-xl transition-all duration-300 group-hover:from-orange-600 group-hover:to-orange-700"
+            style={{ writingMode: "vertical-rl", textOrientation: "mixed" }}
+          >
+            <div className="p-3">
+              <span className="text-white font-semibold text-xs md:text-sm lg:text-base tracking-[0.2em] group-hover:tracking-[0.25em] transition-all duration-300">
+                HOW IT WORKS
+              </span>
+            </div>
+          </div>
+        </button>
+      </div>
+
       <div
         className={`text-center text-white px-4 sm:px-6 lg:px-8 max-w-4xl mx-auto transition-all duration-1000 ${
           heroRef.isVisible ? "animate-slide-up" : "opacity-0"

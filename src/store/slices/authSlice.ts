@@ -1,29 +1,9 @@
 import { createSlice } from "@reduxjs/toolkit";
 import type { PayloadAction } from "@reduxjs/toolkit";
-
-interface User {
-  id: string;
-  email: string;
-  firstName: string;
-  lastName: string;
-  farmName?: string;
-  province?: string;
-  district?: string;
-  sector?: string;
-  profilePicture?: string;
-}
-
-interface AuthState {
-  user: User | null;
-  token: string | null;
-  isAuthenticated: boolean;
-  isLoading: boolean;
-  error: string | null;
-}
+import type { User, AuthState } from "@/types";
 
 const initialState: AuthState = {
   user: null,
-  token: null,
   isAuthenticated: false,
   isLoading: false,
   error: null,
@@ -33,20 +13,24 @@ const authSlice = createSlice({
   name: "auth",
   initialState,
   reducers: {
-    setCredentials: (
-      state,
-      action: PayloadAction<{ user: User; token: string }>
-    ) => {
-      const { user, token } = action.payload;
+    // Set user data after successful authentication (HttpOnly cookies handle tokens)
+    setCredentials: (state, action: PayloadAction<{ user: User }>) => {
+      const { user } = action.payload;
       state.user = user;
-      state.token = token;
       state.isAuthenticated = true;
       state.error = null;
+      // Note: authentication is handled via HttpOnly cookies
+    },
+
+    // Set user data (fetched from API)
+    setUser: (state, action: PayloadAction<User>) => {
+      state.user = action.payload;
+      state.isLoading = false;
+      state.isAuthenticated = true;
     },
 
     logout: (state) => {
       state.user = null;
-      state.token = null;
       state.isAuthenticated = false;
       state.error = null;
     },
@@ -73,6 +57,7 @@ const authSlice = createSlice({
 
 export const {
   setCredentials,
+  setUser,
   logout,
   updateUser,
   setLoading,

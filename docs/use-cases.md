@@ -15,6 +15,51 @@ This document outlines the comprehensive use case specifications for the FarmCon
 
 ## Authentication & User Management
 
+## UC000: Access Platform Homepage
+
+**Actor**: Guest / Visitor  
+**Brief Description**:  
+A guest user accesses the platform's homepage and is presented with an overview of the platform, including options to register, log in, or browse publicly available content.
+
+---
+
+### Preconditions
+- No authentication is required.
+- The platform URL or app is accessible via browser or mobile device.
+
+---
+
+### Postconditions
+- The visitor either:
+  - Proceeds to the **Registration** flow,
+  - Proceeds to the **Login** flow, or
+  - Continues browsing publicly accessible content (if available).
+
+---
+
+### Basic Flow
+1. **Visitor accesses** the platform by navigating to the URL or opening the app.
+2. The **system displays** the homepage, which includes:
+   - A platform overview (e.g., value proposition, key features, testimonials).
+   - Navigation bar or menu with options.
+   - Authentication options:
+     - **"Register as Farmer"** button for new users.
+     - **"Login"** button for returning users.
+3. **Visitor selects one of the following actions**:
+   - Clicks **"Register as Farmer"** → System redirects to the Registration page.
+   - Clicks **"Login"** → System redirects to the Login page.
+   - Scrolls or navigates through the homepage to **browse public content** (if permitted).
+
+---
+
+### Alternative Flows
+- **A1: Visitor closes the app or browser**  
+  → No further interaction; session ends.
+
+- **A2: System is temporarily unavailable**  
+  → System displays a maintenance or error message; visitor cannot proceed.
+
+
 ### UC-001: Register as Farmer
 
 **Actor:** Guest  

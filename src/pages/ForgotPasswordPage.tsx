@@ -1,9 +1,11 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { HeroBackground } from "@/components/ui/hero-background";
 import { ArrowLeftIcon } from "@/components/ui/icons";
+import { useForgotPasswordMutation } from "@/store/api/authApi";
 
 interface ForgotPasswordData {
   email: string;
@@ -11,12 +13,13 @@ interface ForgotPasswordData {
 
 const ForgotPasswordPage = () => {
   const navigate = useNavigate();
+  const [forgotPassword, { isLoading }] = useForgotPasswordMutation();
+
   const [formData, setFormData] = useState<ForgotPasswordData>({
     email: "",
   });
 
   const [errors, setErrors] = useState<Partial<ForgotPasswordData>>({});
-  const [isLoading, setIsLoading] = useState(false);
 
   // Validation function
   const validateForm = () => {
@@ -29,11 +32,6 @@ const ForgotPasswordPage = () => {
     }
 
     return formErrors;
-  };
-
-  const isFormValid = () => {
-    const formErrors = validateForm();
-    return Object.keys(formErrors).length === 0;
   };
 
   const handleInputChange = (
@@ -59,17 +57,35 @@ const ForgotPasswordPage = () => {
 
     if (Object.keys(formErrors).length > 0) {
       setErrors(formErrors);
+
+      // Focus the email field for better UX
+      const emailField = document.getElementById("email");
+      if (emailField) {
+        emailField.focus();
+      }
+
+      // Show a general toast for immediate feedback
+      toast.error("Please fix the errors below to continue");
       return;
     }
 
-    setIsLoading(true);
-
     try {
-      // Here you would typically submit the email to your backend
-      console.log("Password reset request:", formData.email);
+      // Show loading toast
+      const loadingToastId = toast.loading("Sending verification code...", {
+        description: "Please wait while we send a code to your email.",
+      });
 
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      // Call the API
+      await forgotPassword({ email: formData.email }).unwrap();
+
+      // Dismiss loading toast
+      toast.dismiss(loadingToastId);
+
+      // Show success toast
+      toast.success("Code sent successfully!", {
+        description: "Check your email for the 6-digit verification code.",
+        duration: 4000,
+      });
 
       // Navigate to OTP verification page with email
       navigate(
@@ -77,14 +93,26 @@ const ForgotPasswordPage = () => {
       );
     } catch (error) {
       console.error("Password reset error:", error);
-      setErrors({ email: "Unable to send reset email. Please try again." });
-    } finally {
-      setIsLoading(false);
+
+      let errorMessage = "Unable to send reset email. Please try again.";
+
+      if (error && typeof error === "object" && "data" in error) {
+        const errorData = error as { data?: { error?: string } };
+        if (errorData.data?.error) {
+          errorMessage = errorData.data.error;
+        }
+      }
+
+      setErrors({ email: errorMessage });
+      toast.error("Failed to send code", {
+        description: errorMessage,
+        duration: 5000,
+      });
     }
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && isFormValid()) {
+    if (e.key === "Enter") {
       handleSubmit();
     }
   };
@@ -129,6 +157,7 @@ const ForgotPasswordPage = () => {
               </label>
               <input
                 type="email"
+                id="email"
                 value={formData.email}
                 onChange={(e) => handleInputChange("email", e.target.value)}
                 onKeyPress={handleKeyPress}
@@ -149,12 +178,12 @@ const ForgotPasswordPage = () => {
             {/* Send Code Button */}
             <Button
               onClick={handleSubmit}
-              disabled={!isFormValid() || isLoading}
+              disabled={isLoading}
               className={`w-full py-3 font-semibold transition-all duration-300 ${
-                isFormValid() && !isLoading
-                  ? "bg-orange-500 hover:bg-orange-600 text-white cursor-pointer"
-                  : "bg-white/20 text-white/60 cursor-not-allowed"
-              }`}
+                isLoading
+                  ? "bg-orange-400 cursor-not-allowed"
+                  : "bg-orange-500 hover:bg-orange-600 cursor-pointer"
+              } text-white`}
             >
               {isLoading ? (
                 <div className="flex items-center justify-center">
