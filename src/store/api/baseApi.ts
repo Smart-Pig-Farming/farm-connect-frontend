@@ -5,9 +5,37 @@ import type {
   FetchBaseQueryError,
 } from "@reduxjs/toolkit/query";
 
+// Compute API base URL from env with safe fallback & normalization.
+// Rules:
+//  - Use VITE_API_URL if provided.
+//  - If VITE_API_URL already ends with /api (case-insensitive), don't append again.
+//  - Strip trailing slashes before appending.
+//  - If no env provided, fallback to localhost dev server.
+//  - Support relative usage by setting VITE_API_URL="" (results in "/api").
+function computeApiBaseUrl(): string {
+  // Vite exposes env vars on import.meta.env at build time (typed as any in generated d.ts)
+  const rawFromImportMeta = (
+    import.meta as { env?: Record<string, string | undefined> }
+  )?.env?.VITE_API_URL;
+  let raw =
+    rawFromImportMeta ?? (process.env.VITE_API_URL as string | undefined); // Node fallback for tests
+  if (!raw) {
+    return "http://localhost:5000/api"; // dev fallback
+  }
+  raw = raw.trim();
+  if (raw === "" || raw === "/") return "/api"; // relative same-origin
+  // Remove trailing slashes (but keep single root case handled above)
+  raw = raw.replace(/\/+$/, "");
+  // If it already ends with /api, return as-is
+  if (/\/api$/i.test(raw)) return raw;
+  return `${raw}/api`;
+}
+
+const resolvedBaseUrl = computeApiBaseUrl();
+
 // Raw base query (cookie-based auth only)
 const rawBaseQuery = fetchBaseQuery({
-  baseUrl: "http://localhost:5000/api",
+  baseUrl: resolvedBaseUrl,
   credentials: "include",
   prepareHeaders: (headers) => {
     // Attach CSRF token from readable cookie for state-changing requests
