@@ -83,7 +83,7 @@ function makeDraft(i: number): BestPracticeContentDraft {
   const categories = [primary, ...extra];
 
   return {
-  id: uuidv4(),
+    id: uuidv4(),
     title,
     description,
     steps: steps([

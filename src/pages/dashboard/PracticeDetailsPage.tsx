@@ -32,12 +32,12 @@ function adaptPractice(api: unknown): BestPracticeContentDraft {
   const steps = stepsArr.map((raw, i) => {
     if (raw && typeof raw === "object") {
       const rec = raw as Record<string, unknown>;
-  const id = typeof rec.id === "string" ? rec.id : uuidv4();
+      const id = typeof rec.id === "string" ? rec.id : uuidv4();
       const text = typeof rec.text === "string" ? rec.text : "";
       const order = typeof rec.order === "number" ? rec.order : i;
       return { id, text, order };
     }
-  return { id: uuidv4(), text: String(raw ?? ""), order: i };
+    return { id: uuidv4(), text: String(raw ?? ""), order: i };
   });
   let benefitsArr: unknown = obj.benefits_json;
   if (typeof benefitsArr === "string") {

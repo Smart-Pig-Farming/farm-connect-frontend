@@ -176,7 +176,7 @@ export const EditContentWizard = ({
     update({
       steps: [
         ...draft.steps,
-  { id: uuidv4(), text: "", order: draft.steps.length },
+        { id: uuidv4(), text: "", order: draft.steps.length },
       ],
     });
   const removeStep = (id: string) =>

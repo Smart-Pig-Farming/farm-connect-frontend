@@ -283,7 +283,7 @@ export const QuestionWizard = ({
       } else {
         // For create flow: reset wizard for a fresh new question instead of closing
         setJustSaved(true);
-  const newId = uuidv4();
+        const newId = uuidv4();
         setDraftId(newId);
         // Clear persistent storage of old draft *after* generating new id
         clearDraft();
