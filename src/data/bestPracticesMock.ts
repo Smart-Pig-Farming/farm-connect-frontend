@@ -4,9 +4,10 @@ import type {
 } from "@/types/bestPractices";
 
 // Utility to create steps quickly
+import { uuidv4 } from "@/utils/uuid";
 function steps(texts: string[]) {
   return texts.map((t, i) => ({
-    id: `${crypto.randomUUID()}`,
+    id: `${uuidv4()}`,
     text: t,
     order: i,
   }));
@@ -82,7 +83,7 @@ function makeDraft(i: number): BestPracticeContentDraft {
   const categories = [primary, ...extra];
 
   return {
-    id: crypto.randomUUID(),
+  id: uuidv4(),
     title,
     description,
     steps: steps([

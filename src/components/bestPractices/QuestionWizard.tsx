@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { uuidv4 } from "@/utils/uuid";
 import { X, Trash2, Plus, ChevronLeft, ChevronRight, Save } from "lucide-react";
 import { BEST_PRACTICE_CATEGORIES } from "./constants";
 import type {
@@ -79,13 +80,13 @@ function getCategoryGradient(color?: string) {
 }
 
 const emptyQuestion = (): QuizQuestionDraft => ({
-  id: crypto.randomUUID(),
+  id: uuidv4(),
   category: "feeding_nutrition",
   prompt: "",
   type: "mcq",
   choices: [
-    { id: crypto.randomUUID(), text: "", correct: true },
-    { id: crypto.randomUUID(), text: "", correct: false },
+    { id: uuidv4(), text: "", correct: true },
+    { id: uuidv4(), text: "", correct: false },
   ],
   explanation: "",
   difficulty: "easy",
@@ -104,9 +105,7 @@ export const QuestionWizard = ({
   // Track if we are editing an existing question vs creating new
   const isEditing = !!initial?.id;
   // Draft identifier – regenerated after each successful save (for create flow)
-  const [draftId, setDraftId] = useState(
-    () => initial?.id ?? crypto.randomUUID()
-  );
+  const [draftId, setDraftId] = useState(() => initial?.id ?? uuidv4());
   const {
     state: draft,
     setState: setDraft,
@@ -176,7 +175,7 @@ export const QuestionWizard = ({
       choices: [
         ...draft.choices,
         {
-          id: crypto.randomUUID(),
+          id: uuidv4(),
           text: "",
           correct: draft.type === "mcq" ? false : false,
         },
@@ -284,7 +283,7 @@ export const QuestionWizard = ({
       } else {
         // For create flow: reset wizard for a fresh new question instead of closing
         setJustSaved(true);
-        const newId = crypto.randomUUID();
+  const newId = uuidv4();
         setDraftId(newId);
         // Clear persistent storage of old draft *after* generating new id
         clearDraft();
@@ -611,12 +610,12 @@ const QuestionSetupStep = ({
                       type.value === "truefalse"
                         ? [
                             {
-                              id: crypto.randomUUID(),
+                              id: uuidv4(),
                               text: "True",
                               correct: true,
                             },
                             {
-                              id: crypto.randomUUID(),
+                              id: uuidv4(),
                               text: "False",
                               correct: false,
                             },

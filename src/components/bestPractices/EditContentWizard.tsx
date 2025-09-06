@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { uuidv4 } from "@/utils/uuid";
 import {
   X,
   Plus,
@@ -175,7 +176,7 @@ export const EditContentWizard = ({
     update({
       steps: [
         ...draft.steps,
-        { id: crypto.randomUUID(), text: "", order: draft.steps.length },
+  { id: uuidv4(), text: "", order: draft.steps.length },
       ],
     });
   const removeStep = (id: string) =>
