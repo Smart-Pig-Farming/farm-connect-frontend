@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { uuidv4 } from "@/utils/uuid";
 import { X, Trash2, Plus, ChevronLeft, ChevronRight, Save } from "lucide-react";
 import { BEST_PRACTICE_CATEGORIES } from "./constants";
 import type {
@@ -160,7 +161,7 @@ export const EditQuestionWizard = ({
       choices: [
         ...draft.choices,
         {
-          id: crypto.randomUUID(),
+          id: uuidv4(),
           text: "",
           correct: draft.type === "mcq" ? false : false,
         },
@@ -552,12 +553,12 @@ const QuestionSetupStep = ({
                       type.value === "truefalse"
                         ? [
                             {
-                              id: crypto.randomUUID(),
+                              id: uuidv4(),
                               text: "True",
                               correct: true,
                             },
                             {
-                              id: crypto.randomUUID(),
+                              id: uuidv4(),
                               text: "False",
                               correct: false,
                             },

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { uuidv4 } from "@/utils/uuid";
 import {
   X,
   Plus,
@@ -98,10 +99,10 @@ interface BestPracticeCreatePayload {
 }
 
 const emptyDraft = (): BestPracticeContentDraft => ({
-  id: crypto.randomUUID(),
+  id: uuidv4(),
   title: "",
   description: "",
-  steps: [{ id: crypto.randomUUID(), text: "", order: 0 }],
+  steps: [{ id: uuidv4(), text: "", order: 0 }],
   benefits: [],
   categories: [],
   media: null,
@@ -118,7 +119,7 @@ export const ContentWizard = ({
   onSave,
   initial,
 }: ContentWizardProps) => {
-  const [draftId] = useState(() => initial?.id ?? crypto.randomUUID());
+  const [draftId] = useState(() => initial?.id ?? uuidv4());
   const {
     state: draft,
     setState: setDraft,
@@ -186,7 +187,7 @@ export const ContentWizard = ({
     update({
       steps: [
         ...draft.steps,
-        { id: crypto.randomUUID(), text: "", order: draft.steps.length },
+  { id: uuidv4(), text: "", order: draft.steps.length },
       ],
     });
   const removeStep = (id: string) =>
