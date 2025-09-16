@@ -223,38 +223,40 @@ export function ChatModal({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-lg h-[600px] flex flex-col">
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-2 sm:p-4 pb-20 sm:pb-4">
+      <div className="bg-white dark:bg-slate-800 rounded-lg sm:rounded-2xl shadow-2xl w-full max-w-sm sm:max-w-md md:max-w-lg h-[85vh] sm:h-[85vh] md:h-[600px] flex flex-col max-h-[600px] mt-auto sm:mt-0 mb-4 sm:mb-0">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-slate-700">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gradient-to-r from-orange-500 to-red-500 rounded-full flex items-center justify-center">
-              <MessageCircle className="h-5 w-5 text-white" />
+        <div className="flex items-center justify-between p-4 sm:p-6 border-b border-gray-200 dark:border-slate-700 shrink-0">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-r from-orange-500 to-red-500 rounded-full flex items-center justify-center shrink-0">
+              <MessageCircle className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
             </div>
-            <div>
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+            <div className="min-w-0">
+              <h2 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white truncate">
                 Farm Assistant
               </h2>
-              <p className="text-sm text-gray-600 dark:text-slate-400">
+              <p className="text-xs sm:text-sm text-gray-600 dark:text-slate-400 hidden sm:block">
                 Ask about best practices
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-full transition-colors duration-200 hover:cursor-pointer"
+            className="p-1.5 sm:p-2 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-full transition-colors duration-200 hover:cursor-pointer shrink-0"
           >
-            <X className="h-5 w-5 text-gray-500 dark:text-slate-400" />
+            <X className="h-4 w-4 sm:h-5 sm:w-5 text-gray-500 dark:text-slate-400" />
           </button>
         </div>
 
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+        <div className="flex-1 overflow-y-auto p-3 sm:p-4 md:p-6 space-y-3 sm:space-y-4 md:space-y-6">
           {isLoading && messages.length === 0 ? (
             <div className="flex items-center justify-center h-full">
               <div className="text-center">
-                <div className="animate-spin w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full mx-auto mb-2"></div>
-                <p className="text-gray-500 dark:text-slate-400">Loading...</p>
+                <div className="animate-spin w-6 h-6 sm:w-8 sm:h-8 border-2 sm:border-4 border-orange-500 border-t-transparent rounded-full mx-auto mb-2"></div>
+                <p className="text-sm sm:text-base text-gray-500 dark:text-slate-400">
+                  Loading...
+                </p>
               </div>
             </div>
           ) : (
@@ -267,12 +269,12 @@ export function ChatModal({
                   }`}
                 >
                   {!message.isUser && (
-                    <div className="w-8 h-8 bg-gradient-to-r from-orange-500 to-red-500 rounded-full flex items-center justify-center flex-shrink-0">
-                      <Bot className="h-4 w-4 text-white" />
+                    <div className="w-6 h-6 sm:w-8 sm:h-8 bg-gradient-to-r from-orange-500 to-red-500 rounded-full flex items-center justify-center flex-shrink-0">
+                      <Bot className="h-3 w-3 sm:h-4 sm:w-4 text-white" />
                     </div>
                   )}
                   <div
-                    className={`max-w-[85%] rounded-2xl px-4 py-3 ${
+                    className={`max-w-[90%] sm:max-w-[85%] rounded-lg sm:rounded-xl md:rounded-2xl px-3 py-2 sm:px-4 sm:py-3 text-sm sm:text-base ${
                       message.isUser
                         ? "bg-gradient-to-r from-orange-500 to-red-500 text-white"
                         : "bg-gray-100 dark:bg-slate-700 text-gray-900 dark:text-white"
@@ -369,11 +371,6 @@ export function ChatModal({
                                         </span>
                                       )}
                                     </div>
-                                    <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-slate-400">
-                                      {source.readCount !== undefined && (
-                                        <span>{source.readCount} reads</span>
-                                      )}
-                                    </div>
                                   </div>
                                 </div>
                                 <button
@@ -425,26 +422,26 @@ export function ChatModal({
                     </span>
                   </div>
                   {message.isUser && (
-                    <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center flex-shrink-0">
-                      <User className="h-4 w-4 text-white" />
+                    <div className="w-6 h-6 sm:w-8 sm:h-8 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center flex-shrink-0">
+                      <User className="h-3 w-3 sm:h-4 sm:w-4 text-white" />
                     </div>
                   )}
                 </div>
               ))}
               {isTyping && (
-                <div className="flex gap-3">
-                  <div className="w-8 h-8 bg-gradient-to-r from-orange-500 to-red-500 rounded-full flex items-center justify-center flex-shrink-0">
-                    <Bot className="h-4 w-4 text-white" />
+                <div className="flex gap-2 sm:gap-3">
+                  <div className="w-6 h-6 sm:w-8 sm:h-8 bg-gradient-to-r from-orange-500 to-red-500 rounded-full flex items-center justify-center flex-shrink-0">
+                    <Bot className="h-3 w-3 sm:h-4 sm:w-4 text-white" />
                   </div>
-                  <div className="bg-gray-100 dark:bg-slate-700 rounded-2xl px-4 py-3">
+                  <div className="bg-gray-100 dark:bg-slate-700 rounded-lg sm:rounded-xl md:rounded-2xl px-3 py-2 sm:px-4 sm:py-3">
                     <div className="flex space-x-1">
-                      <div className="w-2 h-2 bg-gray-400 dark:bg-slate-500 rounded-full animate-bounce"></div>
+                      <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-gray-400 dark:bg-slate-500 rounded-full animate-bounce"></div>
                       <div
-                        className="w-2 h-2 bg-gray-400 dark:bg-slate-500 rounded-full animate-bounce"
+                        className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-gray-400 dark:bg-slate-500 rounded-full animate-bounce"
                         style={{ animationDelay: "0.1s" }}
                       ></div>
                       <div
-                        className="w-2 h-2 bg-gray-400 dark:bg-slate-500 rounded-full animate-bounce"
+                        className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-gray-400 dark:bg-slate-500 rounded-full animate-bounce"
                         style={{ animationDelay: "0.2s" }}
                       ></div>
                     </div>
@@ -455,9 +452,11 @@ export function ChatModal({
           )}
 
           {error && (
-            <div className="flex items-center gap-2 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-              <AlertCircle className="h-4 w-4 text-red-500" />
-              <p className="text-sm text-red-700 dark:text-red-400">{error}</p>
+            <div className="flex items-center gap-2 p-2 sm:p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+              <AlertCircle className="h-3 w-3 sm:h-4 sm:w-4 text-red-500 shrink-0" />
+              <p className="text-xs sm:text-sm text-red-700 dark:text-red-400">
+                {error}
+              </p>
             </div>
           )}
 
@@ -466,26 +465,27 @@ export function ChatModal({
         </div>
 
         {/* Input */}
-        <div className="p-6 border-t border-gray-200 dark:border-slate-700">
-          <div className="flex gap-3 items-end">
+        <div className="p-3 sm:p-4 md:p-6 border-t border-gray-200 dark:border-slate-700 shrink-0">
+          <div className="flex gap-2 sm:gap-3 items-end">
             <textarea
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
               onKeyPress={handleKeyPress}
               placeholder="Ask about pig farming practices..."
-              className="flex-1 resize-none rounded-xl border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-4 py-3 text-sm text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-slate-400 focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-500/20 transition-colors duration-200"
+              className="flex-1 resize-none rounded-lg sm:rounded-xl border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 sm:px-4 sm:py-3 text-sm sm:text-base text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-slate-400 focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-500/20 transition-colors duration-200 min-h-[44px]"
               rows={2}
               disabled={isTyping}
+              style={{ fontSize: "16px" }} // Prevent zoom on iOS
             />
             <button
               onClick={handleSendMessage}
               disabled={!inputText.trim() || isTyping}
-              className="bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 disabled:from-gray-300 disabled:to-gray-400 dark:disabled:from-slate-600 dark:disabled:to-slate-700 text-white rounded-xl px-6 py-3 min-w-[3rem] h-[3.5rem] transition-all duration-200 flex items-center justify-center hover:cursor-pointer disabled:cursor-not-allowed hover:shadow-lg"
+              className="bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 disabled:from-gray-300 disabled:to-gray-400 dark:disabled:from-slate-600 dark:disabled:to-slate-700 text-white rounded-lg sm:rounded-xl px-3 py-2 sm:px-6 sm:py-3 min-w-[44px] h-[44px] sm:min-w-[3rem] sm:h-[3.5rem] transition-all duration-200 flex items-center justify-center hover:cursor-pointer disabled:cursor-not-allowed hover:shadow-lg shrink-0"
             >
-              <Send className="h-5 w-5" />
+              <Send className="h-4 w-4 sm:h-5 sm:w-5" />
             </button>
           </div>
-          <p className="text-xs text-gray-500 dark:text-slate-400 mt-3">
+          <p className="text-xs text-gray-500 dark:text-slate-400 mt-2 sm:mt-3 hidden sm:block">
             Press Enter to send, Shift+Enter for new line
           </p>
         </div>
@@ -544,9 +544,6 @@ export function ChatModal({
                   Relevance:{" "}
                   {Math.round(selectedSource.relevanceScore * 10) / 10}
                 </span>
-                {selectedSource.readCount !== undefined && (
-                  <span>{selectedSource.readCount} reads</span>
-                )}
               </div>
             </div>
 

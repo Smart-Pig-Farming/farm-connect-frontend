@@ -28,6 +28,8 @@
     --chart-4: 43 74% 66%;
     --chart-5: 27 87% 67%;
     --radius: 0.5rem;
+    /* iOS/Android safe area support */
+    --safe-area-bottom: env(safe-area-inset-bottom, 0px);
   }
 
   .dark {
@@ -59,6 +61,19 @@
 }
 
 @layer utilities {
+  /* Safe area helpers used by MobileTabBar and floating elements */
+  .safe-area-pb {
+    padding-bottom: var(--safe-area-bottom);
+  }
+  .h-safe-area-inset-bottom {
+    height: var(--safe-area-bottom);
+  }
+  .pb-safe-area {
+    padding-bottom: calc(var(--safe-area-bottom));
+  }
+  .mb-safe-area {
+    margin-bottom: var(--safe-area-bottom);
+  }
   @keyframes fadeSlideIn {
     0% {
       opacity: 0;
