@@ -106,6 +106,15 @@ export const authApi = baseApi.injectEndpoints({
       providesTags: ["Permission"],
     }),
 
+    // Refresh authentication token
+    refresh: builder.mutation<{ success: boolean; message: string }, void>({
+      query: () => ({
+        url: "/auth/refresh",
+        method: "POST",
+      }),
+      invalidatesTags: ["User"],
+    }),
+
     // First-time account verification
     verifyAccount: builder.mutation<
       AuthResponse,
