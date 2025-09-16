@@ -17,8 +17,7 @@ function computeApiBaseUrl(): string {
   const rawFromImportMeta = (
     import.meta as { env?: Record<string, string | undefined> }
   )?.env?.VITE_API_URL;
-  let raw =
-    rawFromImportMeta ?? (process.env.VITE_API_URL as string | undefined); // Node fallback for tests
+  let raw = rawFromImportMeta; // Use only import.meta.env for Vite
   if (!raw) {
     return "http://localhost:5000/api"; // dev fallback
   }

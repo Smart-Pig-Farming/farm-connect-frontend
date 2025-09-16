@@ -42,7 +42,7 @@ const initialState: UiState = {
   isRegisterModalOpen: false,
   isGlobalLoading: false,
   notifications: [],
-  theme: "dark",
+  theme: "light",
   language: "en",
   postFilters: {
     tags: [],
