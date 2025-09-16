@@ -70,7 +70,10 @@ export function MobileTabBar() {
   };
 
   return (
-    <div className="lg:hidden fixed bottom-0 left-0 right-0 w-full max-w-full bg-white/98 backdrop-blur-xl border-t border-gray-300/50 z-40 shadow-2xl safe-area-pb overflow-x-hidden">
+    <div
+      id="mobile-tabbar"
+      className="lg:hidden fixed bottom-0 left-0 right-0 w-full max-w-full bg-white/98 backdrop-blur-xl border-t border-gray-300/50 z-40 shadow-2xl safe-area-pb overflow-x-hidden"
+    >
       {/* Enhanced gradient overlay for depth - more subtle */}
       <div className="absolute inset-0 bg-gradient-to-t from-white/80 via-white/40 to-transparent pointer-events-none" />
 
