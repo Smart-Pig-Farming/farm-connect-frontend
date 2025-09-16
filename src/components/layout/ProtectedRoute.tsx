@@ -29,6 +29,7 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
       setIsChecking(false);
     } else if (isError) {
       // Authentication failed, clear any stale state
+      console.log("Authentication failed, clearing state and redirecting");
       dispatch(logout());
       setIsChecking(false);
     }

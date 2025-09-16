@@ -1,4 +1,5 @@
 import { baseApi } from "./baseApi";
+import { scoreApi } from "./scoreApi";
 import type { MyStats } from "./scoreApi";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/error";
@@ -152,7 +153,6 @@ export const bestPracticesApi = baseApi.injectEndpoints({
           if (data?.scoring?.awarded_first_read && data.scoring.points_delta) {
             // Update daily stats cache for instant flash (reuse scoreApi pattern)
             try {
-              const { scoreApi } = await import("./scoreApi");
               dispatch(
                 scoreApi.util.updateQueryData(
                   "getMyStats",
