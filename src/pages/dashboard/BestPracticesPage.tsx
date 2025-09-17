@@ -152,7 +152,7 @@ export function BestPracticesPage() {
   }, [mode]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-orange-50/30 dark:from-slate-900 dark:to-slate-800">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-orange-50/30">
       <div className="p-4 md:p-8">
         {/* Hero Header */}
         <div className="max-w-6xl mx-auto">
@@ -161,10 +161,10 @@ export function BestPracticesPage() {
           <>
             {/* Title & Intro */}
             <div className="mb-6 lg:mb-8">
-              <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-slate-900 to-slate-600 dark:from-white dark:to-slate-300 bg-clip-text text-transparent mb-3">
+              <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-slate-900 to-slate-600 bg-clip-text text-transparent mb-3">
                 Best Practices Hub
               </h1>
-              <p className="text-slate-600 dark:text-slate-400 text-lg max-w-2xl">
+              <p className="text-slate-600 text-lg max-w-2xl">
                 Master pig farming with structured guidance across eight core
                 areas. Create content, take quizzes, and track your expertise.
               </p>
@@ -213,8 +213,8 @@ export function BestPracticesPage() {
                       <span
                         className={`text-sm font-medium transition-colors duration-300 ${
                           mode === "learn"
-                            ? "text-orange-600 dark:text-orange-400"
-                            : "text-slate-400 dark:text-slate-500"
+                            ? "text-orange-600"
+                            : "text-slate-400"
                         }`}
                       >
                         Learn
@@ -223,7 +223,7 @@ export function BestPracticesPage() {
                         onClick={() => {
                           setMode(mode === "learn" ? "quiz" : "learn");
                         }}
-                        className="relative w-14 h-8 bg-slate-200 dark:bg-slate-700 rounded-full transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
+                        className="relative w-14 h-8 bg-slate-200 rounded-full transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
                       >
                         <div
                           className={`absolute top-1 w-6 h-6 bg-gradient-to-r from-orange-500 to-orange-600 rounded-full shadow-lg transition-all duration-300 transform ${
@@ -235,9 +235,7 @@ export function BestPracticesPage() {
                       </button>
                       <span
                         className={`text-sm font-medium transition-colors duration-300 ${
-                          mode === "quiz"
-                            ? "text-orange-600 dark:text-orange-400"
-                            : "text-slate-400 dark:text-slate-500"
+                          mode === "quiz" ? "text-orange-600" : "text-slate-400"
                         }`}
                       >
                         Quiz
@@ -247,7 +245,7 @@ export function BestPracticesPage() {
 
                   {/* Desktop Toggle */}
                   <div className="hidden sm:block">
-                    <div className="relative bg-white dark:bg-slate-800 rounded-2xl p-1 shadow-lg ring-1 ring-slate-200 dark:ring-slate-700">
+                    <div className="relative bg-white rounded-2xl p-1 shadow-lg ring-1 ring-slate-200">
                       <div className="flex">
                         <button
                           onClick={() => {
@@ -256,7 +254,7 @@ export function BestPracticesPage() {
                           className={`relative px-6 py-3 rounded-xl text-sm font-medium transition-all duration-300 hover:cursor-pointer ${
                             mode === "learn"
                               ? "bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-lg shadow-orange-500/25 transform scale-105"
-                              : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50"
+                              : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
                           }`}
                         >
                           Learn
@@ -268,7 +266,7 @@ export function BestPracticesPage() {
                           className={`relative px-6 py-3 rounded-xl text-sm font-medium transition-all duration-300 hover:cursor-pointer ${
                             mode === "quiz"
                               ? "bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-lg shadow-orange-500/25 transform scale-105"
-                              : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50"
+                              : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
                           }`}
                         >
                           Quiz
