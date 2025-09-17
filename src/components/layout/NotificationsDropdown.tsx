@@ -155,12 +155,13 @@ export default function NotificationsDropdown() {
     },
     {
       autoConnect: true,
-      // Ensure we connect to the backend Socket.IO server (not Vite dev origin)
+      // Ensure we connect to the backend Socket.IO server (prefer same-origin in prod)
       serverUrl:
         (import.meta as unknown as { env?: Record<string, string> }).env
           ?.VITE_WS_URL ||
         (import.meta as unknown as { env?: Record<string, string> }).env
           ?.VITE_API_URL ||
+        (typeof window !== "undefined" ? window.location.origin : undefined) ||
         "http://localhost:5000",
     }
   );
