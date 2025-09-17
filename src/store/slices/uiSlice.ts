@@ -20,8 +20,7 @@ interface UiState {
     duration?: number;
   }>;
 
-  // Theme and preferences
-  theme: "light" | "dark";
+  // Preferences
   language: "en" | "rw";
 
   // Filter states for lists
@@ -42,7 +41,6 @@ const initialState: UiState = {
   isRegisterModalOpen: false,
   isGlobalLoading: false,
   notifications: [],
-  theme: "light",
   language: "en",
   postFilters: {
     tags: [],
@@ -117,15 +115,6 @@ const uiSlice = createSlice({
       state.notifications = [];
     },
 
-    // Theme actions
-    setTheme: (state, action: PayloadAction<"light" | "dark">) => {
-      state.theme = action.payload;
-    },
-
-    toggleTheme: (state) => {
-      state.theme = state.theme === "light" ? "dark" : "light";
-    },
-
     // Language actions
     setLanguage: (state, action: PayloadAction<"en" | "rw">) => {
       state.language = action.payload;
@@ -167,8 +156,6 @@ export const {
   addNotification,
   removeNotification,
   clearAllNotifications,
-  setTheme,
-  toggleTheme,
   setLanguage,
   setPostFilters,
   resetPostFilters,

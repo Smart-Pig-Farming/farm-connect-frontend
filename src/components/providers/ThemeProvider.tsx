@@ -1,26 +1,25 @@
 import { useEffect } from "react";
-import { useSelector } from "react-redux";
-import type { RootState } from "@/store";
 
 /**
- * ThemeProvider component that applies the current theme to the document
- * This ensures the dark mode classes work properly across the application
+ * ThemeProvider component that forces light theme across the entire application
+ * Dark mode is disabled to maintain consistent light theme appearance
  */
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const theme = useSelector((state: RootState) => state.ui.theme);
-
   useEffect(() => {
     const root = document.documentElement;
 
-    // Remove existing theme classes
+    // Remove any existing theme classes
     root.classList.remove("light", "dark");
 
-    // Add the current theme class
-    root.classList.add(theme);
+    // Always force light theme
+    root.classList.add("light");
 
-    // Also update the data attribute for CSS targeting if needed
-    root.setAttribute("data-theme", theme);
-  }, [theme]);
+    // Set data attribute for light theme
+    root.setAttribute("data-theme", "light");
+
+    // Set color scheme for browser UI elements
+    root.style.colorScheme = "light";
+  }, []);
 
   return <>{children}</>;
 }
