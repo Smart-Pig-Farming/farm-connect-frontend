@@ -27,55 +27,55 @@ const COLOR_GRADIENTS: Record<
     icon: "bg-gradient-to-br from-amber-500 to-amber-600",
     hoverIcon: "group-hover:from-amber-600 group-hover:to-amber-700",
     hoverBg: "from-amber-500/8 via-amber-500/4 to-amber-600/8",
-    textHover: "group-hover:text-amber-600 dark:group-hover:text-amber-400",
+    textHover: "group-hover:text-amber-600",
   },
   red: {
     icon: "bg-gradient-to-br from-red-500 to-red-600",
     hoverIcon: "group-hover:from-red-600 group-hover:to-rose-600",
     hoverBg: "from-red-500/8 via-red-500/4 to-rose-500/8",
-    textHover: "group-hover:text-red-600 dark:group-hover:text-red-400",
+    textHover: "group-hover:text-red-600",
   },
   teal: {
     icon: "bg-gradient-to-br from-teal-500 to-teal-600",
     hoverIcon: "group-hover:from-teal-600 group-hover:to-cyan-600",
     hoverBg: "from-teal-500/8 via-teal-500/4 to-cyan-500/8",
-    textHover: "group-hover:text-teal-600 dark:group-hover:text-teal-400",
+    textHover: "group-hover:text-teal-600",
   },
   green: {
     icon: "bg-gradient-to-br from-green-500 to-emerald-600",
     hoverIcon: "group-hover:from-green-600 group-hover:to-emerald-700",
     hoverBg: "from-green-500/8 via-green-500/4 to-emerald-500/8",
-    textHover: "group-hover:text-green-600 dark:group-hover:text-emerald-400",
+    textHover: "group-hover:text-green-600",
   },
   indigo: {
     icon: "bg-gradient-to-br from-indigo-500 to-indigo-600",
     hoverIcon: "group-hover:from-indigo-600 group-hover:to-violet-600",
     hoverBg: "from-indigo-500/8 via-indigo-500/4 to-violet-500/8",
-    textHover: "group-hover:text-indigo-600 dark:group-hover:text-indigo-400",
+    textHover: "group-hover:text-indigo-600",
   },
   pink: {
     icon: "bg-gradient-to-br from-pink-500 to-rose-500",
     hoverIcon: "group-hover:from-pink-600 group-hover:to-rose-600",
     hoverBg: "from-pink-500/8 via-pink-500/4 to-rose-500/8",
-    textHover: "group-hover:text-pink-600 dark:group-hover:text-pink-400",
+    textHover: "group-hover:text-pink-600",
   },
   blue: {
     icon: "bg-gradient-to-br from-blue-500 to-blue-600",
     hoverIcon: "group-hover:from-blue-600 group-hover:to-indigo-600",
     hoverBg: "from-blue-500/8 via-blue-500/4 to-indigo-500/8",
-    textHover: "group-hover:text-blue-600 dark:group-hover:text-blue-400",
+    textHover: "group-hover:text-blue-600",
   },
   purple: {
     icon: "bg-gradient-to-br from-purple-500 to-fuchsia-600",
     hoverIcon: "group-hover:from-purple-600 group-hover:to-fuchsia-600",
     hoverBg: "from-purple-500/8 via-purple-500/4 to-fuchsia-500/8",
-    textHover: "group-hover:text-purple-600 dark:group-hover:text-fuchsia-400",
+    textHover: "group-hover:text-purple-600",
   },
   default: {
     icon: "bg-gradient-to-br from-orange-500 to-orange-600",
     hoverIcon: "group-hover:from-orange-600 group-hover:to-red-500",
     hoverBg: "from-orange-500/8 via-orange-500/4 to-red-500/8",
-    textHover: "group-hover:text-orange-600 dark:group-hover:text-orange-400",
+    textHover: "group-hover:text-orange-600",
   },
 };
 
@@ -130,7 +130,7 @@ export const CategoryGrid: FC<CategoryGridProps> = ({
           if (loadingTagStats)
             return (
               <span className="inline-flex items-center gap-1">
-                <span className="w-3 h-3 rounded-full bg-slate-300 dark:bg-slate-600 animate-pulse" />
+                <span className="w-3 h-3 rounded-full bg-slate-300 animate-pulse" />
                 <span>Loading…</span>
               </span>
             );
@@ -157,7 +157,7 @@ export const CategoryGrid: FC<CategoryGridProps> = ({
           <button
             key={c.key}
             onClick={() => onSelect(c)}
-            className="group relative bg-white dark:bg-slate-800 rounded-3xl p-6 shadow-lg shadow-slate-200/50 dark:shadow-slate-900/50 hover:shadow-2xl transition-all duration-300 hover:scale-[1.02] ring-1 ring-slate-200 dark:ring-slate-700 focus:outline-none focus:ring-2 focus:ring-offset-2 text-left hover:cursor-pointer"
+            className="group relative bg-white rounded-3xl p-6 shadow-lg shadow-slate-200/50 hover:shadow-2xl transition-all duration-300 hover:scale-[1.02] ring-1 ring-slate-200 focus:outline-none focus:ring-2 focus:ring-offset-2 text-left hover:cursor-pointer"
           >
             {/* Icon with gradient background */}
             <div className="relative mb-4">
@@ -171,11 +171,11 @@ export const CategoryGrid: FC<CategoryGridProps> = ({
             {/* Content */}
             <div className="space-y-3">
               <h3
-                className={`font-semibold text-slate-900 dark:text-white text-lg line-clamp-2 transition-colors duration-300 ${grad.textHover}`}
+                className={`font-semibold text-slate-900 text-lg line-clamp-2 transition-colors duration-300 ${grad.textHover}`}
               >
                 {c.name}
               </h3>
-              <p className="text-sm text-slate-500 dark:text-slate-400 line-clamp-2">
+              <p className="text-sm text-slate-500 line-clamp-2">
                 {mode === "learn"
                   ? "Explore best practices and guidance"
                   : "Test your knowledge with quizzes"}
@@ -183,7 +183,7 @@ export const CategoryGrid: FC<CategoryGridProps> = ({
 
               {/* Stats and arrow */}
               <div className="flex items-center justify-between pt-2">
-                <span className="text-xs text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded-full transition-all duration-300 group-hover:ring-1 group-hover:ring-inset group-hover:ring-current min-w-[72px] text-center">
+                <span className="text-xs text-slate-500 bg-slate-100 px-2 py-1 rounded-full transition-all duration-300 group-hover:ring-1 group-hover:ring-inset group-hover:ring-current min-w-[72px] text-center">
                   {quizCountContent}
                 </span>
                 <div
