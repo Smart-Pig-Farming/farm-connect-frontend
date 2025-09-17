@@ -224,27 +224,27 @@ export function ChatModal({
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-2 sm:p-4 pb-20 sm:pb-4">
-      <div className="bg-white dark:bg-slate-800 rounded-lg sm:rounded-2xl shadow-2xl w-full max-w-sm sm:max-w-md md:max-w-lg h-[85vh] sm:h-[85vh] md:h-[600px] flex flex-col max-h-[600px] mt-auto sm:mt-0 mb-4 sm:mb-0">
+      <div className="bg-white rounded-lg sm:rounded-2xl shadow-2xl w-full max-w-sm sm:max-w-md md:max-w-lg h-[85vh] sm:h-[85vh] md:h-[600px] flex flex-col max-h-[600px] mt-auto sm:mt-0 mb-4 sm:mb-0">
         {/* Header */}
-        <div className="flex items-center justify-between p-4 sm:p-6 border-b border-gray-200 dark:border-slate-700 shrink-0">
+        <div className="flex items-center justify-between p-4 sm:p-6 border-b border-gray-200 shrink-0">
           <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-r from-orange-500 to-red-500 rounded-full flex items-center justify-center shrink-0">
               <MessageCircle className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
             </div>
             <div className="min-w-0">
-              <h2 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white truncate">
+              <h2 className="text-base sm:text-lg font-semibold text-gray-900 truncate">
                 Farm Assistant
               </h2>
-              <p className="text-xs sm:text-sm text-gray-600 dark:text-slate-400 hidden sm:block">
+              <p className="text-xs sm:text-sm text-gray-600 hidden sm:block">
                 Ask about best practices
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 sm:p-2 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-full transition-colors duration-200 hover:cursor-pointer shrink-0"
+            className="p-1.5 sm:p-2 hover:bg-gray-100 rounded-full transition-colors duration-200 hover:cursor-pointer shrink-0"
           >
-            <X className="h-4 w-4 sm:h-5 sm:w-5 text-gray-500 dark:text-slate-400" />
+            <X className="h-4 w-4 sm:h-5 sm:w-5 text-gray-500" />
           </button>
         </div>
 
@@ -254,9 +254,7 @@ export function ChatModal({
             <div className="flex items-center justify-center h-full">
               <div className="text-center">
                 <div className="animate-spin w-6 h-6 sm:w-8 sm:h-8 border-2 sm:border-4 border-orange-500 border-t-transparent rounded-full mx-auto mb-2"></div>
-                <p className="text-sm sm:text-base text-gray-500 dark:text-slate-400">
-                  Loading...
-                </p>
+                <p className="text-sm sm:text-base text-gray-500">Loading...</p>
               </div>
             </div>
           ) : (
@@ -277,27 +275,25 @@ export function ChatModal({
                     className={`max-w-[90%] sm:max-w-[85%] rounded-lg sm:rounded-xl md:rounded-2xl px-3 py-2 sm:px-4 sm:py-3 text-sm sm:text-base ${
                       message.isUser
                         ? "bg-gradient-to-r from-orange-500 to-red-500 text-white"
-                        : "bg-gray-100 dark:bg-slate-700 text-gray-900 dark:text-white"
+                        : "bg-gray-100 text-gray-900"
                     }`}
                   >
                     <MessageText
                       text={message.text}
                       className={
-                        message.isUser
-                          ? "text-white"
-                          : "text-gray-900 dark:text-white"
+                        message.isUser ? "text-white" : "text-gray-900"
                       }
                     />
                     {message.context && message.context.sources.length > 0 && (
-                      <div className="mt-2 pt-2 border-t border-gray-200 dark:border-slate-600">
+                      <div className="mt-2 pt-2 border-t border-gray-200">
                         <div className="flex items-center justify-between mb-1">
-                          <p className="text-xs text-gray-600 dark:text-slate-400">
+                          <p className="text-xs text-gray-600">
                             Sources ({message.context.totalSources}):
                           </p>
                           {message.context.sources.length > 2 && (
                             <button
                               onClick={() => toggleSourceExpansion(message.id)}
-                              className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 flex items-center gap-1 transition-colors hover:cursor-pointer"
+                              className="text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1 transition-colors hover:cursor-pointer"
                             >
                               {expandedSources.has(message.id) ? (
                                 <>
@@ -318,16 +314,16 @@ export function ChatModal({
                           ).map((source) => (
                             <div
                               key={source.id}
-                              className="bg-gray-50 dark:bg-slate-600/50 rounded-lg p-3 border border-gray-200 dark:border-slate-600 hover:bg-gray-100 dark:hover:bg-slate-600/70 transition-colors"
+                              className="bg-gray-50 rounded-lg p-3 border border-gray-200 hover:bg-gray-100 transition-colors"
                             >
                               <div className="flex items-start justify-between gap-2">
                                 <div className="flex-1 min-w-0">
-                                  <p className="text-xs font-medium text-gray-700 dark:text-slate-300 mb-1">
+                                  <p className="text-xs font-medium text-gray-700 mb-1">
                                     {source.title}
                                   </p>
                                   {source.description && (
                                     <p
-                                      className="text-xs text-gray-600 dark:text-slate-400 mb-2 overflow-hidden"
+                                      className="text-xs text-gray-600 mb-2 overflow-hidden"
                                       style={{
                                         display: "-webkit-box",
                                         WebkitLineClamp: 2,
@@ -352,13 +348,13 @@ export function ChatModal({
                                               .map((category) => (
                                                 <span
                                                   key={category}
-                                                  className="inline-block px-1.5 py-0.5 text-xs bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400 rounded-md"
+                                                  className="inline-block px-1.5 py-0.5 text-xs bg-orange-100 text-orange-700 rounded-md"
                                                 >
                                                   {formatCategoryName(category)}
                                                 </span>
                                               ))}
                                             {source.categories.length > 2 && (
-                                              <span className="text-xs text-gray-500 dark:text-slate-400">
+                                              <span className="text-xs text-gray-500">
                                                 +{source.categories.length - 2}{" "}
                                                 more
                                               </span>
@@ -366,7 +362,7 @@ export function ChatModal({
                                           </div>
                                         )}
                                       {source.relevanceScore > 5 && (
-                                        <span className="inline-block px-1.5 py-0.5 text-xs bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-md">
+                                        <span className="inline-block px-1.5 py-0.5 text-xs bg-green-100 text-green-700 rounded-md">
                                           High match
                                         </span>
                                       )}
@@ -377,7 +373,7 @@ export function ChatModal({
                                   onClick={() => {
                                     setSelectedSource(source);
                                   }}
-                                  className="flex-shrink-0 p-1 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors rounded mr-1 hover:cursor-pointer"
+                                  className="flex-shrink-0 p-1 text-gray-400 hover:text-blue-600 transition-colors rounded mr-1 hover:cursor-pointer"
                                   title="View source details"
                                 >
                                   <MessageCircle className="h-3 w-3" />
@@ -390,7 +386,7 @@ export function ChatModal({
                                     );
                                     onClose(); // Close the chat modal
                                   }}
-                                  className="flex-shrink-0 p-1 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors rounded hover:cursor-pointer"
+                                  className="flex-shrink-0 p-1 text-gray-400 hover:text-blue-600 transition-colors rounded hover:cursor-pointer"
                                   title="View full best practice"
                                 >
                                   <ExternalLink className="h-3 w-3" />
@@ -400,7 +396,7 @@ export function ChatModal({
                           ))}
                           {!expandedSources.has(message.id) &&
                             message.context.totalSources > 2 && (
-                              <p className="text-xs text-gray-500 dark:text-slate-500 italic">
+                              <p className="text-xs text-gray-500 italic">
                                 ... and {message.context.totalSources - 2} more
                                 sources
                               </p>
@@ -410,9 +406,7 @@ export function ChatModal({
                     )}
                     <span
                       className={`text-xs mt-2 block ${
-                        message.isUser
-                          ? "text-orange-100"
-                          : "text-gray-500 dark:text-slate-400"
+                        message.isUser ? "text-orange-100" : "text-gray-500"
                       }`}
                     >
                       {message.timestamp.toLocaleTimeString([], {
@@ -433,15 +427,15 @@ export function ChatModal({
                   <div className="w-6 h-6 sm:w-8 sm:h-8 bg-gradient-to-r from-orange-500 to-red-500 rounded-full flex items-center justify-center flex-shrink-0">
                     <Bot className="h-3 w-3 sm:h-4 sm:w-4 text-white" />
                   </div>
-                  <div className="bg-gray-100 dark:bg-slate-700 rounded-lg sm:rounded-xl md:rounded-2xl px-3 py-2 sm:px-4 sm:py-3">
+                  <div className="bg-gray-100 rounded-lg sm:rounded-xl md:rounded-2xl px-3 py-2 sm:px-4 sm:py-3">
                     <div className="flex space-x-1">
-                      <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-gray-400 dark:bg-slate-500 rounded-full animate-bounce"></div>
+                      <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-gray-400 rounded-full animate-bounce"></div>
                       <div
-                        className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-gray-400 dark:bg-slate-500 rounded-full animate-bounce"
+                        className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-gray-400 rounded-full animate-bounce"
                         style={{ animationDelay: "0.1s" }}
                       ></div>
                       <div
-                        className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-gray-400 dark:bg-slate-500 rounded-full animate-bounce"
+                        className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-gray-400 rounded-full animate-bounce"
                         style={{ animationDelay: "0.2s" }}
                       ></div>
                     </div>
@@ -452,11 +446,9 @@ export function ChatModal({
           )}
 
           {error && (
-            <div className="flex items-center gap-2 p-2 sm:p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+            <div className="flex items-center gap-2 p-2 sm:p-3 bg-red-50 border border-red-200 rounded-lg">
               <AlertCircle className="h-3 w-3 sm:h-4 sm:w-4 text-red-500 shrink-0" />
-              <p className="text-xs sm:text-sm text-red-700 dark:text-red-400">
-                {error}
-              </p>
+              <p className="text-xs sm:text-sm text-red-700">{error}</p>
             </div>
           )}
 
@@ -465,14 +457,14 @@ export function ChatModal({
         </div>
 
         {/* Input */}
-        <div className="p-3 sm:p-4 md:p-6 border-t border-gray-200 dark:border-slate-700 shrink-0">
+        <div className="p-3 sm:p-4 md:p-6 border-t border-gray-200 shrink-0">
           <div className="flex gap-2 sm:gap-3 items-end">
             <textarea
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
               onKeyPress={handleKeyPress}
               placeholder="Ask about pig farming practices..."
-              className="flex-1 resize-none rounded-lg sm:rounded-xl border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 sm:px-4 sm:py-3 text-sm sm:text-base text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-slate-400 focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-500/20 transition-colors duration-200 min-h-[44px]"
+              className="flex-1 resize-none rounded-lg sm:rounded-xl border border-gray-300 bg-white px-3 py-2 sm:px-4 sm:py-3 text-sm sm:text-base text-gray-900 placeholder-gray-500 focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-500/20 transition-colors duration-200 min-h-[44px]"
               rows={2}
               disabled={isTyping}
               style={{ fontSize: "16px" }} // Prevent zoom on iOS
@@ -480,12 +472,12 @@ export function ChatModal({
             <button
               onClick={handleSendMessage}
               disabled={!inputText.trim() || isTyping}
-              className="bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 disabled:from-gray-300 disabled:to-gray-400 dark:disabled:from-slate-600 dark:disabled:to-slate-700 text-white rounded-lg sm:rounded-xl px-3 py-2 sm:px-6 sm:py-3 min-w-[44px] h-[44px] sm:min-w-[3rem] sm:h-[3.5rem] transition-all duration-200 flex items-center justify-center hover:cursor-pointer disabled:cursor-not-allowed hover:shadow-lg shrink-0"
+              className="bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 disabled:from-gray-300 disabled:to-gray-400 text-white rounded-lg sm:rounded-xl px-3 py-2 sm:px-6 sm:py-3 min-w-[44px] h-[44px] sm:min-w-[3rem] sm:h-[3.5rem] transition-all duration-200 flex items-center justify-center hover:cursor-pointer disabled:cursor-not-allowed hover:shadow-lg shrink-0"
             >
               <Send className="h-4 w-4 sm:h-5 sm:w-5" />
             </button>
           </div>
-          <p className="text-xs text-gray-500 dark:text-slate-400 mt-2 sm:mt-3 hidden sm:block">
+          <p className="text-xs text-gray-500 mt-2 sm:mt-3 hidden sm:block">
             Press Enter to send, Shift+Enter for new line
           </p>
         </div>
@@ -494,28 +486,28 @@ export function ChatModal({
       {/* Source Detail Modal */}
       {selectedSource && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-60 p-4">
-          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-md max-h-[80vh] overflow-hidden">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[80vh] overflow-hidden">
             {/* Header */}
-            <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-slate-700">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+            <div className="flex items-center justify-between p-4 border-b border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-900">
                 Source Details
               </h3>
               <button
                 onClick={() => setSelectedSource(null)}
-                className="p-2 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-full transition-colors hover:cursor-pointer"
+                className="p-2 hover:bg-gray-100 rounded-full transition-colors hover:cursor-pointer"
               >
-                <X className="h-4 w-4 text-gray-500 dark:text-slate-400" />
+                <X className="h-4 w-4 text-gray-500" />
               </button>
             </div>
 
             {/* Content */}
             <div className="p-4 overflow-y-auto">
-              <h4 className="font-medium text-gray-900 dark:text-white mb-2">
+              <h4 className="font-medium text-gray-900 mb-2">
                 {selectedSource.title}
               </h4>
 
               {selectedSource.description && (
-                <p className="text-sm text-gray-600 dark:text-slate-400 mb-4">
+                <p className="text-sm text-gray-600 mb-4">
                   {selectedSource.description}
                 </p>
               )}
@@ -523,14 +515,14 @@ export function ChatModal({
               {selectedSource.categories &&
                 selectedSource.categories.length > 0 && (
                   <div className="mb-4">
-                    <p className="text-xs font-medium text-gray-700 dark:text-slate-300 mb-2">
+                    <p className="text-xs font-medium text-gray-700 mb-2">
                       Categories:
                     </p>
                     <div className="flex flex-wrap gap-2">
                       {selectedSource.categories.map((category) => (
                         <span
                           key={category}
-                          className="inline-block px-2 py-1 text-xs bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400 rounded-md"
+                          className="inline-block px-2 py-1 text-xs bg-orange-100 text-orange-700 rounded-md"
                         >
                           {formatCategoryName(category)}
                         </span>
@@ -539,7 +531,7 @@ export function ChatModal({
                   </div>
                 )}
 
-              <div className="flex items-center justify-between text-xs text-gray-500 dark:text-slate-400 mb-4">
+              <div className="flex items-center justify-between text-xs text-gray-500 mb-4">
                 <span>
                   Relevance:{" "}
                   {Math.round(selectedSource.relevanceScore * 10) / 10}
@@ -548,7 +540,7 @@ export function ChatModal({
             </div>
 
             {/* Footer */}
-            <div className="p-4 border-t border-gray-200 dark:border-slate-700 flex gap-2">
+            <div className="p-4 border-t border-gray-200 flex gap-2">
               <button
                 onClick={() => {
                   navigate(`/dashboard/best-practices/${selectedSource.id}`);
@@ -562,7 +554,7 @@ export function ChatModal({
               </button>
               <button
                 onClick={() => setSelectedSource(null)}
-                className="px-4 py-2 text-sm text-gray-600 dark:text-slate-400 hover:text-gray-800 dark:hover:text-slate-200 transition-colors hover:cursor-pointer"
+                className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 transition-colors hover:cursor-pointer"
               >
                 Close
               </button>
