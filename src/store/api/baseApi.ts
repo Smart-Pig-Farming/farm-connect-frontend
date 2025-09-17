@@ -10,7 +10,7 @@ import type {
 //  - Use VITE_API_URL if provided.
 //  - If VITE_API_URL already ends with /api (case-insensitive), don't append again.
 //  - Strip trailing slashes before appending.
-//  - If no env provided, fallback to localhost dev server.
+//  - If no env provided, prefer same-origin "/api" at runtime to avoid baking localhost in prod.
 //  - Support relative usage by setting VITE_API_URL="" (results in "/api").
 function computeApiBaseUrl(): string {
   // Vite exposes env vars on import.meta.env at build time (typed as any in generated d.ts)
@@ -19,7 +19,11 @@ function computeApiBaseUrl(): string {
   )?.env?.VITE_API_URL;
   let raw = rawFromImportMeta; // Use only import.meta.env for Vite
   if (!raw) {
-    return "http://localhost:5000/api"; // dev fallback
+    // In production builds where env isn't set, default to same-origin.
+    // This prevents bundling a hardcoded localhost URL into the dist.
+    if (typeof window !== "undefined") return "/api";
+    // Non-browser contexts (tests, SSR) can use localhost as a last resort
+    return "http://localhost:5000/api";
   }
   raw = raw.trim();
   if (raw === "" || raw === "/") return "/api"; // relative same-origin

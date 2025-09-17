@@ -500,7 +500,9 @@ export function RepliesSection({
   // WebSocket setup: listen to reply:create when expanded
   const serverUrl =
     (import.meta as unknown as { env?: { VITE_API_URL?: string } }).env
-      ?.VITE_API_URL || "http://localhost:5000";
+      ?.VITE_API_URL ||
+    (typeof window !== "undefined" ? window.location.origin : undefined) ||
+    "http://localhost:5000";
   interface ReplyVoteWsPayload {
     replyId: string;
     postId: string;
